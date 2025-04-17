@@ -1,5 +1,3 @@
-
-// components/ui/TypedText.jsx
 "use client";
 
 import { TypeAnimation } from 'react-type-animation';

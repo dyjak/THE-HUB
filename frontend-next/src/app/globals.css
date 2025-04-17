@@ -3,6 +3,23 @@
 @tailwind utilities;
 
 body {
-    background: radial-gradient(circle, rgba(10,10,25,1) 0%, rgba(2,0,36,1) 100%);
+    background: radial-gradient(circle, rgba(10,10,25,1) 0%, rgb(161, 66, 224) 100%);
     color: white;
+}
+
+
+.shade {
+    background-color: #00254f;
+    position: relative;
+}
+
+.shade::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    box-shadow: 0px 0px 30px 20px #00254f;
+    z-index: -1; /* Places shadow behind the element */
 }

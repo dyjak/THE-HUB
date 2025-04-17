@@ -1,52 +1,63 @@
+// pages/index.js or app/page.js
 "use client";
 
-import { motion } from "framer-motion";
-import Link from "next/link";
-import Typewriter from "react-typewriter-effect";
+import { FaBeer, FaLock, FaHome } from "react-icons/fa";
+
+import AnimatedHeading from '../components/ui/AnimatedHeading';
+import TypedText from '../components/ui/TypedText';
+import AnimatedCard from "@/components/ui/AnimatedCard";
 
 const apps = [
-    { name: "App 1", path: "/app1" },
-    { name: "App 2", path: "/app2" },
-    { name: "AIR", path: "/air" },
+    { name: "AIR 4.2", path: "/air" },
+    { name: <FaLock/>, path: "/app1" },
+    { name: <FaLock/>, path: "/app2" },
+];
+
+const typeSequences = [
+    'Hello my dear amigo',
+    1000,
+    'Welcome my respectfully brother',
+    1000,
+    'Welcome my respectfully sister',
+    1000,
+    'Hello my dear friend… ',
+    1000,
+    '...or should I say frienemy? XD',
+    1000,
+    'What about ... ',
+    1000,
+    'What about some coffe?',
+    1000,
+    '... or maybe some beer?',
+    1000,
+    'Listen to this…',
+    1000,
+    'I asked my AI to write a joke.',
+    1000,
+    'It replied: "Error: Humor not found."',
+    3000,
+    'You caught?',
+    99999999,
 ];
 
 export default function Home() {
     return (
-        <main className="relative flex flex-col items-center justify-center min-h-screen bg-transparent text-white">
+        <main className="w-full relative flex flex-col items-center justify-center min-h-screen bg-transparent text-white">
 
-            <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
-                <div className="p-9 border border-gray-500 rounded-xl text-center text-xl font-semibold hover:scale-105 hover:bg-gray-800 transition">
-                    <Link href={"/login"}>LOGIN</Link>
-                </div>
+            <div className="w-full relative p-16 flex flex-col items-center justify-center h-max bg-transparent text-white">
+                <TypedText sequences={typeSequences}/>
             </div>
 
-            <motion.h1
-                className="text-5xl font-bold mb-10"
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8 }}
-            >
-                🚀 <Typewriter text="Welcome my dear friend :)" />
-            </motion.h1>
+            <div className="w-full shade pt-10 pb-10 bg-black flex justify-around items-center relative z-10">
+                <AnimatedCard path={"/air"} name={"AIR 4.2"} index={0}> </AnimatedCard>
+                <AnimatedCard path={"/air"} name={<FaLock/> } index={1}> </AnimatedCard>
+                <AnimatedCard path={"/air"} name={<FaLock/>} index={2}> </AnimatedCard>
+                <AnimatedCard path={"/air"} name={<FaLock/>} index={3}> </AnimatedCard>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {apps.map((app, index) => (
-                    <motion.div
-                        key={app.path}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.5, delay: index * 0.2 }}
-                    >
-                        <Link href={app.path}>
-                            <div className="p-6 border border-gray-500 rounded-xl text-center text-xl font-semibold hover:scale-105 hover:bg-gray-800 transition">
-                                {app.name}
-                            </div>
-                        </Link>
-                    </motion.div>
-                ))}
             </div>
 
-            <div className="text-red-500 text-2xl font-bold mt-10">Test Tailwind</div>
+
+            <div className="text-red-500 text-2xl font-bold mt-10">Tailwind</div>
 
         </main>
     );
