@@ -1,2 +1,6 @@
 bcrypt
 uvicorn[standard]
+fastapi
+sqlalchemy
+pydantic
+typing
