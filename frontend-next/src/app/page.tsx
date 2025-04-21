@@ -42,9 +42,9 @@ const typeSequences = [
 
 export default function Home() {
     return (
-        <main className="w-full relative flex flex-col items-center justify-center min-h-screen bg-transparent text-white">
+        <main className="w-full h-full relative flex flex-col items-center justify-center min-h-screen bg-transparent text-white">
 
-            <div className="w-full relative p-16 flex flex-col items-center justify-center h-max bg-transparent text-white">
+            <div className="w-90 relative m-0 p-16 flex flex-col items-center justify-center h-max bg-transparent text-white">
                 <TypedText sequences={typeSequences}/>
             </div>
 

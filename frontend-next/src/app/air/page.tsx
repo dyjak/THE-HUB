@@ -5,7 +5,8 @@ import { FaPlay, FaStop, FaPause, FaDownload, FaSlidersH, FaMusic, FaMoon } from
 import AnimatedHeading from '../../components/ui/AnimatedHeading';
 import TypedText from '../../components/ui/TypedText';
 import AnimatedCard from "../../components/ui/AnimatedCard";
-import './air-style.css'
+import './air-style.css';
+import '../globals.css';
 
 export default function AirPanel() {
     const [activeTab, setActiveTab] = useState("generator");
@@ -58,10 +59,6 @@ export default function AirPanel() {
             {/* Cosmic background with animated elements */}
             <div className="absolute inset-0 overflow-hidden">
                 <div className="cosmic-bg absolute inset-0 bg-gradient-to-br from-purple-900 via-black to-blue-900"></div>
-                <div className="stars absolute inset-0"></div>
-                <div className="planet-ring absolute top-1/4 -right-60 w-96 h-96 border-4 border-blue-300 rounded-full opacity-30 transform rotate-45"></div>
-                <div className="planet-large absolute -bottom-20 -left-20 w-64 h-64 rounded-full bg-gradient-to-br from-blue-400 via-blue-600 to-purple-800"></div>
-                <div className="nebula absolute top-0 left-0 w-full h-full bg-gradient-radial from-purple-500/10 to-transparent"></div>
             </div>
 
             {/* Content container */}
