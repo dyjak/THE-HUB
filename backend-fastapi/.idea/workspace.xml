@@ -5,14 +5,14 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ae83bda2-4f2e-4883-87bb-19df83dc3887" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/../frontend-next/src/app/air/air-style.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../frontend-next/src/app/air/page.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/users.db" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/auth.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/auth.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/seeder.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/seeder.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/venv/Lib/site-packages/pydantic_core/_pydantic_core.cp312-win_amd64.pyd" beforeDir="false" afterPath="$PROJECT_DIR$/venv/Lib/site-packages/pydantic_core/_pydantic_core.cp312-win_amd64.pyd" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/venv/Scripts/uvicorn.exe" beforeDir="false" afterPath="$PROJECT_DIR$/venv/Scripts/uvicorn.exe" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../frontend-next/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../frontend-next/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../frontend-next/src/app/api/auth/[...nextauth]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../frontend-next/src/app/api/auth/[...nextauth]/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../frontend-next/src/app/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/../frontend-next/src/app/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../frontend-next/src/app/login/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/../frontend-next/src/app/login/page.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

@@ -127,16 +127,20 @@ export default function LoginPage() {
     const isPinComplete = pin.every(digit => digit !== '');
 
     return (
-        <main className="w-full relative flex flex-col items-center justify-center min-h-screen bg-transparent text-white">
+        <main className="relative flex flex-col items-center justify-center min-h-screen bg-transparent text-white">
             <motion.div
                 className="w-full max-w-md p-8 border border-gray-500 rounded-xl bg-gray-900/80"
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
             >
+                <div className="text-center mb-8">
+                    <h1 className="text-5xl font-bold mb-2">🚀</h1>
+                    <h2 className="text-2xl font-semibold">Panel logowania</h2>
+                </div>
 
-                <div className="mb-12">
-                    <label className="block text-center text-s font-medium mb-4">
+                <div className="mb-8">
+                    <label className="block text-center text-lg font-medium mb-4">
                         Wprowadź 6-cyfrowy PIN
                     </label>
 
@@ -147,7 +151,7 @@ export default function LoginPage() {
                                 key={index}
                                 ref={el => inputRefs.current[index] = el}
                                 type="password"
-                                className={`w-9 h-12 text-center text-2xl bg-gray-800 border ${
+                                className={`w-12 h-16 text-center text-2xl bg-gray-800 border ${
                                     activeIndex === index ? 'border-blue-500' : 'border-gray-600'
                                 } rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500`}
                                 maxLength={1}
@@ -162,32 +166,32 @@ export default function LoginPage() {
                     </div>
 
                     {/* Panel numeryczny */}
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-3 gap-3">
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(digit => (
                             <button
                                 key={digit}
                                 onClick={() => handleKeyPress(digit.toString())}
-                                className="p-1 bg-gray-700 hover:bg-gray-600 text-m font-bold rounded-lg transition duration-200"
+                                className="p-4 bg-gray-700 hover:bg-gray-600 text-2xl font-bold rounded-lg transition duration-200"
                             >
                                 {digit}
                             </button>
                         ))}
                         <button
                             onClick={handleBackspace}
-                            className="p-1 bg-gray-700 hover:bg-gray-600 text-m font-bold rounded-lg transition duration-200"
+                            className="p-4 bg-gray-700 hover:bg-gray-600 text-xl font-bold rounded-lg transition duration-200"
                         >
                             ⌫
                         </button>
                         <button
                             onClick={() => handleKeyPress('0')}
-                            className="p-1 bg-gray-700 hover:bg-gray-600 text-m font-bold rounded-lg transition duration-200"
+                            className="p-4 bg-gray-700 hover:bg-gray-600 text-2xl font-bold rounded-lg transition duration-200"
                         >
                             0
                         </button>
                         <button
                             onClick={handleLogin}
                             disabled={!isPinComplete || loading}
-                            className="p-1 bg-blue-600 hover:bg-blue-700 text-m font-bold rounded-lg transition duration-200 disabled:opacity-50 disabled:bg-blue-800"
+                            className="p-4 bg-blue-600 hover:bg-blue-700 text-xl font-bold rounded-lg transition duration-200 disabled:opacity-50 disabled:bg-blue-800"
                         >
                             {loading ? "..." : "✓"}
                         </button>
@@ -198,6 +202,10 @@ export default function LoginPage() {
                             {error}
                         </div>
                     )}
+
+                    <div className="mt-6 text-xs text-center text-gray-400">
+                        Przykładowe konta: admin (123456), user1 (654321), user2 (111111)
+                    </div>
                 </div>
             </motion.div>
         </main>
