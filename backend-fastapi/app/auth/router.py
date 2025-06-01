@@ -1,16 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
-from .database import SessionLocal
+from ..database.connection import SessionLocal
 from .models import User
-from pydantic import BaseModel
-from fastapi.middleware.cors import CORSMiddleware
-
-class LoginRequest(BaseModel):
-    pin: str
-
-class RegisterRequest(BaseModel):
-    username: str
-    pin: str
+from .schemas import LoginRequest, RegisterRequest
 
 router = APIRouter()
 
@@ -44,7 +36,6 @@ def login(data: LoginRequest = Body(...), db: Session = Depends(get_db)):
         "username": found_user.username
     }
 
-# Funkcja do tworzenia użytkownika (dla testów)
 @router.post("/register")
 def register(data: RegisterRequest = Body(...), db: Session = Depends(get_db)):
     # Walidacja długości PIN-u

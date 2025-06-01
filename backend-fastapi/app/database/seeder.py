@@ -1,8 +1,6 @@
-# seeder.py
 from sqlalchemy.orm import Session
-from app.database import SessionLocal, engine, Base
-from app.models import User
-
+from .connection import SessionLocal, engine, Base
+from ..auth.models import User
 
 def seed_users():
     db = SessionLocal()
@@ -35,7 +33,6 @@ def seed_users():
         print(f"Błąd podczas tworzenia użytkowników: {e}")
     finally:
         db.close()
-
 
 if __name__ == "__main__":
     # Upewnij się, że tabele istnieją

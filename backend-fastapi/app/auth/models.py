@@ -1,5 +1,5 @@
-from .database import Base
 from sqlalchemy import Column, Integer, String
+from ..database.connection import Base
 import bcrypt
 
 class User(Base):
