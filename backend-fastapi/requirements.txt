@@ -4,3 +4,19 @@ fastapi
 sqlalchemy
 pydantic
 typing
+
+
+
+
+# Generowanie muzyki - MIDI
+mido
+music21
+pretty_midi
+
+# Audio processing
+numpy
+scipy
+pydub
+
+# Sample fetching
+requests

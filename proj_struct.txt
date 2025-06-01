@@ -2,21 +2,35 @@ THE-HUB/
 ├── backend-fastapi/
 │   ├── app/
 │   │   ├── __pycache__/
-│   │   │   ├── auth.cpython-312.pyc
-│   │   │   ├── database.cpython-312.pyc
 │   │   │   ├── main.cpython-312.pyc
-│   │   │   ├── models.cpython-312.pyc
 │   │   │   └── users.cpython-312.pyc
 │   │   ├── auth/
 │   │   │   ├── __pycache__/
-│   │   │   │   └── __init__.cpython-312.pyc
-│   │   │   └── __init__.py
-│   │   ├── auth.py
-│   │   ├── database.py
+│   │   │   │   ├── __init__.cpython-312.pyc
+│   │   │   │   ├── models.cpython-312.pyc
+│   │   │   │   ├── router.cpython-312.pyc
+│   │   │   │   └── schemas.cpython-312.pyc
+│   │   │   ├── __init__.py
+│   │   │   ├── models.py
+│   │   │   ├── router.py
+│   │   │   └── schemas.py
+│   │   ├── database/
+│   │   │   ├── __pycache__/
+│   │   │   │   ├── __init__.cpython-312.pyc
+│   │   │   │   ├── connection.cpython-312.pyc
+│   │   │   │   └── seeder.cpython-312.pyc
+│   │   │   ├── __init__.py
+│   │   │   ├── connection.py
+│   │   │   ├── migrate_db.py
+│   │   │   └── seeder.py
+│   │   ├── tests/
+│   │   │   ├── __init__.py
+│   │   │   ├── audio_synthesizer.py
+│   │   │   ├── midi_generator.py
+│   │   │   ├── router.py
+│   │   │   ├── sample_fetcher.py
+│   │   │   └── test_basic_generation.py
 │   │   ├── main.py
-│   │   ├── migrate_db.py
-│   │   ├── models.py
-│   │   ├── seeder.py
 │   │   └── users.py
 │   ├── requirements.txt
 │   └── users.db
@@ -30,6 +44,8 @@ THE-HUB/
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── air/
+│   │   │   │   ├── music-test/
+│   │   │   │   │   └── page.tsx
 │   │   │   │   ├── air-style.css
 │   │   │   │   └── page.tsx
 │   │   │   ├── api/

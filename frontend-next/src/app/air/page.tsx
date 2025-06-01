@@ -67,6 +67,9 @@ export default function AirPanel() {
             {/* Content container */}
             <div className="container mx-auto px-4 py-8 relative z-10">
                 <div className="mb-10 text-center">
+
+                    <AnimatedCard path={"/air/music-test"} name={"TESTS"} index={0}> </AnimatedCard>
+
                     <div className="text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-red-500 mb-4">
                         AIR 4.0
                     </div>
