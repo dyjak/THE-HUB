@@ -1,0 +1,69 @@
+THE-HUB/
+├── backend-fastapi/
+│   ├── app/
+│   │   ├── __pycache__/
+│   │   │   ├── auth.cpython-312.pyc
+│   │   │   ├── database.cpython-312.pyc
+│   │   │   ├── main.cpython-312.pyc
+│   │   │   ├── models.cpython-312.pyc
+│   │   │   └── users.cpython-312.pyc
+│   │   ├── auth/
+│   │   │   ├── __pycache__/
+│   │   │   │   └── __init__.cpython-312.pyc
+│   │   │   └── __init__.py
+│   │   ├── auth.py
+│   │   ├── database.py
+│   │   ├── main.py
+│   │   ├── migrate_db.py
+│   │   ├── models.py
+│   │   ├── seeder.py
+│   │   └── users.py
+│   ├── requirements.txt
+│   └── users.db
+├── frontend-next/
+│   ├── public/
+│   │   ├── file.svg
+│   │   ├── globe.svg
+│   │   ├── next.svg
+│   │   ├── vercel.svg
+│   │   └── window.svg
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── air/
+│   │   │   │   ├── air-style.css
+│   │   │   │   └── page.tsx
+│   │   │   ├── api/
+│   │   │   │   ├── auth/
+│   │   │   │       ├── [...nextauth]/
+│   │   │   │           └── route.ts
+│   │   │   ├── login/
+│   │   │   │   └── page.tsx
+│   │   │   ├── favicon.ico
+│   │   │   ├── globals.css
+│   │   │   ├── layout.tsx
+│   │   │   ├── page.tsx
+│   │   │   └── providers.tsx
+│   │   ├── components/
+│   │       ├── ui/
+│   │       │   ├── AnimatedCard.jsx
+│   │       │   ├── AnimatedHeading.jsx
+│   │       │   ├── StarField.js
+│   │       │   └── TypedText.jsx
+│   │       ├── Layout.tsx
+│   │       └── Nav.tsx
+│   ├── README.md
+│   ├── eslint.config.mjs
+│   ├── next-env.d.ts
+│   ├── next.config.ts
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── pnpm-lock.yaml
+│   ├── postcss.config.js
+│   ├── postcss.config.mjs
+│   ├── reset-next.bat
+│   ├── tailwind.config.js
+│   ├── tsconfig.json
+│   └── vercel.json
+├── curl-test.txt
+├── proj_struct.txt
+└── start.bat
