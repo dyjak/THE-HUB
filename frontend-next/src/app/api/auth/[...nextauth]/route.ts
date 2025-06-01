@@ -4,8 +4,8 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import axios from "axios";
 
 // Upewnij się, że ten adres jest poprawny
-//const API_URL = "http://127.0.0.1:8000/api";
-const API_URL = "https://the-hub-onwb.onrender.com//api";
+const API_URL = "http://127.0.0.1:8000/api";
+//const API_URL = "https://the-hub-onwb.onrender.com//api";
 
 const handler = NextAuth({
   providers: [
