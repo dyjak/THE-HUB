@@ -5,11 +5,6 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ef57549e-657e-452d-a664-0549a6f13605" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/backend-fastapi/app/tests/readme/fl_test_notes.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend-fastapi/app/tests/app/tests/output/samples/ambient_pad.wav" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend-fastapi/app/tests/app/tests/output/samples/piano_c4.wav" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend-fastapi/app/tests/app/tests/output/samples/strings_pad.wav" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/backend-fastapi/app/tests/readme.md" beforeDir="false" afterPath="$PROJECT_DIR$/backend-fastapi/app/tests/readme.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -50,7 +45,7 @@
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "test-samples",
-    "last_opened_file_path": "D:/Informatyka URZ/THE-HUB/backend-fastapi/app/tests/output",
+    "last_opened_file_path": "D:/Informatyka URZ/THE-HUB/backend-fastapi/app/tests/readme",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -62,6 +57,7 @@
 }]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="D:\Informatyka URZ\THE-HUB\backend-fastapi\app\tests\readme" />
       <recent name="D:\Informatyka URZ\THE-HUB\backend-fastapi\app\tests\output" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
@@ -188,7 +184,7 @@
       <workItem from="1748785724959" duration="3592000" />
       <workItem from="1748805086756" duration="6935000" />
       <workItem from="1748849546449" duration="39000" />
-      <workItem from="1748871246475" duration="2028000" />
+      <workItem from="1748871246475" duration="3254000" />
     </task>
     <servers />
   </component>
