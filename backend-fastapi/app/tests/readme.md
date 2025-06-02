@@ -87,7 +87,11 @@ Gdzie:
 - `74` = D5 (Re)
 - `76` = E5 (Mi)
 
-**MIEJSCE NA SCREENSHOT: Skala F-dur na klawiaturze/nutach**
+#### Nuty
+![img](https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEiX2DZG37NEUXPSNTkFz-wvhvS5DdxgnC3xhyTev_0iBffS4Yhaarb6apctBJB8TqkPYSwSyh07ZDnI2bsdY6W2Pi43P6m-TZYqpkKH6nZ9pv6GtTLRtRNqAQW9e5eNqH3-i8dVH5hPBxI/w1600/piano1.png)
+
+#### Oktawy
+![img](https://www.liveabout.com/thmb/Zw9JqPQ7dV7kbaoREp1j4oa2ULA=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/Scientific-Pitch-Notation_layout-56a72cdf3df78cf7729306a6.png)
 
 ### 2.2 Dlaczego F-dur?
 
@@ -384,8 +388,8 @@ Time:     0s              ...  8.0s
 Sample:   ├─┼─┼─┼─┼─────────┼─┤
           Dźwięk dodawany w konkretnych momentach
 ```
-
-**MIEJSCE NA SCREENSHOT: Wygenerowany MIDI w programie muzycznym (Piano Roll)**
+#### Tak to wygląda w programie muzycznym - MIDI reprezentuje rozstawienie poszczególnych nut
+![alt](readme/fl_test_notes.png)
 
 ---
 
@@ -589,8 +593,6 @@ output/
 - **Track 0:** Piano (Channel 0, Program 0)
 - **Track 1:** Strings (Channel 1, Program 48)  
 - **Track 2:** Pad (Channel 2, Program 88)
-
-**MIEJSCE NA SCREENSHOT: Analiza wygenerowanego MIDI w DAW**
 
 ---
 
@@ -847,7 +849,8 @@ def analyze_harmonic_content(self, audio: np.ndarray, window_size: int = 2048):
     return np.array(spectrogram), frequencies[:window_size//2]
 ```
 
-**MIEJSCE NA SCREENSHOT: Spektrogram wygenerowanego audio**
+#### Spektogram
+![alt](readme/spectogram.png)
 
 ### 16.2 Detekacja fundamentalnej częstotliwości
 

@@ -5,7 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ef57549e-657e-452d-a664-0549a6f13605" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/backend-fastapi/app/tests/readme/fl_test_notes.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/app/tests/app/tests/output/samples/ambient_pad.wav" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/app/tests/app/tests/output/samples/piano_c4.wav" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/app/tests/app/tests/output/samples/strings_pad.wav" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/app/tests/readme.md" beforeDir="false" afterPath="$PROJECT_DIR$/backend-fastapi/app/tests/readme.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -37,6 +42,7 @@
   "keyToString": {
     "Python tests.pytest for audio_synthesizer.test_midi_to_audio.executor": "Run",
     "Python tests.pytest for midi_generator.test_basic_generation.executor": "Run",
+    "Python tests.pytest for router.test_info.executor": "Run",
     "Python tests.pytest for sample_fetcher.test_sample_fetching.executor": "Run",
     "Python tests.pytest for test_basic_generation.test_full_pipeline.executor": "Run",
     "Python tests.pytest in midi_generator.py.executor": "Run",
@@ -44,7 +50,7 @@
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "test-samples",
-    "last_opened_file_path": "D:/Informatyka URZ/THE-HUB",
+    "last_opened_file_path": "D:/Informatyka URZ/THE-HUB/backend-fastapi/app/tests/output",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -55,11 +61,15 @@
   }
 }]]></component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="D:\Informatyka URZ\THE-HUB\backend-fastapi\app\tests\output" />
+    </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="D:\Informatyka URZ\THE-HUB\backend-fastapi\app\tests\readme" />
       <recent name="D:\Informatyka URZ\THE-HUB\backend-fastapi\app\tests\output" />
     </key>
   </component>
-  <component name="RunManager" selected="Python tests.pytest for audio_synthesizer.test_midi_to_audio">
+  <component name="RunManager" selected="Python tests.pytest for router.test_info">
     <configuration name="pytest for audio_synthesizer.test_midi_to_audio" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
       <module name="THE-HUB" />
       <option name="ENV_FILES" value="" />
@@ -93,6 +103,24 @@
       <option name="_new_parameters" value="&quot;&quot;" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
       <option name="_new_target" value="&quot;midi_generator.test_basic_generation&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="pytest for router.test_info" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+      <module name="THE-HUB" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/backend-fastapi/app/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_keywords" value="&quot;&quot;" />
+      <option name="_new_parameters" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;router.test_info&quot;" />
       <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method v="2" />
     </configuration>
@@ -132,31 +160,13 @@
       <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method v="2" />
     </configuration>
-    <configuration name="pytest in midi_generator.py" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
-      <module name="THE-HUB" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/backend-fastapi/app/tests" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="_new_keywords" value="&quot;&quot;" />
-      <option name="_new_parameters" value="&quot;&quot;" />
-      <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;$PROJECT_DIR$/backend-fastapi/app/tests/midi_generator.py&quot;" />
-      <option name="_new_targetType" value="&quot;PATH&quot;" />
-      <method v="2" />
-    </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python tests.pytest for router.test_info" />
         <item itemvalue="Python tests.pytest for audio_synthesizer.test_midi_to_audio" />
         <item itemvalue="Python tests.pytest for midi_generator.test_basic_generation" />
         <item itemvalue="Python tests.pytest for test_basic_generation.test_full_pipeline" />
         <item itemvalue="Python tests.pytest for sample_fetcher.test_sample_fetching" />
-        <item itemvalue="Python tests.pytest in midi_generator.py" />
       </list>
     </recent_temporary>
   </component>
@@ -178,7 +188,7 @@
       <workItem from="1748785724959" duration="3592000" />
       <workItem from="1748805086756" duration="6935000" />
       <workItem from="1748849546449" duration="39000" />
-      <workItem from="1748871246475" duration="750000" />
+      <workItem from="1748871246475" duration="2028000" />
     </task>
     <servers />
   </component>
@@ -191,6 +201,7 @@
     <SUITE FILE_PATH="coverage/THE_HUB$pytest_in_midi_generator_py.coverage" NAME="pytest in midi_generator.py Coverage Results" MODIFIED="1748806012164" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/backend-fastapi/app/tests" />
     <SUITE FILE_PATH="coverage/THE_HUB$pytest_for_sample_fetcher_test_sample_fetching.coverage" NAME="pytest for sample_fetcher.test_sample_fetching Coverage Results" MODIFIED="1748811835691" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/backend-fastapi/app/tests" />
     <SUITE FILE_PATH="coverage/THE_HUB$pytest_in_test_basic_generation_py.coverage" NAME="pytest in test_basic_generation.py Coverage Results" MODIFIED="1748805990119" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/backend-fastapi/app/tests" />
+    <SUITE FILE_PATH="coverage/THE_HUB$pytest_for_router_test_info.coverage" NAME="pytest for router.test_info Coverage Results" MODIFIED="1748872856119" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/backend-fastapi/app/tests" />
     <SUITE FILE_PATH="coverage/THE_HUB$pytest_for_audio_synthesizer_test_midi_to_audio.coverage" NAME="pytest for audio_synthesizer.test_midi_to_audio Coverage Results" MODIFIED="1748812072599" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/backend-fastapi/app/tests" />
   </component>
 </project>
