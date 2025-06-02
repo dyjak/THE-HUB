@@ -16,9 +16,16 @@ class MusicParameters:
     scale: str = "major"            # major (dur), minor (moll)
     rhythm: str = "simple"          # swing, prosty, synkopowany
     instruments: List[str] = None   # lista instrumentów
+
+    
+    
+# Biblioteki wykorzystane w generowaniu MIDI
+import mido  # Manipulacja plików MIDI - tworzenie tracks, messages
+from mido import MidiFile, MidiTrack, Message, MetaMessage
 ```
 
 **To jest główny "panel sterowania" całego utworu.** Każdy parametr wpływa na konkretny aspekt muzyki:
+
 
 #### **Genre (Gatunek)** - Definiuje ogólny styl
 - `"ambient"` → Spokojne, atmosferyczne brzmienia
@@ -784,6 +791,11 @@ def add_convolution_reverb(self, audio: np.ndarray, impulse_response: np.ndarray
     wet_level = 0.3
     
     return audio * dry_level + reverb_audio * wet_level
+
+#Biblioteka
+from scipy.signal import convolve  # Splot sygnałów dla reverb
+from scipy.io.wavfile import read, write  # Odczyt/zapis plików WAV
+# convolve() - matematyczny splot audio z impulse response
 ```
 
 **Co to jest impulse response?**
@@ -865,6 +877,14 @@ def analyze_harmonic_content(self, audio: np.ndarray, window_size: int = 2048):
         spectrogram.append(spectrum[:window_size//2])  # Tylko positive frequencies
     
     return np.array(spectrogram), frequencies[:window_size//2]
+
+
+#Biblioteka
+from scipy.fft import fft, fftfreq  # Szybka transformata Fouriera
+import numpy as np
+# fft() - analiza częstotliwościowa sygnału
+# fftfreq() - generowanie osi częstotliwości
+# np.hanning() - okno Hanninga dla smooth analysis
 ```
 
 #### Spektogram
@@ -1331,43 +1351,525 @@ def generate_variations_of_theme():
 ✅ **Post-processing** - Reverb, kompresja, stereo mixing  
 ✅ **Quality assurance** - Walidacja i analiza jakości  
 
-### 21.2 Roadmapa rozwoju
-
-**Faza 2: Inteligentna interpretacja**
-- 🔄 **GPT Integration** - Zaawansowana interpretacja tekstów
-- 🔄 **Context awareness** - Rozumienie gatunków i stylów
-- 🔄 **Emotional mapping** - Precyzyjne mapowanie emocji na parametry
-
-**Faza 3: Zaawansowana kompozycja**  
-- 🔄 **Song structure** - Intro-Verse-Chorus-Bridge-Outro
-- 🔄 **Modulation** - Zmiany tonacji w trakcie utworu
-- 🔄 **Complex rhythms** - Odd time signatures, polyrhythms
-- 🔄 **Counter-melodies** - Wielowarstwowe kompozycje
-
-**Faza 4: Machine Learning**
-- 🔄 **Style transfer** - Nauka z istniejących utworów
-- 🔄 **Generative models** - VAE/GAN dla muzyki
-- 🔄 **Reinforcement learning** - Uczenie się z feedback'u użytkowników
-
-**Faza 5: Production ready**
-- 🔄 **Real-time generation** - Live composing
-- 🔄 **Plugin development** - DAW integration
-- 🔄 **Cloud scaling** - Massive parallel generation
-- 🔄 **Mobile apps** - Democratization of music creation
-
-### 21.3 Impact i wizja
-
-**AIR 4.0 to dowód na to, że muzyka może być opisana matematycznie** i generowana algorytmicznie bez utraty artystycznej wartości. Projekt pokazuje, jak:
-
-- **Teoria muzyki** przekłada się na kod
-- **Parametry liczbowe** tworzą emocjonalne doświadczenia  
-- **Proste algorytmy** mogą generować złożone struktury
-- **AI** może być narzędziem kreatywnym, nie tylko analitycznym
-
-**Ostateczny cel:** Umożliwić każdemu tworzenie profesjonalnej muzyki przez zwykły opis słowny, democratyzując proces kompozycji i otwierając nowe horyzonty kreatywności.
 
 ---
 
-*"Muzyka to ukryty arytmetyczny ćwiczenie duszy, która nie wie, że liczy."* - Gottfried Wilhelm Leibniz
+---
 
-**AIR 4.0 czyni te liczby widzialnymi i dostępnymi dla wszystkich.**
+---
+
+---
+
+---
+# Dodatkowe parametry dla przyszłych wersji projektu
+
+
+### 22.1 Parametry rytmiczne i metryczne
+
+```python
+@dataclass
+class AdvancedRhythmParameters:
+    """Zaawansowane parametry rytmiczne"""
+    time_signature: Tuple[int, int] = (4, 4)           # (licznik, mianownik)
+    swing_factor: float = 0.0                          # 0.0 = straight, 0.67 = jazz swing
+    polyrhythm: Optional[List[int]] = None             # [3, 4] = 3 against 4
+    accents: List[int] = None                          # beats to accent [1, 3]
+    subdivision: str = "eighth"                        # "sixteenth", "triplet", "dotted"
+    groove_template: str = "linear"                    # "shuffle", "latin", "funk"
+    rhythmic_density: float = 0.7                     # 0.0-1.0 note density
+    syncopation_level: float = 0.3                    # 0.0-1.0 off-beat emphasis
+    metric_modulation: bool = False                    # tempo changes within song
+    rubato_factor: float = 0.1                        # timing flexibility 0.0-1.0
+```
+
+### 22.2 Parametry harmoniczne i tonalne
+
+```python
+@dataclass
+class AdvancedHarmonyParameters:
+    """Zaawansowane parametry harmoniczne"""
+    mode: str = "ionian"                               # modes: dorian, phrygian, lydian, etc.
+    chord_extensions: List[str] = None                 # ["7", "9", "11", "13"]
+    chord_inversions: bool = True                      # use chord inversions
+    voice_leading: str = "smooth"                      # "smooth", "contrary", "parallel"
+    modulation_scheme: List[str] = None                # ["V/V", "bII", "relative_minor"]
+    harmonic_rhythm: str = "moderate"                  # "slow", "moderate", "fast"
+    dissonance_level: float = 0.3                     # 0.0-1.0 consonant to dissonant
+    chord_substitutions: bool = True                   # tritone subs, chromatic mediants
+    secondary_dominants: bool = False                  # V/ii, V/iii, etc.
+    borrowed_chords: bool = False                      # chords from parallel modes
+    pedal_tones: bool = False                          # sustained bass notes
+    chromatic_approach: float = 0.2                   # 0.0-1.0 chromatic passing tones
+```
+
+### 22.3 Parametry melodyczne i frazowania
+
+```python
+@dataclass
+class MelodicParameters:
+    """Parametry melodyczne i strukturalne"""
+    phrase_length: int = 8                             # bars per phrase
+    motif_repetition: float = 0.5                     # 0.0-1.0 motivic development
+    interval_preferences: Dict[str, float] = None      # {"P5": 0.3, "M3": 0.4, "m2": 0.1}
+    melodic_contour: str = "balanced"                  # "ascending", "descending", "arch"
+    range_octaves: float = 2.0                         # melodic range in octaves
+    step_vs_leap: float = 0.7                         # 0.0=all leaps, 1.0=all steps
+    sequence_patterns: bool = True                     # melodic sequences
+    ornamentation: List[str] = None                    # ["trill", "mordent", "appoggiatura"]
+    register_shifts: bool = False                      # octave displacement
+    melodic_goals: List[int] = None                    # target notes for phrases
+```
+
+### 22.4 Parametry strukturalne i formalne
+
+```python
+@dataclass
+class StructuralParameters:
+    """Parametry struktury utworu"""
+    song_form: str = "AABA"                           # "verse-chorus", "binary", "rondo"
+    intro_bars: int = 4                               # length of introduction
+    outro_bars: int = 4                               # length of ending
+    bridge_modulation: bool = False                   # key change in bridge
+    dynamic_arc: str = "crescendo"                    # "diminuendo", "arch", "terraced"
+    textural_changes: bool = True                     # instrument dropouts/additions
+    climax_placement: float = 0.75                    # 0.0-1.0 position of climax
+    repetition_scheme: Dict[str, int] = None          # {"A": 2, "B": 1, "C": 1}
+    transition_style: str = "smooth"                  # "abrupt", "smooth", "elided"
+    coda_type: str = "fade"                          # "fade", "ritardando", "final_chord"
+```
+
+### 22.5 Parametry instrumentacji i aranżacji
+
+```python
+@dataclass
+class OrchestrationParameters:
+    """Parametry orkiestracji i brzmieniowe"""
+    doubling_instruments: Dict[str, List[str]] = None  # {"melody": ["violin", "flute"]}
+    register_distribution: str = "traditional"        # "traditional", "inverted", "cluster"
+    instrument_roles: Dict[str, str] = None           # {"piano": "comping", "bass": "walking"}
+    articulation_style: str = "legato"               # "staccato", "marcato", "tenuto"
+    breathing_spaces: bool = True                     # rests between phrases
+    antiphonal_writing: bool = False                  # call-and-response between instruments
+    layering_strategy: str = "additive"              # "subtractive", "alternating"
+    timbral_modulation: bool = False                  # changing timbres within phrases
+    spatial_placement: Dict[str, Tuple[float, float]] = None  # stereo positioning
+    micro_timing: Dict[str, float] = None             # subtle timing variations per instrument
+```
+
+### 22.6 Parametry audio i brzmieniowe
+
+```python
+@dataclass
+class AudioProcessingParameters:
+    """Parametry przetwarzania audio"""
+    reverb_type: str = "hall"                        # "room", "plate", "spring", "algorithmic"
+    reverb_time: float = 2.5                         # seconds
+    early_reflections: float = 0.3                   # 0.0-1.0 early reflection level
+    eq_curve: Dict[str, float] = None                # {"100Hz": -2, "1kHz": 0, "10kHz": 3}
+    compression_ratio: float = 3.0                   # 1.0-20.0
+    saturation_amount: float = 0.1                   # 0.0-1.0 harmonic saturation
+    stereo_width: float = 1.0                        # 0.0-2.0 stereo enhancement
+    chorus_depth: float = 0.0                        # 0.0-1.0 chorus modulation
+    delay_time: float = 0.0                          # seconds for echo effect
+    bitcrusher_depth: int = 16                       # bit depth for lo-fi effect
+    filter_cutoff: float = 20000.0                   # Hz lowpass filter
+    distortion_type: str = "none"                    # "overdrive", "fuzz", "tube"
+```
+# Szczegółowy opis przyszłych parametrów
+
+## 22.2 Parametry harmoniczne i tonalne - Szczegółowo
+
+### **mode: str = "ionian"** 
+Tryby muzyczne to różne sposoby ułożenia tonów i półtonów w skali. Każdy tryb ma unikalny charakter:
+- **"ionian"** - zwykła skala durowa (Do-Re-Mi-Fa-Sol-La-Si)
+- **"dorian"** - mollowy z podwyższonym 6. stopniem (jazzowy, blues)
+- **"phrygian"** - mollowy z obniżonym 2. stopniem (hiszpański, flamenco)
+- **"lydian"** - durowy z podwyższonym 4. stopniem (magiczny, filmowy)
+- **"mixolydian"** - durowy z obniżonym 7. stopniem (rock, folk)
+- **"aeolian"** - zwykła skala mollowa (smutny, melancholijny)
+- **"locrian"** - niestabilny, rzadko używany
+
+### **chord_extensions: List[str] = None**
+Rozszerzenia akordów dodają kolory harmoniczne ponad podstawową triadę:
+- **"7"** - septymna (C-E-G-B) - jazzowy, bluesowy
+- **"9"** - nona (C-E-G-B-D) - bardziej złożony, jazzowy
+- **"11"** - undecyma (C-E-G-B-D-F) - bardzo kolorowy
+- **"13"** - tercdecyma (C-E-G-B-D-F-A) - najbogatszy brzmienie
+- **"sus2"/"sus4"** - zawieszenia (C-D-G lub C-F-G) - napięcie
+
+### **chord_inversions: bool = True**
+Przewroty akordów = zmiana nuty basowej:
+- **Pozycja zasadnicza:** C-E-G (C w basie)
+- **I przewrót:** E-G-C (E w basie) - łagodniejszy
+- **II przewrót:** G-C-E (G w basie) - mniej stabilny
+**Efekt:** Płynniejsze przejścia między akordami, bardziej muzykalne
+
+### **voice_leading: str = "smooth"**
+Prowadzenie głosów = jak nuty przechodzą między akordami:
+- **"smooth"** - minimalne ruchy nut (C-E-G → C-F-A, tylko E→F)
+- **"contrary"** - głosy idą w przeciwne strony
+- **"parallel"** - wszystkie głosy w tym samym kierunku
+**Efekt:** Smooth = profesjonalne, łagodne brzmienie
+
+### **modulation_scheme: List[str] = None**
+Modulacje = przejścia między tonacjami:
+- **"V/V"** - dominanta dominanty (z C-dur do D-dur przez A-dur)
+- **"bII"** - neapolitańska modulacja (z C-dur do Db-dur)
+- **"relative_minor"** - z C-dur do a-moll
+- **"parallel_minor"** - z C-dur do c-moll
+**Efekt:** Dodaje dramaturgię, rozwój harmoniczny
+
+### **harmonic_rhythm: str = "moderate"**
+Szybkość zmian akordów:
+- **"slow"** - akord na 2-4 takty (ballady, ambient)
+- **"moderate"** - akord na takt (standard pop/rock)
+- **"fast"** - akord na pół taktu (bebop, latin)
+
+### **dissonance_level: float = 0.3**
+Poziom dyssonansu w harmonii:
+- **0.0** - tylko konsonansowe akordy (C, F, G)
+- **0.5** - mieszanka konsonansów i dyssonansów
+- **1.0** - głównie dyssonanse (jazz, współczesna)
+
+### **chord_substitutions: bool = True**
+Substytucje akordowe = zamiana akordów na podobnie brzmiące:
+- **Tritone substitution:** G7 → Db7 (w jazz)
+- **Chromatic mediants:** C → E (filmowa harmonia)
+**Efekt:** Bardziej kolorowa, niespodziewana harmonia
+
+### **secondary_dominants: bool = False**
+Dominanty pomocnicze = czasowe modulacje:
+- **V/ii** - dominanta do ii stopnia (A7 → Dm w C-dur)
+- **V/iii** - dominanta do iii stopnia (B7 → Em w C-dur)
+**Efekt:** Tymczasowe "kolorowanie" harmonii
+
+### **borrowed_chords: bool = False**
+Akordy zapożyczone z równoległej skali:
+- Z **c-moll** do **C-dur:** Fm, Ab, Bb
+**Efekt:** Dramatyczne, filmowe momenty
+
+### **pedal_tones: bool = False**
+Tony pedałowe = podtrzymywana nuta w basie podczas zmian harmonii:
+- **Bass:** C-C-C-C, **Harmonia:** C-F-G-C
+**Efekt:** Stabilność + napięcie jednocześnie
+
+### **chromatic_approach: float = 0.2**
+Chromatyczne nuty przejściowe:
+- **0.0** - tylko nuty ze skali
+- **0.5** - dużo chromatyki (jazz, blues)
+- **1.0** - bardzo chromatyczne (atonalne)
+
+---
+
+## 22.3 Parametry melodyczne i frazowania - Szczegółowo
+
+### **phrase_length: int = 8**
+Długość frazy muzycznej w taktach:
+- **4 takty** - krótkie, zwięzłe frazy (pop)
+- **8 taktów** - standardowa długość
+- **16 taktów** - długie, rozbudowane frazy (klasyka)
+
+### **motif_repetition: float = 0.5**
+Powtarzanie motywów melodycznych:
+- **0.0** - brak powtórzeń, całkowicie nowa melodia
+- **0.5** - umiarkowne powtarzanie (naturalnie brzmiące)
+- **1.0** - stałe powtarzanie tego samego motywu
+
+### **interval_preferences: Dict[str, float] = None**
+Preferencje interwałów melodycznych:
+```python
+{
+    "P1": 0.1,    # Pryma (ta sama nuta)
+    "m2": 0.05,   # Sekunda mała (półton) - napięcie
+    "M2": 0.2,    # Sekunda wielka (ton) - naturalne
+    "m3": 0.15,   # Tercja mała - smutne
+    "M3": 0.2,    # Tercja wielka - radosne  
+    "P4": 0.1,    # Kwarta czysta - stabilne
+    "TT": 0.02,   # Tritonus - bardzo napięte
+    "P5": 0.15,   # Kwinta czysta - bardzo stabilne
+    "m6": 0.05,   # Seksta mała - nostalgiczne
+    "M6": 0.05,   # Seksta wielka - jasne
+    "m7": 0.02,   # Septyma mała - jazzowe
+    "M7": 0.01    # Septyma wielka - bardzo napięte
+}
+```
+
+### **melodic_contour: str = "balanced"**
+Kształt melodyczny:
+- **"ascending"** - przeważnie w górę (energetyczne)
+- **"descending"** - przeważnie w dół (uspokajające)
+- **"arch"** - w górę, potem w dół (naturalny kształt)
+- **"balanced"** - mieszanka kierunków
+
+### **range_octaves: float = 2.0**
+Zakres melodii w oktawach:
+- **1.0** - wąski zakres (łatwy do śpiewania)
+- **2.0** - normalny zakres
+- **3.0+** - szeroki zakres (instrumentalny, wirtuozowski)
+
+### **step_vs_leap: float = 0.7**
+Stosunek kroków do skoków:
+- **1.0** - same kroki (po sąsiednich nutach)
+- **0.7** - 70% kroków, 30% skoków (naturalne)
+- **0.0** - same skoki (bardzo nietypowe)
+
+### **sequence_patterns: bool = True**
+Sekwencje melodyczne = powtarzanie wzoru na różnych wysokościach:
+- **True:** Do-Re-Mi, Re-Mi-Fa, Mi-Fa-Sol
+**Efekt:** Logiczny rozwój melodii, łatwiejsze zapamiętanie
+
+### **ornamentation: List[str] = None**
+Ozdobniki melodyczne:
+- **"trill"** - szybkie alternowanie między nutami
+- **"mordent"** - krótka ozdobka górna/dolna
+- **"appoggiatura"** - nuta obca przechodząca w główną
+- **"grace_note"** - krótka nuta ozdobna
+
+### **register_shifts: bool = False**
+Przesunięcia oktawowe = ta sama melodia w różnych oktawach:
+**Efekt:** Dodaje dramaturgię, przestrzenność
+
+### **melodic_goals: List[int] = None**
+Nuty docelowe dla fraz:
+```python
+[72, 74, 76, 72]  # C, D, E, C - fraza zmierza do tych nut
+```
+**Efekt:** Kierunkowy rozwój melodii
+
+---
+
+## 22.4 Parametry strukturalne i formalne - Szczegółowo
+
+### **song_form: str = "AABA"**
+Forma utworu:
+- **"AABA"** - klasyczna forma (zwrotka-zwrotka-bridge-zwrotka)
+- **"verse-chorus"** - zwrotka-refren (pop/rock)
+- **"binary"** - forma dwuczęściowa (AB)
+- **"rondo"** - forma rondowa (ABACA)
+- **"through-composed"** - bez powtórzeń
+
+### **intro_bars: int = 4**
+Długość wstępu w taktach:
+- **2-4 takty** - krótki wstęp
+- **8 taktów** - standardowy
+- **16+ taktów** - rozbudowany, koncertowy
+
+### **outro_bars: int = 4**
+Długość zakończenia:
+- **2 takty** - nagłe zakończenie
+- **4-8 taktów** - normalne fade out
+- **16+ taktów** - rozbudowana koda
+
+### **bridge_modulation: bool = False**
+Modulacja w bridge'u = zmiana tonacji w części B:
+**Efekt:** Kontrast, świeżość, powrót do A brzmi jak ulga
+
+### **dynamic_arc: str = "crescendo"**
+Łuk dynamiczny całego utworu:
+- **"crescendo"** - od cicho do głośno
+- **"diminuendo"** - od głośno do cicho  
+- **"arch"** - cicho → głośno → cicho
+- **"terraced"** - gwałtowne zmiany poziomów
+
+### **textural_changes: bool = True**
+Zmiany faktury = dodawanie/odejmowanie instrumentów:
+**Efekt:** Tworzenie narastania, oddechu, dramaturgia
+
+### **climax_placement: float = 0.75**
+Pozycja kulminacji w utworze:
+- **0.5** - w środku (klasyczne)
+- **0.75** - blisko końca (nowoczesne)
+- **0.67** - złoty podział (estetycznie przyjemne)
+
+### **repetition_scheme: Dict[str, int] = None**
+Schemat powtórzeń sekcji:
+```python
+{"A": 2, "B": 1, "C": 1}  # A-A-B-C lub A-B-A-C
+```
+
+### **transition_style: str = "smooth"**
+Styl przejść między sekcjami:
+- **"smooth"** - płynne przejścia
+- **"abrupt"** - nagłe cięcia
+- **"elided"** - nakładające się sekcje
+
+### **coda_type: str = "fade"**
+Typ zakończenia:
+- **"fade"** - stopniowe cichnienie
+- **"ritardando"** - stopniowe zwalnianie
+- **"final_chord"** - silny akord końcowy
+- **"deceptive"** - niespodziewane zakończenie
+
+---
+
+## 22.5 Parametry instrumentacji i aranżacji - Szczegółowo
+
+### **doubling_instruments: Dict[str, List[str]] = None**
+Podwajanie linii melodycznych:
+```python
+{
+    "melody": ["violin", "flute"],      # melodia grana przez oba
+    "bass": ["bass", "cello"],          # linia basu podwojona
+    "harmony": ["viola", "horn"]        # harmonia zagrana przez oba
+}
+```
+**Efekt:** Bogatsze brzmienie, większa siła
+
+### **register_distribution: str = "traditional"**
+Rozkład instrumentów w rejestrach:
+- **"traditional"** - wysokie góra, niskie dół
+- **"inverted"** - wysokie dół, niskie góra (nietypowe)
+- **"cluster"** - wszystkie w podobnym rejestrze (gęste)
+
+### **instrument_roles: Dict[str, str] = None**
+Role instrumentów w zespole:
+```python
+{
+    "piano": "comping",        # akompaniament akordowy
+    "bass": "walking",         # kroczący bas jazzowy
+    "drums": "swing",          # swingowy rytm
+    "guitar": "rhythm",        # rytmiczne akordy
+    "sax": "lead"             # instrument prowadzący
+}
+```
+
+### **articulation_style: str = "legato"**
+Styl artykulacji nut:
+- **"legato"** - płynnie połączone
+- **"staccato"** - krótko, oddzielone
+- **"marcato"** - zaakcentowane
+- **"tenuto"** - podtrzymane, pełne
+
+### **breathing_spaces: bool = True**
+Przerwy oddechowe między frazami:
+**Efekt:** Naturalne frazowanie, możliwość "oddechu"
+
+### **antiphonal_writing: bool = False**
+Pisanie antyfnonalne = dialog między instrumentami:
+- **Instrument A:** fraza 1
+- **Instrument B:** odpowiedź
+- **A:** fraza 2
+- **B:** odpowiedź
+**Efekt:** Konwersacja muzyczna
+
+### **layering_strategy: str = "additive"**
+Strategia warstwowania:
+- **"additive"** - stopniowe dodawanie instrumentów
+- **"subtractive"** - zaczynamy pełno, odejmujemy
+- **"alternating"** - instrumenty na zmianę
+
+### **timbral_modulation: bool = False**
+Modulacja barwowa = zmiany brzmienia tego samego instrumentu:
+- **Piano:** od jasnego do ciemnego
+- **Strings:** od arco do pizzicato
+**Efekt:** Barwne zróżnicowanie
+
+### **spatial_placement: Dict[str, Tuple[float, float]] = None**
+Rozmieszczenie przestrzenne w stereo:
+```python
+{
+    "piano": (-0.3, 0.0),      # lekko w lewo
+    "violin": (0.5, 0.0),      # w prawo
+    "bass": (0.0, 0.0),        # środek
+    "drums": (-0.7, 0.7)       # szeroko rozmieszczone
+}
+```
+**(-1.0, 1.0)** = lewy/prawy kanał
+
+### **micro_timing: Dict[str, float] = None**
+Mikro-timing = subtelne różnice w timing'u:
+```python
+{
+    "piano": 0.0,      # dokładnie na czasie
+    "bass": -0.01,     # 10ms wcześniej
+    "drums": 0.005     # 5ms później
+}
+```
+**Efekt:** Bardziej ludzkie, groove'owe brzmienie
+
+---
+
+## 22.6 Parametry audio i brzmieniowe - Szczegółowo
+
+### **reverb_type: str = "hall"**
+Typ pogłosu:
+- **"room"** - mały pokój (intymne)
+- **"hall"** - sala koncertowa (klasyczne)
+- **"plate"** - płyta metalowa (vintage, pop)
+- **"spring"** - sprężyna (gitarowe wzmacniacze)
+- **"algorithmic"** - sztuczny, cyfrowy
+
+### **reverb_time: float = 2.5**
+Czas pogłosu w sekundach:
+- **0.5-1.0s** - suche, bliskie
+- **2.0-3.0s** - normalne (sala)
+- **5.0+s** - katedralne, przestrzenne
+
+### **early_reflections: float = 0.3**
+Wczesne odbicia pogłosu:
+- **0.0** - brak (tylko późny pogłos)
+- **0.5** - naturalne
+- **1.0** - bardzo wyraźne (metaliczne)
+
+### **eq_curve: Dict[str, float] = None**
+Krzywa korekcji częstotliwościowej:
+```python
+{
+    "60Hz": -3,      # mniej basu (głuche dudnienie)
+    "200Hz": -1,     # mniej błota  
+    "1kHz": 0,       # neutralnie (środkowe częstotliwości)
+    "3kHz": 2,       # więcej przejrzystości
+    "10kHz": 1       # więcej blasku
+}
+```
+
+### **compression_ratio: float = 3.0**
+Stopień kompresji dynamicznej:
+- **1.0** - brak kompresji
+- **3.0** - umiarkowana (naturalna)
+- **10.0+** - silna (bardzo "ściśnięte")
+
+### **saturation_amount: float = 0.1**
+Ilość saturacji harmonicznej:
+- **0.0** - czyste, cyfrowe
+- **0.1** - subtelne ocieplenie
+- **0.5+** - wyraźne zniekształcenie
+
+### **stereo_width: float = 1.0**
+Szerokość obrazu stereo:
+- **0.0** - mono
+- **1.0** - normalny stereo
+- **2.0** - bardzo szeroki (może być problematyczny)
+
+### **chorus_depth: float = 0.0**
+Głębokość efektu chorus:
+- **0.0** - brak
+- **0.3** - subtelny (gitary, wokale)
+- **1.0** - bardzo wyraźny (lata 80)
+
+### **delay_time: float = 0.0**
+Czas opóźnienia echa:
+- **0.0** - brak
+- **0.125s** - 1/8 nuty przy 120 BPM
+- **0.5s** - wyraźne echo
+
+### **bitcrusher_depth: int = 16**
+Głębia bitowa dla efektu lo-fi:
+- **16-bit** - normalna jakość CD
+- **12-bit** - lekko lo-fi
+- **8-bit** - bardzo lo-fi (vintage)
+
+### **filter_cutoff: float = 20000.0**
+Częstotliwość odcięcia filtra dolnoprzepustowego:
+- **20000 Hz** - brak filtrowania
+- **5000 Hz** - przytłumione wysokie
+- **1000 Hz** - bardzo ciemne brzmienie
+
+### **distortion_type: str = "none"**
+Typ zniekształcenia:
+- **"none"** - brak
+- **"overdrive"** - lekkie, lampowe
+- **"fuzz"** - ciężkie, agresywne
+- **"tube"** - ciepłe, analogowe
+
+---
