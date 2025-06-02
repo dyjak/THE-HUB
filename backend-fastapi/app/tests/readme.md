@@ -190,38 +190,22 @@ note_duration = ticks_per_beat // 2  # 480 ÷ 2 = 240 ticks
 ```python
 note = random.choice(notes)  # [65, 67, 69, 70, 72, 74, 76]
 ```
-### Wizualizacja nut w F-Dur
 ### Wizualizacja
-🎹 SKALA F-DUR - MIDI Notes i Nazwy Nut
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-                   ┌─────┐     ┌─────┐     ┌─────┐           ┌─────┐     ┌─────┐     ┌─────┐     ┌─────┐
-                   │ F#  │     │ G#  │     │ Bb  │           │ C#  │     │ D#  │     │ F#  │     │ G#  │
-                   │ Gb  │     │ Ab  │     │ A#  │           │ Db  │     │ Eb  │     │ Gb  │     │ Ab  │
-                   │ 66  │     │ 68  │     │ 70  │           │ 73  │     │ 75  │     │ 78  │     │ 80  │
-                   └─────┘     └─────┘     └─────┘           └─────┘     └─────┘     └─────┘     └─────┘
-                ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
-                │    F    │ │    G    │ │    A    │ │   Bb    │ │    C    │ │    D    │ │    E    │ │    F    │
-                │    Fa   │ │   Sol   │ │    La   │ │   Si♭   │ │   Do    │ │    Re   │ │   Mi    │ │   Fa    │
-                │   65    │ │   67    │ │   69    │ │   70    │ │   72    │ │   74    │ │   76    │ │   77    │
-                │ ★ ROOT  │ │    2    │ │    3    │ │    4    │ │    5    │ │    6    │ │    7    │ │ OKTAWA  │
-                └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘
-                   C4 oct.     D4         E4         F4          G4          A4          B4          C5
-
-🎼 SZCZEGÓŁY SKALI F-DUR:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ STOPIEŃ │ NAZWA NUTY │  MIDI  │ CZĘSTOTLIWOŚĆ │        ROLA W SKALI         │     W KODZIE AIR 4.0               │
-├─────────┼────────────┼────────┼───────────────┼─────────────────────────────┼────────────────────────────────────┤
-│    I    │     F      │   65   │   349.23 Hz   │ TONIKA (podstawa)           │ KEY_SIGNATURES["F"][0] = 65        │
-│   II    │     G      │   67   │   392.00 Hz   │ Naddominanta                │ KEY_SIGNATURES["F"][1] = 67        │
-│   III   │     A      │   69   │   440.00 Hz   │ Medianta                    │ KEY_SIGNATURES["F"][2] = 69        │
-│   IV    │    Bb      │   70   │   466.16 Hz   │ SUBDOMINANTA                │ KEY_SIGNATURES["F"][3] = 70        │
-│    V    │     C      │   72   │   523.25 Hz   │ DOMINANTA                   │ KEY_SIGNATURES["F"][4] = 72        │
-│   VI    │     D      │   74   │   587.33 Hz   │ Submedianta                 │ KEY_SIGNATURES["F"][5] = 74        │
-│   VII   │     E      │   76   │   659.25 Hz   │ Dźwięk prowadzący           │ KEY_SIGNATURES["F"][6] = 76        │
-└─────────┴────────────┴────────┴───────────────┴─────────────────────────────┴────────────────────────────────────┘
+| Klawisz | Nazwa nuty | Enharmonia | MIDI | Czy w skali F-dur     |
+| ------: |:-----------| :--------- | :--- |:----------------------|
+|      C4 | C          | —          | 60   | **TAK** -  5. stopień |
+|     C#4 | C# / Db    | Db         | 61   | **NIE**                   |
+|      D4 | D          | —          | 62   | **TAK** - 6. stopień  |
+|     D#4 | D# / Eb    | Eb         | 63   | **NIE**                       |
+|      E4 | E          | —          | 64   | **TAK** -  7. stopień |
+|      F4 | F          | —          | 65   | **TAK** -  1. tonika  |
+|     F#4 | F# / Gb    | Gb         | 66   | **NIE**                       |
+|      G4 | G          | —          | 67   | **TAK** - 2. stopień  |
+|     G#4 | G# / Ab    | Ab         | 68   | **NIE**                       |
+|      A4 | A          | —          | 69   | **TAK** - 3. stopień  |
+|     A#4 | A# / Bb    | Bb         | 70   | **TAK** - 4. stopień  |
+|      B4 | B          | —          | 71   | **NIE**                       |
+|      C5 | C          | —          | 72   | **TAK** - 8. (oktawa) |
 
 
 **Dlaczego tylko nuty ze skali?** Bo gwarantuje to, że każda nuta będzie "brzmiała dobrze" z akordami. To jak gotowanie - używamy tylko składników, które do siebie pasują.

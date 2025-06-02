@@ -5,6 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ef57549e-657e-452d-a664-0549a6f13605" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend-fastapi/app/tests/readme.md" beforeDir="false" afterPath="$PROJECT_DIR$/backend-fastapi/app/tests/readme.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -184,7 +185,7 @@
       <workItem from="1748785724959" duration="3592000" />
       <workItem from="1748805086756" duration="6935000" />
       <workItem from="1748849546449" duration="39000" />
-      <workItem from="1748871246475" duration="3254000" />
+      <workItem from="1748871246475" duration="3998000" />
     </task>
     <servers />
   </component>
