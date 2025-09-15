@@ -68,13 +68,16 @@ export default function AirPanel() {
             <div className="container mx-auto px-4 py-8 relative z-10">
                 <div className="mb-10 text-center">
 
-                    <AnimatedCard path={"/air/music-test"} name={"TESTS"} index={0} />
+                    <div className="flex gap-6 justify-center mb-8 flex-wrap">
+                        <AnimatedCard path={"/air/music-test"} name={"sample-simple-test"} index={0} />
+                        <AnimatedCard path={"/air/param-adv"} name={"parametrize-advanced-test"} index={1} />
+                    </div>
 
                     <div className="text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-red-500 mb-4">
                         AIR 4.0
                     </div>
                     <div className="h-16">
-                        <TypedText sequences={typeSequences as (string | number)[]} />
+                        <TypedText sequences={typeSequences as any} />
                     </div>
                 </div>
 

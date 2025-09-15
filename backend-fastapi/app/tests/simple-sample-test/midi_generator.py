@@ -1,0 +1,1 @@
+from ..midi_generator import *  # re-export legacy

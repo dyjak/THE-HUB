@@ -4,6 +4,13 @@ from .database.connection import Base, engine
 from .auth.router import router as auth_router
 from .users import router as users_router
 from .database.seeder import seed_users
+try:
+    from .tests.parametrize_advanced_test.router import router as param_adv_router
+    _PARAM_ADV_AVAILABLE = True
+except Exception as e:  # broad for diagnostic
+    param_adv_router = None  # type: ignore
+    _PARAM_ADV_AVAILABLE = False
+    _PARAM_ADV_IMPORT_ERROR = str(e)
 import subprocess
 import sys
 from pathlib import Path
@@ -36,13 +43,17 @@ seed_users()
 # Dodaj routery
 app.include_router(auth_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
+if _PARAM_ADV_AVAILABLE and param_adv_router:
+    app.include_router(param_adv_router, prefix="/api")
+else:
+    print("[WARN] param_adv_router not loaded:", globals().get('_PARAM_ADV_IMPORT_ERROR'))
 
 
 # MUSIC TEST ENDPOINTS - dodane bezpośrednio
 def run_test_script(script_name: str):
     """Uruchamia skrypt testowy"""
     try:
-        tests_dir = Path(__file__).parent / "tests"
+        tests_dir = Path(__file__).parent / "tests" / "simple-sample-test"
         script_path = tests_dir / script_name
 
         if not script_path.exists():
@@ -92,7 +103,7 @@ def run_full_test():
 @app.get("/api/music-tests/list-files")
 def list_files():
     files = {"midi": [], "audio": [], "samples": []}
-    tests_dir = Path(__file__).parent / "tests"
+    tests_dir = Path(__file__).parent / "tests" / "simple-sample-test"
     output_dir = tests_dir / "output"
 
     if output_dir.exists():
@@ -120,3 +131,12 @@ def read_root():
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/api/debug/routes")
+def debug_routes():
+    return {
+        "param_adv_loaded": _PARAM_ADV_AVAILABLE,
+        "param_adv_import_error": None if _PARAM_ADV_AVAILABLE else globals().get('_PARAM_ADV_IMPORT_ERROR'),
+        "routes": [r.path for r in app.routes]
+    }
