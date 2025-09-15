@@ -6,7 +6,7 @@ import {FaHome, FaGithub, FaBrain} from "react-icons/fa";
 import {red} from "next/dist/lib/picocolors";
 
 
-export default function Nav({ children }: { children: React.ReactNode }) {
+export default function Nav() {
     const {data: session} = useSession();
 
     return (

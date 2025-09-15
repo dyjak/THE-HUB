@@ -54,7 +54,7 @@ export default function AirPanel() {
     ];
 
     return (
-        <div className="min-h-screen bg-black text-white relative overflow-hidden">
+        <div className="w-full min-h-screen bg-black text-white relative flex flex-col">
             {/* Cosmic background with animated elements */}
             <div className="absolute inset-0 overflow-hidden">
                 <div className="cosmic-bg absolute inset-0 bg-gradient-to-br from-purple-900 via-black to-blue-900"></div>
@@ -68,13 +68,13 @@ export default function AirPanel() {
             <div className="container mx-auto px-4 py-8 relative z-10">
                 <div className="mb-10 text-center">
 
-                    <AnimatedCard path={"/air/music-test"} name={"TESTS"} index={0}> </AnimatedCard>
+                    <AnimatedCard path={"/air/music-test"} name={"TESTS"} index={0} />
 
                     <div className="text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-red-500 mb-4">
                         AIR 4.0
                     </div>
                     <div className="h-16">
-                        <TypedText sequences={typeSequences} />
+                        <TypedText sequences={typeSequences as (string | number)[]} />
                     </div>
                 </div>
 
@@ -270,14 +270,13 @@ export default function AirPanel() {
                     {activeTab === "library" && (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {["Cosmic Odyssey", "Midnight Waves", "Solar Flare"].map((title, index) => (
-                                <AnimatedCard key={index} path="/play" name={title} index={index}>
-                                    <div className="p-4">
-                                        <div className="bg-gradient-to-br from-purple-900 to-blue-900 h-32 rounded-lg mb-3 flex items-center justify-center">
-                                            <FaMusic className="text-3xl text-blue-300" />
-                                        </div>
-                                        <div className="text-sm text-gray-400">Created: April 18, 2025</div>
+                                <div key={index} className="border border-gray-600 rounded-xl p-4 flex flex-col items-center bg-black/40 backdrop-blur-sm">
+                                    <AnimatedCard path="/play" name={title} index={index} />
+                                    <div className="bg-gradient-to-br from-purple-900 to-blue-900 h-32 w-full rounded-lg mt-4 mb-3 flex items-center justify-center">
+                                        <FaMusic className="text-3xl text-blue-300" />
                                     </div>
-                                </AnimatedCard>
+                                    <div className="text-sm text-gray-400">Created: April 18, 2025</div>
+                                </div>
                             ))}
                         </div>
                     )}

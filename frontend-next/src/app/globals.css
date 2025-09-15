@@ -7,6 +7,29 @@ body {
     color: white;
 }
 
+html, body, #__next {
+    height: 100%;
+}
+
+body {
+    overflow: hidden; /* blokuje globalny scroll */
+}
+
+/* Estetyczny scrollbar tylko tam gdzie nadamy klasę scroll-container */
+.scroll-container::-webkit-scrollbar {
+    width: 8px;
+}
+.scroll-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+.scroll-container::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg,#4f46e5,#9333ea);
+    border-radius: 4px;
+}
+.scroll-container::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg,#6366f1,#a855f7);
+}
+
 
 .shade {
     background-color: #00254f;

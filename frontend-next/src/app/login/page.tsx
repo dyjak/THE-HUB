@@ -7,61 +7,22 @@ import { motion } from "framer-motion";
 
 export default function LoginPage() {
     const [pin, setPin] = useState<string[]>(Array(6).fill(''));
-    const [activeIndex, setActiveIndex] = useState(0);
+    const [activeIndex, setActiveIndex] = useState(0); // tylko do focusu / highlightu
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const router = useRouter();
 
     const inputRefs = useRef<(HTMLInputElement | null)[]>(Array(6).fill(null));
 
-    // Obsługa klawiatury numerycznej
-    const handleKeyPress = (digit: string) => {
-        if (activeIndex < 6) {
-            const newPin = [...pin];
-            newPin[activeIndex] = digit;
-            setPin(newPin);
-
-            // Przesuń focus na następne pole
-            if (activeIndex < 5) {
-                setActiveIndex(activeIndex + 1);
-            } else {
-                // Automatycznie zaloguj po wprowadzeniu ostatniej cyfry
-                setTimeout(() => {
-                    handleLogin();
-                }, 300);
-            }
-        }
-    };
-
-    // Obsługa backspace
-    const handleBackspace = () => {
-        if (activeIndex > 0) {
-            const newPin = [...pin];
-            newPin[activeIndex - 1] = '';
-            setPin(newPin);
-            setActiveIndex(activeIndex - 1);
-        } else if (pin[0] !== '') {
-            const newPin = [...pin];
-            newPin[0] = '';
-            setPin(newPin);
-        }
-    };
-
-    // Przesunięcie focusu na odpowiednie pole
-    useEffect(() => {
-        if (inputRefs.current[activeIndex]) {
-            inputRefs.current[activeIndex]?.focus();
-        }
-    }, [activeIndex]);
-
-    // Obsługa logowania
-    const handleLogin = async () => {
-        const pinString = pin.join('');
+    // Uniwersalna funkcja logowania (można przekazać świeżo złożony PIN)
+    const handleLogin = async (pinOverride?: string) => {
+        const pinString = pinOverride ?? pin.join('');
 
         if (pinString.length !== 6) {
             setError("PIN musi składać się z 6 cyfr");
             return;
         }
+        if (loading) return; // zapobiega wielokrotnemu wysyłaniu
 
         setLoading(true);
         setError("");
@@ -74,17 +35,15 @@ export default function LoginPage() {
 
             if (result?.error) {
                 setError("Nieprawidłowy PIN. Spróbuj ponownie.");
-                // Resetuj PIN po nieudanym logowaniu
                 setPin(Array(6).fill(''));
                 setActiveIndex(0);
             } else {
                 router.push("/");
                 router.refresh();
             }
-        } catch (error) {
-            console.error("Login error:", error);
+        } catch (err) {
+            console.error("Login error:", err);
             setError("Wystąpił nieoczekiwany błąd podczas logowania");
-            // Resetuj PIN po nieudanym logowaniu
             setPin(Array(6).fill(''));
             setActiveIndex(0);
         } finally {
@@ -92,39 +51,70 @@ export default function LoginPage() {
         }
     };
 
-    // Obsługa klawiatury fizycznej
-    const handleInputChange = (index: number, value: string) => {
-        // Tylko cyfry
-        if (!/^\d*$/.test(value)) return;
+    // Wirtualna klawiatura: zawsze wstawia cyfrę w pierwsze puste miejsce
+    const handleKeyPress = (digit: string) => {
+        if (loading) return;
+        const firstEmpty = pin.findIndex(d => d === '');
+        if (firstEmpty === -1) return; // już pełny
 
         const newPin = [...pin];
-        newPin[index] = value.slice(-1); // Bierzemy tylko ostatnią cyfrę
+        newPin[firstEmpty] = digit;
         setPin(newPin);
+        setActiveIndex(Math.min(firstEmpty + 1, 5));
 
-        // Automatycznie przejdź do następnego pola
-        if (value && index < 5) {
-            setActiveIndex(index + 1);
-        } else if (value && index === 5) {
-            // Jeśli to ostatnie pole, spróbuj zalogować
-            setTimeout(() => {
-                handleLogin();
-            }, 300);
+        if (firstEmpty === 5) {
+            // Mamy komplet 6 cyfr -> natychmiast logowanie na podstawie newPin
+            handleLogin(newPin.join(''));
         }
     };
 
-    // Obsługa klawisza backspace dla pól input
+    // Backspace usuwa poprzednią wypełnioną cyfrę (ostatnią nie‑pustą)
+    const handleBackspace = () => {
+        if (loading) return;
+        // znajdź ostatni wypełniony indeks
+        const lastFilled = [...pin].map((v,i)=>({v,i})).filter(o=>o.v !== '').map(o=>o.i).pop();
+        if (lastFilled === undefined) return;
+        const newPin = [...pin];
+        newPin[lastFilled] = '';
+        setPin(newPin);
+        setActiveIndex(lastFilled);
+    };
+
+    // Focus aktualnego indeksu
+    useEffect(() => {
+        inputRefs.current[activeIndex]?.focus();
+    }, [activeIndex]);
+
+    // Zmiana w pojedynczym input (klawiatura fizyczna)
+    const handleInputChange = (index: number, value: string) => {
+        if (!/^\d*$/.test(value) || loading) return;
+
+        const newPin = [...pin];
+        newPin[index] = value.slice(-1);
+        setPin(newPin);
+
+        if (value && index < 5) {
+            setActiveIndex(index + 1);
+        }
+        // Jeśli po tej zmianie mamy komplet -> logowanie
+        if (newPin.every(d => d !== '')) {
+            handleLogin(newPin.join(''));
+        }
+    };
+
     const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
         if (e.key === 'Backspace') {
-            if (pin[index] === '' && index > 0) {
-                setActiveIndex(index - 1);
+            if (pin[index] === '') {
+                // cofamy się do poprzedniego uzupełnionego
+                const prevFilled = [...pin].map((v,i)=>({v,i})).filter(o=>o.v !== '' && o.i < index).map(o=>o.i).pop();
+                if (prevFilled !== undefined) setActiveIndex(prevFilled);
             }
-        } else if (e.key === 'Enter' && pin.filter(digit => digit !== '').length === 6) {
+        } else if (e.key === 'Enter' && pin.every(d => d !== '')) {
             handleLogin();
         }
     };
 
-    // Sprawdź czy PIN jest kompletny
-    const isPinComplete = pin.every(digit => digit !== '');
+    const isPinComplete = pin.every(d => d !== '');
 
     return (
         <main className="relative flex flex-col items-center justify-center min-h-screen bg-transparent text-white">
@@ -149,7 +139,7 @@ export default function LoginPage() {
                         {Array(6).fill(0).map((_, index) => (
                             <input
                                 key={index}
-                                ref={el => inputRefs.current[index] = el}
+                                ref={(el) => { inputRefs.current[index] = el; }}
                                 type="password"
                                 className={`w-12 h-16 text-center text-2xl bg-gray-800 border ${
                                     activeIndex === index ? 'border-blue-500' : 'border-gray-600'
@@ -189,7 +179,7 @@ export default function LoginPage() {
                             0
                         </button>
                         <button
-                            onClick={handleLogin}
+                            onClick={() => handleLogin()}
                             disabled={!isPinComplete || loading}
                             className="p-4 bg-blue-600 hover:bg-blue-700 text-xl font-bold rounded-lg transition duration-200 disabled:opacity-50 disabled:bg-blue-800"
                         >

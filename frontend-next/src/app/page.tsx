@@ -42,17 +42,17 @@ const typeSequences = [
 
 export default function Home() {
     return (
-        <main className="w-full relative flex flex-col items-center justify-center min-h-screen bg-transparent text-white">
+    <main className="w-full relative flex flex-col items-center justify-center min-h-screen bg-transparent text-white">
 
             <div className="w-full relative p-16 flex flex-col items-center justify-center h-max bg-transparent text-white">
-                <TypedText sequences={typeSequences}/>
+                <TypedText sequences={typeSequences as (string | number)[]} />
             </div>
 
             <div className="w-full shade pt-10 pb-10 bg-black flex justify-around items-center relative z-10">
-                <AnimatedCard path={"/air"} name={"AIR 4.2"} index={0}> </AnimatedCard>
-                <AnimatedCard path={"/air"} name={<FaLock/> } index={1}> </AnimatedCard>
-                <AnimatedCard path={"/air"} name={<FaLock/>} index={2}> </AnimatedCard>
-                <AnimatedCard path={"/air"} name={<FaLock/>} index={3}> </AnimatedCard>
+                <AnimatedCard path={"/air"} name={"AIR 4.2"} index={0} />
+                <AnimatedCard path={"/air"} name={<FaLock/> } index={1} />
+                <AnimatedCard path={"/air"} name={<FaLock/>} index={2} />
+                <AnimatedCard path={"/air"} name={<FaLock/>} index={3} />
 
             </div>
 
