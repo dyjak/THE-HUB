@@ -1,12 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from .database import SessionLocal
-from .models import User
-from pydantic import BaseModel
+from .database.connection import SessionLocal
+from .auth.models import User
+from .auth.schemas import UserResponse
 from typing import List
 
 router = APIRouter()
-
 
 def get_db():
     db = SessionLocal()
@@ -15,21 +14,10 @@ def get_db():
     finally:
         db.close()
 
-
-# Model dla odpowiedzi API
-class UserResponse(BaseModel):
-    id: int
-    username: str
-
-    class Config:
-        orm_mode = True
-
-
 # Pobieranie listy użytkowników
 @router.get("/users", response_model=List[UserResponse])
 def get_users(db: Session = Depends(get_db)):
     return db.query(User).all()
-
 
 # Pobieranie szczegółów jednego użytkownika
 @router.get("/users/{user_id}", response_model=UserResponse)
@@ -38,7 +26,6 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="Użytkownik nie znaleziony")
     return user
-
 
 # Usuwanie użytkownika
 @router.delete("/users/{user_id}")

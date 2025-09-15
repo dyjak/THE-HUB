@@ -1,0 +1,85 @@
+THE-HUB/
+├── backend-fastapi/
+│   ├── app/
+│   │   ├── __pycache__/
+│   │   │   ├── main.cpython-312.pyc
+│   │   │   └── users.cpython-312.pyc
+│   │   ├── auth/
+│   │   │   ├── __pycache__/
+│   │   │   │   ├── __init__.cpython-312.pyc
+│   │   │   │   ├── models.cpython-312.pyc
+│   │   │   │   ├── router.cpython-312.pyc
+│   │   │   │   └── schemas.cpython-312.pyc
+│   │   │   ├── __init__.py
+│   │   │   ├── models.py
+│   │   │   ├── router.py
+│   │   │   └── schemas.py
+│   │   ├── database/
+│   │   │   ├── __pycache__/
+│   │   │   │   ├── __init__.cpython-312.pyc
+│   │   │   │   ├── connection.cpython-312.pyc
+│   │   │   │   └── seeder.cpython-312.pyc
+│   │   │   ├── __init__.py
+│   │   │   ├── connection.py
+│   │   │   ├── migrate_db.py
+│   │   │   └── seeder.py
+│   │   ├── tests/
+│   │   │   ├── __init__.py
+│   │   │   ├── audio_synthesizer.py
+│   │   │   ├── midi_generator.py
+│   │   │   ├── router.py
+│   │   │   ├── sample_fetcher.py
+│   │   │   └── test_basic_generation.py
+│   │   ├── main.py
+│   │   └── users.py
+│   ├── requirements.txt
+│   └── users.db
+├── frontend-next/
+│   ├── public/
+│   │   ├── file.svg
+│   │   ├── globe.svg
+│   │   ├── next.svg
+│   │   ├── vercel.svg
+│   │   └── window.svg
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── air/
+│   │   │   │   ├── music-test/
+│   │   │   │   │   └── page.tsx
+│   │   │   │   ├── air-style.css
+│   │   │   │   └── page.tsx
+│   │   │   ├── api/
+│   │   │   │   ├── auth/
+│   │   │   │       ├── [...nextauth]/
+│   │   │   │           └── route.ts
+│   │   │   ├── login/
+│   │   │   │   └── page.tsx
+│   │   │   ├── favicon.ico
+│   │   │   ├── globals.css
+│   │   │   ├── layout.tsx
+│   │   │   ├── page.tsx
+│   │   │   └── providers.tsx
+│   │   ├── components/
+│   │       ├── ui/
+│   │       │   ├── AnimatedCard.jsx
+│   │       │   ├── AnimatedHeading.jsx
+│   │       │   ├── StarField.js
+│   │       │   └── TypedText.jsx
+│   │       ├── Layout.tsx
+│   │       └── Nav.tsx
+│   ├── README.md
+│   ├── eslint.config.mjs
+│   ├── next-env.d.ts
+│   ├── next.config.ts
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── pnpm-lock.yaml
+│   ├── postcss.config.js
+│   ├── postcss.config.mjs
+│   ├── reset-next.bat
+│   ├── tailwind.config.js
+│   ├── tsconfig.json
+│   └── vercel.json
+├── curl-test.txt
+├── proj_struct.txt
+└── start.bat

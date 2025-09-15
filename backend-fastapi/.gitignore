@@ -1,2 +1,6 @@
 /venv
+<<<<<<< HEAD
 /.venv
+=======
+*/__pycache
+>>>>>>> test-samples
