@@ -75,3 +75,44 @@ def generate_pianoroll(midi_data: Dict[str, Any], log) -> Dict[str, str] | None:
     size = png_path.stat().st_size if png_path.exists() else 0
     log("midi", "pianoroll_generated", {"file": str(png_path), "bytes": size, "notes": len(note_range)})
     return {"path": str(png_path), "base64": b64}
+
+
+def generate_pianoroll_layers(midi_data: Dict[str, Any], log) -> Dict[str, Dict[str, str]] | None:
+    """Generuje pianorolle: łączny oraz per instrument. Zwraca mapę {"combined": img, "layers": {inst: img}}.
+    Jeśli brak matplotlib – zwraca None.
+    """
+    log("call", "generate_pianoroll_layers", {"module": "midi_visualizer.py"})
+    if plt is None:
+        log("midi", "pianoroll_skipped", {"reason": "matplotlib not available"})
+        return None
+    output: Dict[str, Dict[str, str]] = {"combined": {}, "layers": {}}
+    # Combined
+    combined = generate_pianoroll(midi_data, log)
+    if combined:
+        output["combined"] = combined
+    # Per instrument
+    layers: Dict[str, List[Dict[str, Any]]] = midi_data.get("layers", {})
+    for inst, pat in layers.items():
+        sub_midi = {"pattern": pat}
+        note_range, grid = _extract_grid(sub_midi)
+        fig, ax = plt.subplots(figsize=(max(4, len(grid[0]) * 0.15), max(2, len(note_range) * 0.15)))
+        ax.imshow(grid, aspect='auto', origin='lower', cmap='magma')
+        ax.set_yticks(range(len(note_range)))
+        ax.set_yticklabels(note_range, fontsize=6)
+        ax.set_xticks([])
+        ax.set_xlabel('Steps')
+        ax.set_ylabel('MIDI Note')
+        ax.set_title(f'Layer: {inst}')
+        plt.tight_layout()
+        output_dir = Path(__file__).parent / 'output'
+        output_dir.mkdir(parents=True, exist_ok=True)
+        png_path = output_dir / f'pianoroll_{inst}.png'
+        fig.savefig(png_path, dpi=120)
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', dpi=120)
+        plt.close(fig)
+        b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+        size = png_path.stat().st_size if png_path.exists() else 0
+        log("midi", "pianoroll_generated", {"file": str(png_path), "bytes": size, "notes": len(note_range), "layer": inst})
+        output.setdefault("layers", {})[inst] = {"path": str(png_path), "base64": b64}
+    return output

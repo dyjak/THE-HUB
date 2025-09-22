@@ -57,7 +57,46 @@ class SampleFetcher:
                 url="generated://pad/ambient",
                 duration=8.0,
                 instrument="pad"
-            )
+            ),
+            "bass_c2": SampleInfo(
+                id="bass_c2",
+                name="Bass C2",
+                url="generated://bass/c2",
+                duration=1.5,
+                instrument="bass",
+                key="C"
+            ),
+            "drums_kit": SampleInfo(
+                id="drums_kit",
+                name="Drums Kit",
+                url="generated://drums/kit",
+                duration=1.0,
+                instrument="drums"
+            ),
+            "guitar_e3": SampleInfo(
+                id="guitar_e3",
+                name="Guitar E3",
+                url="generated://guitar/e3",
+                duration=2.0,
+                instrument="guitar",
+                key="E"
+            ),
+            "sax_c4": SampleInfo(
+                id="sax_c4",
+                name="Saxophone C4",
+                url="generated://saxophone/c4",
+                duration=2.0,
+                instrument="saxophone",
+                key="C"
+            ),
+            "synth_c4": SampleInfo(
+                id="synth_c4",
+                name="Synth C4",
+                url="generated://synth/c4",
+                duration=2.5,
+                instrument="synth",
+                key="C"
+            ),
         }
         return basic_samples
 
@@ -201,6 +240,62 @@ class SampleFetcher:
                 envelope = np.ones_like(audio)
                 envelope[:attack] = np.linspace(0, 1, attack)
                 audio *= envelope
+
+            elif sample.instrument == "bass":
+                # Niski sinus (C2 ~ 65.41 Hz) z lekką saturacją
+                frequency = 65.41
+                audio = np.sin(2 * np.pi * frequency * t) * 0.5
+                # Krótki atak i dość krótki release
+                attack = int(0.02 * sample_rate)
+                release = int(0.15 * sample_rate)
+                envelope = np.ones_like(audio)
+                envelope[:attack] = np.linspace(0, 1, attack)
+                envelope[-release:] = np.linspace(1, 0, release)
+                audio *= envelope
+
+            elif sample.instrument == "drums":
+                # Prosty zestaw perkusyjny: kick (sinus z expo-decay) + noise (hi-hat)
+                kick_freq = 60.0
+                kick = np.sin(2 * np.pi * kick_freq * t)
+                kick *= np.exp(-t * 12)
+                # Szum dla hi-hatu
+                rng = np.random.default_rng(42)
+                hat = rng.random(len(t)) * 2 - 1
+                hat *= (np.sin(2 * np.pi * 12 * t) > 0).astype(float)
+                hat *= np.exp(-t * 30)
+                audio = (kick * 0.8 + hat * 0.2)
+
+            elif sample.instrument == "guitar":
+                # Pluck: mieszanina harmonicznych z szybkim atakiem i krótkim decay (E3 ~ 164.81 Hz)
+                f = 164.81
+                audio = (np.sin(2 * np.pi * f * t) * 0.5 +
+                         np.sin(2 * np.pi * 2 * f * t) * 0.2 +
+                         np.sin(2 * np.pi * 3 * f * t) * 0.1)
+                attack = int(0.01 * sample_rate)
+                release = int(0.3 * sample_rate)
+                envelope = np.ones_like(audio)
+                envelope[:attack] = np.linspace(0, 1, attack)
+                envelope[-release:] = np.linspace(1, 0, release)
+                audio *= envelope
+
+            elif sample.instrument == "saxophone":
+                # Reedy: dominujące nieparzyste harmoniczne
+                f = 261.63
+                audio = (np.sin(2 * np.pi * f * t) * 0.4 +
+                         np.sin(2 * np.pi * 3 * f * t) * 0.2 +
+                         np.sin(2 * np.pi * 5 * f * t) * 0.1)
+                attack = int(0.05 * sample_rate)
+                envelope = np.ones_like(audio)
+                envelope[:attack] = np.linspace(0, 1, attack)
+                audio *= envelope
+
+            elif sample.instrument == "synth":
+                # Prosty saw-like (sumowanie harmonicznych)
+                f = 261.63
+                audio = np.zeros_like(t)
+                for k in range(1, 8):
+                    audio += (1.0 / k) * np.sin(2 * np.pi * k * f * t)
+                audio *= 0.3
 
             else:
                 # Default sine wave

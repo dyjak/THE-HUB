@@ -4,6 +4,7 @@ from .database.connection import Base, engine
 from .auth.router import router as auth_router
 from .users import router as users_router
 from .database.seeder import seed_users
+from fastapi.staticfiles import StaticFiles
 try:
     from .tests.parametrize_advanced_test.router import router as param_adv_router
     _PARAM_ADV_AVAILABLE = True
@@ -45,6 +46,21 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 if _PARAM_ADV_AVAILABLE and param_adv_router:
     app.include_router(param_adv_router, prefix="/api")
+    # Serve generated artifacts (MIDI/images) for param-adv module
+    try:
+        param_adv_output = Path(__file__).parent / "tests" / "parametrize_advanced_test" / "output"
+        param_adv_output.mkdir(parents=True, exist_ok=True)
+        app.mount("/api/param-adv/output", StaticFiles(directory=str(param_adv_output)), name="param_adv_output")
+    except Exception as e:
+        print("[WARN] failed to mount param-adv static output:", e)
+    # Debug: list param-adv routes to verify availability
+    try:
+        param_routes = [getattr(r, "path", str(r)) for r in app.routes if "/param-adv" in getattr(r, "path", "")]
+        print("[param-adv] registered routes:")
+        for p in sorted(param_routes):
+            print("   ", p)
+    except Exception as e:
+        print("[WARN] failed to enumerate param-adv routes:", e)
 else:
     print("[WARN] param_adv_router not loaded:", globals().get('_PARAM_ADV_IMPORT_ERROR'))
 
@@ -140,3 +156,12 @@ def debug_routes():
         "param_adv_import_error": None if _PARAM_ADV_AVAILABLE else globals().get('_PARAM_ADV_IMPORT_ERROR'),
         "routes": [r.path for r in app.routes]
     }
+
+
+@app.get("/api/param-adv/_routes")
+def debug_param_adv_routes():
+    try:
+        param_routes = [getattr(r, "path", str(r)) for r in app.routes if "/param-adv" in getattr(r, "path", "")]
+        return {"routes": sorted(param_routes)}
+    except Exception as e:
+        return {"error": str(e)}

@@ -47,6 +47,11 @@ interface FullPresetResponse { /* removed presets support */ }
 
 interface DocsResponse { readme: string }
 
+// New backend response shapes (backward compatible)
+interface MidiImage { path: string; base64: string }
+interface MidiImages { combined?: MidiImage; layers?: Record<string, MidiImage> }
+type MidiFile = string | { combined: string; layers: Record<string, string> } | null;
+
 // Utility formatting
 const timeFmt = (unix: number) => new Date(unix * 1000).toLocaleTimeString();
 
@@ -75,6 +80,7 @@ const DEFAULT_AUDIO: AudioRenderParameters = {
 
 export default function ParamAdvPage() {
   const [midi, setMidi] = useState<MidiParameters>(DEFAULT_MIDI);
+  // Samples panel removed; backend selects per instrument automatically
   const [samples, setSamples] = useState<SampleSelectionParameters>(DEFAULT_SAMPLES);
   const [audio, setAudio] = useState<AudioRenderParameters>(DEFAULT_AUDIO);
 
@@ -87,6 +93,8 @@ export default function ParamAdvPage() {
   const [responseStatus, setResponseStatus] = useState<number | null>(null);
   const [rawResponse, setRawResponse] = useState<any>(null);
   const [midiImage, setMidiImage] = useState<string | null>(null);
+  const [midiImages, setMidiImages] = useState<MidiImages | null>(null);
+  const [midiFiles, setMidiFiles] = useState<MidiFile>(null);
   const [readme, setReadme] = useState<string | null>(null);
   const [showDocs, setShowDocs] = useState(false);
 
@@ -136,12 +144,10 @@ export default function ParamAdvPage() {
     } else if (mode === 'render') {
       endpoint = '/param-adv/run/render';
       body.midi = midi;
-      body.samples = samples;
       body.audio = audio;
     } else {
       endpoint = '/param-adv/run/full';
       body.midi = midi;
-      body.samples = samples;
       body.audio = audio;
     }
 
@@ -169,6 +175,14 @@ export default function ParamAdvPage() {
         } else {
           setMidiImage(null);
         }
+        // Layered images (new)
+        if (data.midi_images) {
+          setMidiImages(data.midi_images);
+        } else {
+          setMidiImages(null);
+        }
+        // MIDI files (may be string or object)
+        setMidiFiles(data.midi_file ?? null);
       } else {
         console.log('Brak run_id – surowa odpowiedź:', data);
         setError(`Brak run_id w odpowiedzi (status ${res.status})`);
@@ -263,24 +277,7 @@ export default function ParamAdvPage() {
             </div>
         </div>
 
-        {/* Panel Samples */}
-        <div className="bg-gray-900/60 p-4 rounded-lg border border-gray-700">
-          <h2 className="font-semibold mb-3 text-green-300 text-lg">Sample Selection</h2>
-            <div className="space-y-3 text-sm">
-              <div>
-                <label className="block mb-1">Layers</label>
-                <input type="number" min={1} max={16} value={samples.layers} onChange={e=>updateSamples({layers: parseInt(e.target.value)})} className="w-full bg-black/60 p-2 rounded border border-gray-700" />
-              </div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" checked={samples.prefer_organic} onChange={e=>updateSamples({prefer_organic: e.target.checked})} />
-                <label>Prefer organic</label>
-              </div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" checked={samples.add_percussion} onChange={e=>updateSamples({add_percussion: e.target.checked})} />
-                <label>Add percussion</label>
-              </div>
-            </div>
-        </div>
+        {/* Panel Samples removed: backend selects samples per instrument automatically */}
 
         {/* Panel Audio */}
         <div className="bg-gray-900/60 p-4 rounded-lg border border-gray-700">
@@ -337,10 +334,84 @@ export default function ParamAdvPage() {
           )}
         </div>
 
-        {midiImage && (
+        {(midiImage || midiImages) && (
+          <div className="bg-gray-900/60 p-4 rounded-lg border border-gray-700 space-y-4">
+            <h3 className="font-semibold text-orange-300">MIDI Piano Roll</h3>
+            {midiImage && (
+              <div>
+                <div className="text-xs text-gray-400 mb-1">Combined (compat)</div>
+                <img src={midiImage} alt="MIDI Piano Roll" className="max-w-full border border-gray-800 rounded" />
+              </div>
+            )}
+            {midiImages?.combined?.base64 && (
+              <div>
+                <div className="text-xs text-gray-400 mb-1">Combined</div>
+                <img src={`data:image/png;base64,${midiImages.combined.base64}`} alt="MIDI Piano Roll Combined" className="max-w-full border border-gray-800 rounded" />
+              </div>
+            )}
+            {midiImages?.layers && (
+              <div>
+                <div className="text-xs text-gray-400 mb-2">Per instrument</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Object.entries(midiImages.layers).map(([inst, img]) => (
+                    <div key={inst} className="bg-black/40 p-2 rounded border border-gray-800">
+                      <div className="text-xs text-gray-300 mb-1">{inst}</div>
+                      <img src={`data:image/png;base64,${img.base64}`} alt={`MIDI ${inst}`} className="w-full border border-gray-800 rounded" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {midiFiles && (
           <div className="bg-gray-900/60 p-4 rounded-lg border border-gray-700">
-            <h3 className="font-semibold mb-3 text-orange-300">MIDI Piano Roll</h3>
-            <img src={midiImage} alt="MIDI Piano Roll" className="max-w-full border border-gray-800 rounded" />
+            <h3 className="font-semibold mb-3 text-cyan-300">MIDI Files</h3>
+            {typeof midiFiles === 'string' ? (
+              <div className="text-xs text-gray-300 break-all">
+                <a
+                  href={`${API_BASE}${API_PREFIX}/param-adv/output/${midiFiles.split(/\\|\//).pop()}`}
+                  target="_blank"
+                  className="underline hover:text-white"
+                >
+                  {midiFiles}
+                </a>
+              </div>
+            ) : (
+              <div className="text-xs space-y-2">
+                <div>
+                  <span className="text-gray-400">Combined:</span>{' '}
+                  <a
+                    href={`${API_BASE}${API_PREFIX}/param-adv/output/${midiFiles?.combined.split(/\\|\//).pop()}`}
+                    target="_blank"
+                    className="break-all underline hover:text-white"
+                  >
+                    {midiFiles?.combined}
+                  </a>
+                </div>
+                {midiFiles?.layers && (
+                  <div>
+                    <div className="text-gray-400 mb-1">Per instrument:</div>
+                    <ul className="pl-4 list-disc space-y-1">
+                      {Object.entries(midiFiles.layers).map(([inst, path]) => (
+                        <li key={inst} className="break-all">
+                          <span className="text-gray-300">{inst}:</span>{' '}
+                          <a
+                            href={`${API_BASE}${API_PREFIX}/param-adv/output/${path.split(/\\|\//).pop()}`}
+                            target="_blank"
+                            className="underline hover:text-white"
+                          >
+                            {path}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="text-[10px] text-gray-500 mt-2">Pobieranie dostępne przez /api/param-adv/output/...</div>
           </div>
         )}
 

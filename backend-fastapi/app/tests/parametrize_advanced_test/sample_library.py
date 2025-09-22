@@ -14,29 +14,27 @@ SAMPLE_POOL = [
 
 def select_samples(params: Dict[str, Any], midi_data: Dict[str, Any], log):
     log("func", "enter", {"module": "sample_library.py", "function": "select_samples", "params_keys": list(params.keys()), "midi_has_pattern": "pattern" in midi_data})
-    layers = params.get("layers", 3)
-    prefer_organic = params.get("prefer_organic", True)
-    add_percussion = params.get("add_percussion", True)
+    # Deprecations
+    if any(k in params for k in ("layers", "prefer_organic", "add_percussion")):
+        log("samples", "params_deprecated", {"ignored": {k: params.get(k) for k in ("layers", "prefer_organic", "add_percussion") if k in params}})
 
-    log("samples", "selection_start", {"layers": layers, "prefer_organic": prefer_organic, "total_pool": len(SAMPLE_POOL)})
+    instruments: List[str] = midi_data.get("meta", {}).get("instruments", []) or []
+    log("samples", "selection_start", {"instruments": instruments, "total_pool": len(SAMPLE_POOL)})
 
     chosen: List[Dict[str, Any]] = []
-    pool = SAMPLE_POOL.copy()
-    random.shuffle(pool)
-    rejected = 0
-    for sample in pool:
-        if len(chosen) >= layers:
-            break
-        if prefer_organic and not sample["organic"]:
-            rejected += 1
-            continue
-        chosen.append(sample)
+    for inst in instruments:
+        candidates = [s for s in SAMPLE_POOL if s["type"] == inst]
+        if not candidates:
+            # fallback: dowolny organic jeśli dostępny, inaczej dowolny
+            organic = [s for s in SAMPLE_POOL if s["organic"]]
+            pick_from = organic or SAMPLE_POOL
+        else:
+            pick_from = candidates
+        sample = random.choice(pick_from)
+        chosen.append({"instrument": inst, **sample})
+        log("samples", "instrument_selected", {"instrument": inst, "sample": sample["id"]})
 
-    if add_percussion:
-        percs = [s for s in SAMPLE_POOL if s["type"] == "drums"]
-        if percs:
-            chosen.append(random.choice(percs))
-    log("samples", "selection_done", {"count": len(chosen), "rejected": rejected, "percussion_added": add_percussion})
+    log("samples", "selection_done", {"count": len(chosen)})
     result = {"samples": chosen}
     log("func", "exit", {"module": "sample_library.py", "function": "select_samples", "returned": len(chosen)})
     return result

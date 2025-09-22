@@ -27,12 +27,12 @@ Katalog: `backend-fastapi/app/tests/parametrize_advanced_test/`
 
 ---
 ## Przepływ wykonania (run_full)
-Body (skrócone):
+Body (skrócone, pojedynczy obiekt):
 ```json
 {
   "midi": { "genre": "ambient", "tempo": 80, ... },
-  "samples": { "layers": 3, ... },
-  "audio": { "seconds": 6.0, ... }
+  "audio": { "seconds": 6.0, ... },
+  "samples": { ... } // opcjonalne
 }
 ```
 
@@ -41,15 +41,16 @@ Body (skrócone):
    - Logi: `module_version`, `params_received`
    - Etapy: `generate_midi` → `save_midi` → `generate_pianoroll` → `select_samples` → `render_audio`
    - Zakończenie: `run.completed`
-2. Odpowiedź:
+2. Odpowiedź (warstwowe artefakty):
 ```json
 {
   "run_id": "...",
-  "midi": { "pattern": [...], "meta": {...} },
+  "midi": { "pattern": [...], "layers": {"piano": [...], ...}, "meta": {...} },
   "samples": { ... },
   "audio": { "audio_file": "..." },
-  "midi_file": ".../pattern.mid",
+  "midi_file": ".../pattern.mid" | {"combined": "...", "layers": {"piano": "...", ...}},
   "midi_image": { "path": ".../pianoroll.png", "base64": "iVBORw0..." },
+  "midi_images": { "combined": {...}, "layers": {"piano": {...}, ...} },
   "debug": { "run_id": "...", "events": [ ... ] }
 }
 ```
@@ -79,23 +80,24 @@ Struktura patternu:
 
 ---
 ## Wizualizacja — `midi_visualizer.py`
-`generate_pianoroll(midi_data, log)`:
+`generate_pianoroll(midi_data, log)` oraz `generate_pianoroll_layers(midi_data, log)`:
 - Jeśli brak `matplotlib` → `pianoroll_skipped`.
 - Siatka: Y = nuty (min..max), X = kroki (bars * 8).
 - `imshow(cmap='magma')` + zapis `pianoroll.png` + base64.
 - Log: `pianoroll_generated` (liczba nut, rozmiar pliku).
 
 ---
-## Wybór sampli — `sample_library.py`
-`select_samples(params, midi_data, log)`:
-- Symulacja puli; filtr organic / perkusja.
-- Logi: `selection_start`, `selection_done` (z odrzuconymi).
+## Przygotowanie sampli — `sample_adapter.py`
+`prepare_samples(instruments, genre, log)`:
+- Adapter korzystający z istniejących narzędzi testowych do pobrania/wygenerowania WAV per instrument.
+- Zwraca mapowanie instrument → plik WAV w `output/samples`.
 
 ---
 ## Rendering audio — `audio_renderer.py`
 `render_audio(audio_params, midi_data, sample_data, log)`:
-- Placeholder sinus 440 Hz długości `seconds`.
-- Logi progresu (25/50/75%) + `audio_file_saved`.
+- Render na podstawie sampli per instrument z prostym pitch‑shiftingiem i miksowaniem.
+- Fallback do sinusa jeśli brak sampli.
+- Logi progresu + `audio_file_saved`.
 
 ---
 ## Orkiestracja — `pipeline.py`
@@ -151,24 +153,38 @@ Logi kontrolne:
 - Trimming długich pól JSON
 
 ---
-## Przykład (curl)
+## Przykłady wywołań
+
+PowerShell (Invoke-RestMethod):
+
+```powershell
+$body = @{ 
+  midi = @{ genre = 'ambient'; mood = 'calm'; tempo = 100; key = 'C'; scale = 'major'; instruments = @('piano','pad'); bars = 4 }
+  audio = @{ sample_rate = 44100; seconds = 4.0; master_gain_db = -3.0 }
+} | ConvertTo-Json -Depth 6
+
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/param-adv/run/full" -Method POST -Body $body -ContentType 'application/json'
+```
+
+curl:
+
 ```bash
 curl -X POST http://127.0.0.1:8000/api/param-adv/run/full \
   -H 'Content-Type: application/json' \
   -d '{
     "midi": {"genre":"ambient","mood":"calm","tempo":80,"key":"C","scale":"major","instruments":["piano"],"bars":4},
-    "samples": {"layers":2,"prefer_organic":true,"add_percussion":true},
     "audio": {"sample_rate":44100,"seconds":4.0,"master_gain_db":-3.0}
   }'
 ```
 
 ---
 ## Diagnostyka
-Jeśli brak `run_id`:
+Jeśli brak `run_id` lub pojawia się 422 (Field required: samples):
 1. `/api/debug/routes` (czy router załadowany)
-2. Prefix `/api/param-adv/...`
-3. Walidacja JSON (422?)
-4. Raw response w UI
+2. Sprawdź `/api/param-adv/meta` — powinno zwrócić `payload = "single-object"` oraz `samples_optional = true`.
+3. Prefix `/api/param-adv/...`
+4. Walidacja JSON (czy wysyłasz jeden obiekt z kluczami `midi` i `audio`)
+5. Raw response w UI
 
 ---
 ## Uwaga

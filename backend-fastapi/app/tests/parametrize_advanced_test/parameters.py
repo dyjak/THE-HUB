@@ -32,9 +32,11 @@ class MidiParameters:
 
 @dataclass
 class SampleSelectionParameters:
-    layers: int = 3
-    prefer_organic: bool = True
-    add_percussion: bool = True
+    # Deprecated: warstwy wynikają teraz bezpośrednio z listy instrumentów w MidiParameters.instruments
+    # Zostawiamy pola dla kompatybilności w API, ale są ignorowane przez selekcję sampli.
+    layers: int = 0  # deprecated
+    prefer_organic: bool = False  # deprecated
+    add_percussion: bool = False  # deprecated
 
     def to_dict(self):
         return asdict(self)
@@ -60,7 +62,8 @@ class AudioRenderParameters:
 def preset_minimal() -> Dict[str, Any]:
     return {
         "midi": MidiParameters(bars=4, instruments=["piano"]).to_dict(),
-        "samples": SampleSelectionParameters(layers=1).to_dict(),
+        # SampleSelectionParameters zachowane dla zgodności (pola ignorowane)
+        "samples": SampleSelectionParameters().to_dict(),
         "audio": AudioRenderParameters(seconds=3.0).to_dict(),
     }
 
