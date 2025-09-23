@@ -92,6 +92,29 @@ Struktura patternu:
 - Adapter korzystający z istniejących narzędzi testowych do pobrania/wygenerowania WAV per instrument.
 - Zwraca mapowanie instrument → plik WAV w `output/samples`.
 
+### Wysokiej jakości sample (Freesound)
+- Jeśli ustawisz zmienną środowiskową `FREESOUND_API_KEY`, selektor skorzysta z Freesound API do wyszukiwania rzeczywistych sampli (preferowane WAV) na podstawie `genre` oraz biasów z `mood`.
+- Jeśli brak klucza → fallback do sampli wbudowanych (syntetyczne placeholdery).
+
+Konfiguracja (Windows PowerShell):
+
+```powershell
+# 1) Ustaw klucz API na bieżącą sesję
+$env:FREESOUND_API_KEY = "<TWOJ_TOKEN>"
+
+# 2) (opcjonalnie) Sprawdź dostępność w backendzie
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/param-adv/meta"
+
+# 3) Uruchom pipeline jak zwykle
+```
+
+Wymagania do konwersji preview (gdy oryginalny WAV jest niedostępny lub wymaga zalogowanego pobrania):
+- `pydub` (już w requirements.txt)
+- `ffmpeg` w PATH systemowym (Windows: zainstaluj np. z https://www.gyan.dev/ffmpeg/builds/ i dodaj katalog `bin` do PATH).
+
+Uwagi licencyjne:
+- Korzystając z Freesound pamiętaj o licencji sampli i atrybucji – wyniki wyszukiwania zawierają pole `license`.
+
 ---
 ## Rendering audio — `audio_renderer.py`
 `render_audio(audio_params, midi_data, sample_data, log)`:
@@ -124,6 +147,8 @@ Logi kontrolne:
 | POST | `/param-adv/run/render` | MIDI + samples + audio |
 | POST | `/param-adv/run/full` | Pełny pipeline |
 | GET | `/param-adv/debug/{run_id}` | Logi debug |
+
+`/param-adv/meta` sygnalizuje schemat payloadu i opcjonalność `samples`.
 
 ---
 ## Frontend (strona `param-adv`)

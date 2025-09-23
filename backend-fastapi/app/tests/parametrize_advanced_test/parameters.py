@@ -2,8 +2,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from typing import List, Literal, Dict, Any
 
-Genre = Literal["ambient", "jazz", "rock", "techno", "classical"]
-Mood = Literal["calm", "energetic", "melancholic", "joyful", "mysterious"]
+Genre = Literal[
+    "ambient", "jazz", "rock", "techno", "classical",
+    "orchestral", "lofi", "hiphop", "house", "metal"
+]
+Mood = Literal[
+    "calm", "energetic", "melancholic", "joyful", "mysterious",
+    "epic", "relaxed", "aggressive", "dreamy", "groovy", "romantic"
+]
 Key = Literal["C", "A", "F", "D", "G"]
 Scale = Literal["major", "minor"]
 

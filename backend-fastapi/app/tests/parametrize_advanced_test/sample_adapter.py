@@ -19,11 +19,11 @@ def _ensure_dirs():
     SAMPLES_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def prepare_samples(instruments: List[str], genre: str | None, log) -> Dict[str, Any]:
+def prepare_samples(instruments: List[str], genre: str | None, log, mood: str | None = None) -> Dict[str, Any]:
     """Selects and downloads one sample per instrument.
     Returns: { "samples": [ { "instrument": str, "id": str, "file": str, ... }, ... ] }
     """
-    log("call", "prepare_samples", {"module": "sample_adapter.py", "instruments": instruments, "genre": genre})
+    log("call", "prepare_samples", {"module": "sample_adapter.py", "instruments": instruments, "genre": genre, "mood": mood})
     _ensure_dirs()
 
     if SampleFetcher is None:
@@ -42,7 +42,8 @@ def prepare_samples(instruments: List[str], genre: str | None, log) -> Dict[str,
     by_genre = None
     try:
         if genre:
-            by_genre = fetcher.get_samples_for_genre(genre)
+            # Przekaż mood aby zbiasować wyszukiwanie
+            by_genre = fetcher.get_samples_for_genre(genre, mood=mood)
     except Exception:
         by_genre = None
 

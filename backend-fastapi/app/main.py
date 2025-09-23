@@ -19,6 +19,13 @@ from pathlib import Path
 import os
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
+# Load .env early so downstream modules (sample fetcher) see FREESOUND_API_KEY
+try:
+    from dotenv import load_dotenv  # type: ignore
+    load_dotenv()
+except Exception:
+    pass
+
 
 app = FastAPI(
     title="AIR 4.0 API",

@@ -231,13 +231,13 @@ export default function ParamAdvPage() {
               <div>
                 <label className="block mb-1">Genre</label>
                 <select value={midi.genre} onChange={e=>updateMidi({genre: e.target.value})} className="w-full bg-black/60 p-2 rounded border border-gray-700">
-                  {['ambient','jazz','rock','techno','classical'].map(g=> <option key={g}>{g}</option>)}
+                  {['ambient','jazz','rock','techno','classical','orchestral','lofi','hiphop','house','metal'].map(g=> <option key={g}>{g}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block mb-1">Mood</label>
                 <select value={midi.mood} onChange={e=>updateMidi({mood: e.target.value})} className="w-full bg-black/60 p-2 rounded border border-gray-700">
-                  {['calm','energetic','melancholic','joyful','mysterious'].map(m=> <option key={m}>{m}</option>)}
+                  {['calm','energetic','melancholic','joyful','mysterious','epic','relaxed','aggressive','dreamy','groovy','romantic'].map(m=> <option key={m}>{m}</option>)}
                 </select>
               </div>
               <div className="flex gap-2">
@@ -269,7 +269,7 @@ export default function ParamAdvPage() {
               <div>
                 <label className="block mb-1">Instruments</label>
                 <div className="flex flex-wrap gap-2">
-                  {['piano','pad','strings','bass','drums','guitar'].map(inst => (
+                  {['piano','pad','strings','bass','drums','guitar','saxophone','synth','violin','cello','flute','trumpet','choir'].map(inst => (
                     <button type="button" key={inst} onClick={()=>toggleInstrument(inst)} className={`text-xs px-2 py-1 rounded border ${midiInstruments.includes(inst)?'bg-blue-600 border-blue-400':'border-gray-600'}`}>{inst}</button>
                   ))}
                 </div>
@@ -412,6 +412,32 @@ export default function ParamAdvPage() {
               </div>
             )}
             <div className="text-[10px] text-gray-500 mt-2">Pobieranie dostępne przez /api/param-adv/output/...</div>
+          </div>
+        )}
+
+        {/* Selected samples (from run_full response) */}
+        {rawResponse?.samples?.samples && Array.isArray(rawResponse.samples.samples) && rawResponse.samples.samples.length > 0 && (
+          <div className="bg-gray-900/60 p-4 rounded-lg border border-gray-700">
+            <h3 className="font-semibold mb-3 text-emerald-300">Selected Samples</h3>
+            <ul className="text-xs space-y-1">
+              {rawResponse.samples.samples.map((s: any, idx: number) => (
+                <li key={idx} className="flex gap-2 items-baseline">
+                  <span className="text-gray-300 w-28 truncate">{s.instrument}</span>
+                  <span className="text-gray-500">•</span>
+                  <span className="truncate">{s.name || s.id}</span>
+                  {s.file && (
+                    <a
+                      href={`${API_BASE}${API_PREFIX}/param-adv/output/${String(s.file).split(/\\|\//).pop()}`}
+                      target="_blank"
+                      className="ml-2 underline text-gray-300 hover:text-white truncate"
+                    >
+                      {String(s.file).split(/\\|\//).pop()}
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="text-[10px] text-gray-500 mt-2">W przypadku źródeł zewnętrznych (Freesound) ścieżki są kopiowane do output/samples/.</div>
           </div>
         )}
 
