@@ -71,6 +71,7 @@ export default function AirPanel() {
                     <div className="flex gap-6 justify-center mb-8 flex-wrap">
                         <AnimatedCard path={"/air/music-test"} name={"sample-simple-test"} index={0} />
                         <AnimatedCard path={"/air/param-adv"} name={"parametrize-advanced-test"} index={1} />
+                        <AnimatedCard path={"/air/param-sampling"} name={"param-sampling-local"} index={2} />
                     </div>
 
                     <div className="text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-red-500 mb-4">

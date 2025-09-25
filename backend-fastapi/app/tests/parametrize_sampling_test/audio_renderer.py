@@ -55,13 +55,17 @@ def _read_wav_mono(path: Path) -> List[float] | None:
 BASE_FREQ = 261.63  # assume C4 for raw samples
 
 
-def render_audio(audio_params: Dict[str, Any], midi: Dict[str, Any], samples: Dict[str, Any], log):
+def render_audio(audio_params: Dict[str, Any], midi: Dict[str, Any], samples: Dict[str, Any], log, run_id: str | None = None, run_dir: Path | None = None):
     sr = audio_params.get("sample_rate", 44100)
     seconds = audio_params.get("seconds", 5.0)
     frames = int(sr * seconds)
-    output_dir = Path(__file__).parent / "output"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    wav_path = output_dir / "preview.wav"
+    base_output = Path(__file__).parent / "output"
+    base_output.mkdir(parents=True, exist_ok=True)
+    if run_dir is None:
+        # fallback: flat structure (legacy)
+        run_dir = base_output
+    run_dir.mkdir(parents=True, exist_ok=True)
+    wav_path = run_dir / "audio.wav"
     instruments: List[str] = midi.get("meta", {}).get("instruments", [])
     sample_map: Dict[str, str] = {s.get("instrument"): s.get("file") for s in samples.get("samples", [])}
     log("audio", "render_start", {"instruments": instruments, "sample_count": len(sample_map)})
@@ -112,4 +116,9 @@ def render_audio(audio_params: Dict[str, Any], midi: Dict[str, Any], samples: Di
         for v in mixed:
             wf.writeframes(struct.pack('<h', int(max(-1,min(1,v))*32767)))
     log("audio", "render_done", {"file": str(wav_path), "bytes": wav_path.stat().st_size})
-    return {"audio_file": str(wav_path)}
+    rel_path = None
+    try:
+        rel_path = str(wav_path.relative_to(base_output))
+    except Exception:
+        rel_path = wav_path.name
+    return {"audio_file": str(wav_path), "audio_file_rel": rel_path}

@@ -1,0 +1,78 @@
+{
+  "generated_at": 1758838964.7205396,
+  "root": "D:\\Informatyka URZ\\THE-HUB\\local_samples",
+  "instruments": {
+    "misc": {
+      "count": 69,
+      "examples": [
+        "99Sounds x Monosounds - Downlifter 10.wav",
+        "99Sounds x Monosounds - Downlifter 2.wav",
+        "99Sounds x Monosounds - Downlifter 3.wav"
+      ]
+    },
+    "drums": {
+      "count": 134,
+      "examples": [
+        "99Sounds x Monosounds - Uplifter 7(with snares).wav",
+        "99Sounds x Monosounds - Dusty - 808 - 01 - F.wav",
+        "99Sounds x Monosounds - Dusty - 808 - 02 - F.wav"
+      ]
+    },
+    "bass": {
+      "count": 110,
+      "examples": [
+        "Monosounds - Dusty - Analog Bass - F - 001.wav",
+        "Monosounds - Dusty - Analog Bass - F - 002.wav",
+        "Monosounds - Dusty - Analog Bass - F - 003.wav"
+      ]
+    },
+    "piano": {
+      "count": 6,
+      "examples": [
+        "99Sounds x Monosounds - E Piano - C.wav",
+        "99Sounds x Monosounds - Piano - C.wav",
+        "99Sounds x Monosounds - Piano 2 - C.wav"
+      ]
+    },
+    "flute": {
+      "count": 5,
+      "examples": [
+        "99Sounds x Monosounds - Flute - C.wav",
+        "99Sounds x Monosounds - Flute 2 - C.wav",
+        "99Sounds x Monosounds - Flute 3 - C.wav"
+      ]
+    },
+    "guitar": {
+      "count": 5,
+      "examples": [
+        "99Sounds x Monosounds - Guitar - C.wav",
+        "99Sounds x Monosounds - Guitar 2 - C.wav",
+        "99Sounds x Monosounds - Guitar 3 - C.wav"
+      ]
+    },
+    "pad": {
+      "count": 6,
+      "examples": [
+        "99Sounds x Monosounds - PAD - C.wav",
+        "99Sounds x Monosounds - PAD 2 - C.wav",
+        "99Sounds x Monosounds - PAD 3 - C.wav"
+      ]
+    },
+    "strings": {
+      "count": 3,
+      "examples": [
+        "99Sounds x Monosounds - Violin - C.wav",
+        "99Sounds x Monosounds - Violin 2 - C.wav",
+        "99Sounds x Monosounds - Violin 3 - C.wav"
+      ]
+    },
+    "lead": {
+      "count": 28,
+      "examples": [
+        "99Sounds x Monosounds - Lead - 01 - F.wav",
+        "99Sounds x Monosounds - Lead - 02 - F.wav",
+        "99Sounds x Monosounds - Lead - 03 - F.wav"
+      ]
+    }
+  }
+}
