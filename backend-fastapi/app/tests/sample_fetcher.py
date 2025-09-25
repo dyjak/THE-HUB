@@ -37,7 +37,8 @@ class SampleInfo:
     preview_mp3_url: Optional[str] = None
     preview_ogg_url: Optional[str] = None
     download_url: Optional[str] = None  # api download endpoint, requires token
-    source: Optional[str] = None  # e.g., "generated", "freesound"
+    source: Optional[str] = None  # e.g., "generated", "freesound", "commons"
+    origin_url: Optional[str] = None  # bezpośredni URL (preview lub plik) do wyświetlenia w UI
 
 
 class SampleFetcher:
@@ -58,21 +59,27 @@ class SampleFetcher:
                 url="generated://piano/c4",
                 duration=2.0,
                 instrument="piano",
-                key="C"
+                key="C",
+                source="generated",
+                origin_url=None,
             ),
             "strings_pad": SampleInfo(
                 id="strings_pad",
                 name="String Pad",
                 url="generated://strings/pad",
                 duration=4.0,
-                instrument="strings"
+                instrument="strings",
+                source="generated",
+                origin_url=None,
             ),
             "ambient_pad": SampleInfo(
                 id="ambient_pad",
                 name="Ambient Pad",
                 url="generated://pad/ambient",
                 duration=8.0,
-                instrument="pad"
+                instrument="pad",
+                source="generated",
+                origin_url=None,
             ),
             "bass_c2": SampleInfo(
                 id="bass_c2",
@@ -80,14 +87,18 @@ class SampleFetcher:
                 url="generated://bass/c2",
                 duration=1.5,
                 instrument="bass",
-                key="C"
+                key="C",
+                source="generated",
+                origin_url=None,
             ),
             "drums_kit": SampleInfo(
                 id="drums_kit",
                 name="Drums Kit",
                 url="generated://drums/kit",
                 duration=1.0,
-                instrument="drums"
+                instrument="drums",
+                source="generated",
+                origin_url=None,
             ),
             "guitar_e3": SampleInfo(
                 id="guitar_e3",
@@ -95,7 +106,9 @@ class SampleFetcher:
                 url="generated://guitar/e3",
                 duration=2.0,
                 instrument="guitar",
-                key="E"
+                key="E",
+                source="generated",
+                origin_url=None,
             ),
             "sax_c4": SampleInfo(
                 id="sax_c4",
@@ -103,7 +116,9 @@ class SampleFetcher:
                 url="generated://saxophone/c4",
                 duration=2.0,
                 instrument="saxophone",
-                key="C"
+                key="C",
+                source="generated",
+                origin_url=None,
             ),
             "synth_c4": SampleInfo(
                 id="synth_c4",
@@ -111,7 +126,9 @@ class SampleFetcher:
                 url="generated://synth/c4",
                 duration=2.5,
                 instrument="synth",
-                key="C"
+                key="C",
+                source="generated",
+                origin_url=None,
             ),
             # dodatkowe instrumenty bazowe (fallback)
             "violin_g3": SampleInfo(
@@ -120,6 +137,8 @@ class SampleFetcher:
                 url="generated://violin/g3",
                 duration=2.0,
                 instrument="violin",
+                source="generated",
+                origin_url=None,
             ),
             "cello_c3": SampleInfo(
                 id="cello_c3",
@@ -127,6 +146,8 @@ class SampleFetcher:
                 url="generated://cello/c3",
                 duration=2.0,
                 instrument="cello",
+                source="generated",
+                origin_url=None,
             ),
             "flute_c5": SampleInfo(
                 id="flute_c5",
@@ -134,6 +155,8 @@ class SampleFetcher:
                 url="generated://flute/c5",
                 duration=2.0,
                 instrument="flute",
+                source="generated",
+                origin_url=None,
             ),
             "trumpet_c4": SampleInfo(
                 id="trumpet_c4",
@@ -141,6 +164,8 @@ class SampleFetcher:
                 url="generated://trumpet/c4",
                 duration=1.8,
                 instrument="trumpet",
+                source="generated",
+                origin_url=None,
             ),
             "choir_c4": SampleInfo(
                 id="choir_c4",
@@ -148,6 +173,8 @@ class SampleFetcher:
                 url="generated://choir/c4",
                 duration=3.0,
                 instrument="choir",
+                source="generated",
+                origin_url=None,
             ),
         }
         return basic_samples
@@ -193,6 +220,7 @@ class SampleFetcher:
                     preview_ogg_url=previews.get("preview-hq-ogg") or previews.get("preview-lq-ogg"),
                     download_url=dl_url,
                     source="freesound",
+                    origin_url=f"https://freesound.org/s/{sid}/",
                 ))
             return out
         except Exception as e:
@@ -203,6 +231,43 @@ class SampleFetcher:
         """Zwraca odpowiednie sample dla gatunku muzycznego, z uwzględnieniem mood (jeśli podany).
         Jeśli dostępny FREESOUND_API_KEY, wykona realne wyszukiwania; w przeciwnym razie zwróci basic fallback.
         """
+        # --- Query relaxation & synonyms configuration (progressive broadening) ---
+        instrument_synonyms: Dict[str, List[str]] = {
+            "drums": ["drum kit", "drum loop", "drum beat", "percussion"],
+            "bass": ["bass guitar", "bass note"],
+            "piano": ["grand piano", "acoustic piano"],
+            "guitar": ["electric guitar", "guitar chord"],
+            "saxophone": ["tenor sax", "alto sax"],
+            "violin": ["solo violin", "violin sustain"],
+            "cello": ["cello sustain"],
+            "flute": ["flute sustain"],
+            "trumpet": ["solo trumpet", "trumpet sustain"],
+            "choir": ["choir ahh", "choir sustain"],
+            "synth": ["synth pad", "synth lead"],
+            "pad": ["synth pad", "ambient pad"],
+            "strings": ["string ensemble", "strings sustain"],
+        }
+
+        def build_relaxed_queries(inst: str, base_query: str, biases: List[str], hints: List[str]) -> List[str]:
+            # 1. base
+            q: List[str] = [base_query]
+            # 2. mood biased
+            q.extend([f"{b} {base_query}" for b in biases])
+            # 3. hints
+            q.extend(hints)
+            # 4. instrument + wav general
+            q.append(f"{inst} wav")
+            # 5. synonyms
+            for syn in instrument_synonyms.get(inst, []):
+                q.append(f"{syn} wav")
+            # deduplicate preserving order
+            seen = set()
+            dedup: List[str] = []
+            for item in q:
+                if item not in seen:
+                    dedup.append(item)
+                    seen.add(item)
+            return dedup
         # Dodatkowe podpowiedzi per instrument (lepsze frazy)
         inst_query_hints: Dict[str, List[str]] = {
             "trumpet": ["solo trumpet sustain wav", "trumpet long note wav", "trumpet legato wav"],
@@ -280,34 +345,62 @@ class SampleFetcher:
             # Realne wyszukiwania
             biases = mood_bias.get(mood or "", [])
             for inst, base_query in zip(mapping["instruments"], mapping["queries"]):
-                # Zbuduj zapytania z biasami nastroju
                 hints = inst_query_hints.get(inst, [])
-                queries = [base_query] + [f"{b} {base_query}" for b in biases] + hints
+                queries = build_relaxed_queries(inst, base_query, biases, hints)
                 candidates: List[SampleInfo] = []
                 for q in queries:
+                    print(f"[query_attempt] inst={inst} q='{q}'")
                     found = self.search_freesound_samples(q, instrument=inst, page_size=6)
                     if found:
+                        print(f"[query_success] inst={inst} q='{q}' count={len(found)}")
                         candidates.extend(found)
                     if len(candidates) >= 6:
                         break
                 if candidates:
                     samples_by_instrument[inst] = candidates[:6]
+                else:
+                    print(f"[query_exhausted] inst={inst} attempts={len(queries)}")
             # Jeśli dla któregoś instrumentu brak, spróbuj Wikimedia Commons jako fallback bez klucza
             for inst in mapping["instruments"]:
                 if inst in samples_by_instrument and samples_by_instrument[inst]:
                     continue
                 hints = inst_query_hints.get(inst, [])
                 base = next((q for i,q in zip(mapping["instruments"], mapping["queries"]) if i==inst), inst)
-                queries = [f"{base} {inst} wav"] + hints
+                # Reuse relaxation (without mood biases here to reduce API calls) + direct hints
+                queries = [f"{base} {inst} wav"] + hints + [f"{syn} wav" for syn in instrument_synonyms.get(inst, [])]
                 candidates: List[SampleInfo] = []
                 for q in queries:
+                    print(f"[commons_query_attempt] inst={inst} q='{q}'")
                     found = self.search_commons_samples(q, instrument=inst, page_size=6)
                     if found:
+                        print(f"[commons_query_success] inst={inst} q='{q}' count={len(found)}")
                         candidates.extend(found)
                     if len(candidates) >= 6:
                         break
                 if candidates:
                     samples_by_instrument[inst] = candidates[:6]
+                else:
+                    print(f"[commons_query_exhausted] inst={inst} attempts={len(queries)}")
+            # Lightweight Commons synonyms-only fallback (ostatnia próba przed błędem w strict mode)
+            for inst in mapping["instruments"]:
+                if inst in samples_by_instrument and samples_by_instrument[inst]:
+                    continue
+                syns = instrument_synonyms.get(inst, [])
+                if not syns:
+                    continue
+                candidates: List[SampleInfo] = []
+                for syn in syns:
+                    q = f"{syn} wav"
+                    print(f"[commons_syn_fallback_attempt] inst={inst} q='{q}'")
+                    found = self.search_commons_samples(q, instrument=inst, page_size=4)
+                    if found:
+                        print(f"[commons_syn_fallback_success] inst={inst} q='{q}' count={len(found)}")
+                        candidates.extend(found)
+                        break  # pierwszy trafiony synonim starczy
+                if candidates:
+                    samples_by_instrument[inst] = candidates[:4]
+                else:
+                    print(f"[commons_syn_fallback_exhausted] inst={inst} syns={len(syns)}")
             # Uwaga: nie używamy już synthetic basic jako fallback, kiedy dostępny jest Freesound (zgodnie z prośbą)
         else:
             # Brak klucza do Freesound → spróbuj Wikimedia Commons (bez klucza)
@@ -392,6 +485,7 @@ class SampleFetcher:
                     duration=3.0,  # brak łatwej długości – szacunkowo
                     instrument=instrument or "unknown",
                     source="commons",
+                    origin_url=url,
                 ))
             return out
         except Exception:

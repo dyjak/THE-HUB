@@ -4,8 +4,8 @@ from .parameters import MidiParameters, SampleSelectionParameters, AudioRenderPa
 from .midi_engine import generate_midi, save_midi
 from .midi_visualizer import generate_pianoroll, generate_pianoroll_layers
 from .sample_library import select_samples
-from .sample_adapter import prepare_samples
-from .audio_renderer import render_audio
+from .sample_adapter import prepare_samples, SampleSelectionError
+from .audio_renderer import render_audio, SampleMissingError
 
 
 def run_midi(midi_params: dict):
@@ -52,10 +52,20 @@ def run_render(midi_params: dict, sample_params: dict, audio_params: dict):
     genre = midi_params.get("genre")
     mood = midi_params.get("mood")
     run.log("call", "prepare_samples", {"module": "sample_adapter.py"})
-    sample_data = prepare_samples(instruments, genre, run.log, mood=mood)
+    try:
+        sample_data = prepare_samples(instruments, genre, run.log, mood=mood)
+    except SampleSelectionError as e:
+        run.log("samples", "selection_failed", {"error": str(e)})
+        run.log("run", "failed", {"reason": "sample_selection", "error": str(e)})
+        raise
     run.log("run", "samples_selected", {"count": len(sample_data.get('samples', []))})
     run.log("call", "render_audio", {"module": "audio_renderer.py"})
-    audio = render_audio(audio_params, midi_data, sample_data, run.log)
+    try:
+        audio = render_audio(audio_params, midi_data, sample_data, run.log)
+    except SampleMissingError as e:
+        run.log("audio", "render_failed", {"error": str(e)})
+        run.log("run", "failed", {"reason": "audio_render", "error": str(e)})
+        raise
     run.log("run", "audio_rendered", {"audio_file": audio.get('audio_file')})
     run.log("run", "completed")
     run.log("func", "exit", {"module": "pipeline.py", "function": "run_render"})
@@ -86,10 +96,20 @@ def run_full(midi_params: dict, sample_params: dict, audio_params: dict):
     genre = midi_params.get("genre")
     mood = midi_params.get("mood")
     run.log("call", "prepare_samples", {"module": "sample_adapter.py"})
-    sample_data = prepare_samples(instruments, genre, run.log, mood=mood)
+    try:
+        sample_data = prepare_samples(instruments, genre, run.log, mood=mood)
+    except SampleSelectionError as e:
+        run.log("samples", "selection_failed", {"error": str(e)})
+        run.log("run", "failed", {"reason": "sample_selection", "error": str(e)})
+        raise
     run.log("run", "samples_selected", {"count": len(sample_data.get('samples', []))})
     run.log("call", "render_audio", {"module": "audio_renderer.py"})
-    audio = render_audio(audio_params, midi_data, sample_data, run.log)
+    try:
+        audio = render_audio(audio_params, midi_data, sample_data, run.log)
+    except SampleMissingError as e:
+        run.log("audio", "render_failed", {"error": str(e)})
+        run.log("run", "failed", {"reason": "audio_render", "error": str(e)})
+        raise
     run.log("run", "audio_rendered", {"audio_file": audio.get('audio_file')})
     run.log("run", "completed")
     run.log("func", "exit", {"module": "pipeline.py", "function": "run_full"})

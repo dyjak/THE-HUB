@@ -64,6 +64,10 @@ def _mix_tracks(tracks: List[List[float]], gain: float = 0.8) -> List[float]:
     return out
 
 
+class SampleMissingError(RuntimeError):
+    pass
+
+
 def render_audio(params: Dict[str, Any], midi: Dict[str, Any], samples: Dict[str, Any], log):
     instruments: List[str] = midi.get("meta", {}).get("instruments", [])
     log("func", "enter", {"module": "audio_renderer.py", "function": "render_audio", "params_keys": list(params.keys()), "samples_count": len(samples.get("samples", [])), "layers": len(instruments)})
@@ -82,6 +86,7 @@ def render_audio(params: Dict[str, Any], midi: Dict[str, Any], samples: Dict[str
     log("audio", "render_start", {"sample_rate": sr, "seconds": seconds, "frames": frames, "module": "audio_renderer.py", "instruments": instruments, "samples": list(sample_map.keys())})
 
     tracks: List[List[float]] = []
+    missing_instruments: List[str] = []
     for inst in instruments:
         pat = layer_patterns.get(inst)
         if not pat:
@@ -94,9 +99,13 @@ def render_audio(params: Dict[str, Any], midi: Dict[str, Any], samples: Dict[str
             base_wave = _load_wav_mono(file, sr)
             if base_wave is None:
                 log("audio", "sample_load_failed", {"instrument": inst, "file": file})
+                missing_instruments.append(inst)
         else:
             log("audio", "sample_missing", {"instrument": inst, "file": file})
-
+            missing_instruments.append(inst)
+        if base_wave is None:
+            # Skip generating any audio for this instrument (strict mode)
+            continue
         # place notes sequentially at positions derived from bar/step
         step_samples = int(sr * (seconds / max(1, len(pat) * 8)))  # rough time grid mapping
         for bar in pat:
@@ -128,34 +137,13 @@ def render_audio(params: Dict[str, Any], midi: Dict[str, Any], samples: Dict[str
                         v = pitched[i] * vel * amp
                         buf[start + i] += v
                 else:
-                    # fallback: simple sine
-                    nl = min(step_samples, frames - start)
-                    if nl <= 0:
-                        continue
-                    for i in range(nl):
-                        t = (start + i) / sr
-                        v = math.sin(2 * math.pi * target_freq * t) * 0.2 * vel
-                        buf[start + i] += v
+                    # Should not happen in strict mode (base_wave None handled early)
+                    continue
         tracks.append(buf)
-
+    if missing_instruments:
+        raise SampleMissingError(f"Missing or failed samples for instruments: {', '.join(missing_instruments)}")
     if not tracks:
-        # fallback to old placeholder
-        freq = 220.0
-        with wave.open(str(wav_path), 'w') as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)
-            wf.setframerate(sr)
-            checkpoint = max(1, frames // 4)
-            for i in range(frames):
-                value = int(32767 * math.sin(2 * math.pi * freq * (i / sr)))
-                wf.writeframes(struct.pack('<h', value))
-                if i and i % checkpoint == 0:
-                    log("audio", "progress", {"written_frames": i, "percent": round(i/frames*100, 1)})
-        size = wav_path.stat().st_size if wav_path.exists() else 0
-        log("audio", "render_done", {"file": str(wav_path), "bytes": size, "mode": "placeholder"})
-        result = {"audio_file": str(wav_path)}
-        log("func", "exit", {"module": "audio_renderer.py", "function": "render_audio", "file": str(wav_path)})
-        return result
+        raise SampleMissingError("No audio rendered: all instruments missing samples")
 
     # Mix and write
     mixed = _mix_tracks(tracks, gain=0.9)

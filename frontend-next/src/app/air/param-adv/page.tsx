@@ -419,25 +419,39 @@ export default function ParamAdvPage() {
         {rawResponse?.samples?.samples && Array.isArray(rawResponse.samples.samples) && rawResponse.samples.samples.length > 0 && (
           <div className="bg-gray-900/60 p-4 rounded-lg border border-gray-700">
             <h3 className="font-semibold mb-3 text-emerald-300">Selected Samples</h3>
-            <ul className="text-xs space-y-1">
-              {rawResponse.samples.samples.map((s: any, idx: number) => (
-                <li key={idx} className="flex gap-2 items-baseline">
-                  <span className="text-gray-300 w-28 truncate">{s.instrument}</span>
-                  <span className="text-gray-500">•</span>
-                  <span className="truncate">{s.name || s.id}</span>
-                  {s.file && (
-                    <a
-                      href={`${API_BASE}${API_PREFIX}/param-adv/output/${String(s.file).split(/\\|\//).pop()}`}
-                      target="_blank"
-                      className="ml-2 underline text-gray-300 hover:text-white truncate"
-                    >
-                      {String(s.file).split(/\\|\//).pop()}
-                    </a>
-                  )}
-                </li>
-              ))}
+            <ul className="text-xs space-y-2">
+              {rawResponse.samples.samples.map((s: any, idx: number) => {
+                const localName = s.file ? String(s.file).split(/\\|\//).pop() : null;
+                return (
+                  <li key={idx} className="border-b border-gray-800 last:border-b-0 pb-1">
+                    <div className="flex flex-wrap gap-2 items-baseline">
+                      <span className="text-gray-300 w-24 truncate">{s.instrument}</span>
+                      <span className="text-gray-500">•</span>
+                      <span className="truncate max-w-[200px]">{s.name || s.id}</span>
+                      {localName && (
+                        <a
+                          href={`${API_BASE}${API_PREFIX}/param-adv/output/${localName}`}
+                          target="_blank"
+                          className="ml-2 underline text-gray-300 hover:text-white truncate"
+                        >{localName}</a>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-gray-500 flex flex-wrap gap-3 pl-1 mt-0.5">
+                      {s.source && <span className="uppercase tracking-wide">src:{s.source}</span>}
+                      {s.origin_url && (
+                        <a
+                          href={s.origin_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="underline text-gray-400 hover:text-gray-200 max-w-[260px] truncate"
+                        >origin</a>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
-            <div className="text-[10px] text-gray-500 mt-2">W przypadku źródeł zewnętrznych (Freesound) ścieżki są kopiowane do output/samples/.</div>
+            <div className="text-[10px] text-gray-500 mt-2">Źródło: Freesound / Commons lub basic (generated). Brak już fallbacku sinus.</div>
           </div>
         )}
 
