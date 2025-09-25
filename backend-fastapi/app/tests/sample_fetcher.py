@@ -15,10 +15,19 @@ except Exception:
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 sys.stdout.reconfigure(encoding='utf-8')
 
-# Załaduj .env jeśli dostępny, by nie hardcodować kluczy
+# Załaduj .env explicite z katalogu backend-fastapi aby niezależnie od cwd mieć dostęp do kluczy
 if load_dotenv is not None:
     try:
-        load_dotenv()
+        from pathlib import Path
+        # __file__ -> app/tests/sample_fetcher.py ; parents[2] -> backend-fastapi/
+        env_path = Path(__file__).resolve().parents[2] / ".env"
+        if env_path.exists():
+            load_dotenv(dotenv_path=env_path, override=False)
+            if os.environ.get("FREESOUND_API_KEY"):
+                print(f"[env] FREESOUND_API_KEY loaded (len={len(os.environ.get('FREESOUND_API_KEY'))})")
+        else:
+            # fallback – spróbuj standardowego wyszukiwania (nie powinno być potrzebne)
+            load_dotenv()
     except Exception:
         pass
 
@@ -226,6 +235,26 @@ class SampleFetcher:
         except Exception as e:
             print(f"⚠️  Freesound search error: {e}")
             return []
+
+    # --- Diagnostics -----------------------------------------------------------------
+    def validate_freesound_token(self) -> Dict[str, str | int | bool]:
+        """Proste sprawdzenie poprawności tokena poprzez wywołanie /apiv2/me/.
+        Zwraca dict: { ok: bool, status: int, detail: str }
+        """
+        if not self.freesound_api_key:
+            return {"ok": False, "status": 0, "detail": "missing_token"}
+        url = "https://freesound.org/apiv2/me/"
+        headers = {"Authorization": f"Token {self.freesound_api_key}"}
+        try:
+            r = requests.get(url, headers=headers, timeout=10)
+            if r.status_code == 200:
+                return {"ok": True, "status": 200, "detail": "valid"}
+            else:
+                # cut body to avoid leaking full response
+                snippet = r.text[:180].replace('\n', ' ')
+                return {"ok": False, "status": r.status_code, "detail": snippet}
+        except Exception as e:
+            return {"ok": False, "status": -1, "detail": str(e)}
 
     def get_samples_for_genre(self, genre: str, mood: Optional[str] = None) -> Dict[str, List[SampleInfo]]:
         """Zwraca odpowiednie sample dla gatunku muzycznego, z uwzględnieniem mood (jeśli podany).
@@ -529,6 +558,10 @@ class SampleFetcher:
                         return file_path
                     else:
                         print("⚠️  Freesound download produced small file; trying preview fallback")
+                elif r.status_code == 401:
+                    print("❌ Freesound download unauthorized (401) – token może być nieprawidłowy lub niewystarczający. Sprawdzam /me ...")
+                    diag = self.validate_freesound_token()
+                    print(f"[token_diagnostic] ok={diag['ok']} status={diag['status']} detail={diag['detail']}")
                 else:
                     print(f"⚠️  Freesound download failed: {r.status_code}")
             except Exception as e:

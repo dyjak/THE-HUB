@@ -1,6 +1,6 @@
 /venv
 */__pycache
-local_samples/
+.\local_samples/
 app/tests/parametrize_sampling_test/output/
 app/tests/parametrize_advanced_test/output/
 *.wav

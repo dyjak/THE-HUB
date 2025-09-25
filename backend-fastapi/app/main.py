@@ -12,6 +12,13 @@ except Exception as e:  # broad for diagnostic
     param_adv_router = None  # type: ignore
     _PARAM_ADV_AVAILABLE = False
     _PARAM_ADV_IMPORT_ERROR = str(e)
+try:
+    from .tests.parametrize_sampling_test.router import router as param_sampling_router
+    _PARAM_SAMPLING_AVAILABLE = True
+except Exception as e:  # broad for diagnostic
+    param_sampling_router = None  # type: ignore
+    _PARAM_SAMPLING_AVAILABLE = False
+    _PARAM_SAMPLING_IMPORT_ERROR = str(e)
 import subprocess
 import sys
 from pathlib import Path
@@ -70,6 +77,25 @@ if _PARAM_ADV_AVAILABLE and param_adv_router:
         print("[WARN] failed to enumerate param-adv routes:", e)
 else:
     print("[WARN] param_adv_router not loaded:", globals().get('_PARAM_ADV_IMPORT_ERROR'))
+
+# Include new local-sample parametrized router
+if _PARAM_SAMPLING_AVAILABLE and param_sampling_router:
+    app.include_router(param_sampling_router, prefix="/api")
+    try:
+        param_sampling_output = Path(__file__).parent / "tests" / "parametrize_sampling_test" / "output"
+        param_sampling_output.mkdir(parents=True, exist_ok=True)
+        app.mount("/api/param-sampling/output", StaticFiles(directory=str(param_sampling_output)), name="param_sampling_output")
+    except Exception as e:
+        print("[WARN] failed to mount param-sampling static output:", e)
+    try:
+        sampling_routes = [getattr(r, "path", str(r)) for r in app.routes if "/param-sampling" in getattr(r, "path", "")]
+        print("[param-sampling] registered routes:")
+        for p in sorted(sampling_routes):
+            print("   ", p)
+    except Exception as e:
+        print("[WARN] failed to enumerate param-sampling routes:", e)
+else:
+    print("[WARN] param_sampling_router not loaded:", globals().get('_PARAM_SAMPLING_IMPORT_ERROR'))
 
 
 # MUSIC TEST ENDPOINTS - dodane bezpośrednio

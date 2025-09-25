@@ -1,6 +1,8 @@
 from __future__ import annotations
 from typing import Dict, Any, List
 from pathlib import Path
+import os
+import json
 
 try:
     from ..sample_fetcher import SampleFetcher, SampleInfo  # type: ignore
@@ -24,14 +26,35 @@ class SampleSelectionError(RuntimeError):
 
 
 def prepare_samples(instruments: List[str], genre: str | None, log, mood: str | None = None) -> Dict[str, Any]:
-    """Selects and downloads one sample per instrument.
-    Returns: { "samples": [ { "instrument": str, "id": str, "file": str, ... }, ... ] }
+    """Selects and downloads one sample per instrument (multi-candidate, strict real-sample policy).
+    Strategy:
+      1. Use genre-based candidate lists (freesound/commons) via SampleFetcher.
+      2. Iterate over candidates up to SAMPLE_MAX_CANDIDATES.
+      3. For each candidate attempt download (with SAMPLE_DOWNLOAD_RETRIES simple retry loop).
+      4. On first success accept and stop for that instrument.
+      5. If no candidate succeeded:
+           - If no freesound key: fallback to generated basic samples (still iterate) unless disabled by env SAMPLE_DISABLE_BASIC.
+           - Else (key present) -> instrument considered missing (strict mode).
+    Logs (stage=samples):
+      - freesound_status
+      - instrument_candidate_list (instrument, count)
+      - instrument_sample_attempt (instrument, candidate_index, id, source, retry, remaining_candidates)
+      - download_failed (existing)
+      - instrument_sample_ready (existing)
+      - instrument_no_sample (extended: attempts, fail_ids, last_error)
+      - prepared (summary)
+    Environment variables:
+      SAMPLE_MAX_CANDIDATES (int, default 6)
+      SAMPLE_DOWNLOAD_RETRIES (int, default 1)
+      SAMPLE_DISABLE_BASIC ("1" to forbid basic fallback even without key)
+    Returns: {"samples": [...]}
+    Raises SampleSelectionError with reduced JSON details on missing instruments.
     """
     log("call", "prepare_samples", {"module": "sample_adapter.py", "instruments": instruments, "genre": genre, "mood": mood})
     _ensure_dirs()
 
     if SampleFetcher is None:
-        try:
+        try:  # late import fallback
             from ..sample_fetcher import SampleFetcher as SF  # type: ignore
             from ..sample_fetcher import SampleInfo as SI  # type: ignore
             fetcher = SF()
@@ -41,61 +64,104 @@ def prepare_samples(instruments: List[str], genre: str | None, log, mood: str | 
     else:
         fetcher = SampleFetcher()
 
+    # Config via env
     try:
-        has_key = bool(getattr(fetcher, 'freesound_api_key', None))
-        log("samples", "freesound_status", {"has_key": has_key})
-    except Exception:
-        pass
+        max_candidates = int(os.environ.get("SAMPLE_MAX_CANDIDATES", "6"))
+    except ValueError:
+        max_candidates = 6
+    try:
+        dl_retries = int(os.environ.get("SAMPLE_DOWNLOAD_RETRIES", "1"))
+    except ValueError:
+        dl_retries = 1
+    disable_basic = os.environ.get("SAMPLE_DISABLE_BASIC", "0") == "1"
 
-    chosen: List[Dict[str, Any]] = []
-    # Attempt to use genre-specific mappings if available
-    by_genre = None
+    has_key = bool(getattr(fetcher, 'freesound_api_key', None))
+    log("samples", "freesound_status", {"has_key": has_key, "max_candidates": max_candidates, "download_retries": dl_retries, "basic_fallback": (not has_key and not disable_basic)})
+
+    # Acquire genre based candidates
+    by_genre: Dict[str, List[Any]] | None = None
     try:
         if genre:
-            # Przekaż mood aby zbiasować wyszukiwanie
             by_genre = fetcher.get_samples_for_genre(genre, mood=mood)
-    except Exception:
+    except Exception as e:
+        log("samples", "genre_fetch_failed", {"error": str(e)})
         by_genre = None
 
+    chosen: List[Dict[str, Any]] = []
     missing: List[str] = []
+    fail_reasons: Dict[str, List[Dict[str, str]]] = {}
+
     for inst in instruments:
-        pick = None
-        # Prefer genre mapping
+        candidates: List[Any] = []
         if by_genre and inst in by_genre and by_genre[inst]:
-            pick = by_genre[inst][0]
+            candidates = by_genre[inst][:max_candidates]
         else:
-            # Jeśli mamy klucz Freesound – nie używaj basic fallback (strict real-sample policy)
-            has_key = getattr(fetcher, 'freesound_api_key', None)
-            if not has_key:
+            # Only allow basic when no freesound key and not disabled
+            if not has_key and not disable_basic:
                 basics = fetcher.get_basic_samples()
-                candidates = [s for s in basics.values() if getattr(s, 'instrument', None) == inst]
-                if candidates:
-                    pick = candidates[0]
+                candidates = [s for s in basics.values() if getattr(s, 'instrument', None) == inst][:max_candidates]
+        log("samples", "instrument_candidate_list", {"instrument": inst, "count": len(candidates)})
 
-        if pick is None:
-            log("samples", "instrument_no_sample", {"instrument": inst})
+        if not candidates:
             missing.append(inst)
+            log("samples", "instrument_no_sample", {"instrument": inst, "attempts": 0, "fail_ids": []})
             continue
 
-        try:
-            file_path = fetcher.download_sample(pick, output_dir=str(SAMPLES_DIR))
-        except Exception as e:
-            log("samples", "download_failed", {"instrument": inst, "error": str(e)})
-            missing.append(inst)
-            continue
+        success_entry: Dict[str, Any] | None = None
+        fail_reasons[inst] = []
+        for idx, cand in enumerate(candidates):
+            cand_id = getattr(cand, 'id', f"{inst}_{idx}")
+            source = getattr(cand, 'source', None)
+            for attempt in range(1, dl_retries + 1):
+                log("samples", "instrument_sample_attempt", {
+                    "instrument": inst,
+                    "candidate_index": idx,
+                    "id": cand_id,
+                    "source": source,
+                    "retry": attempt,
+                    "remaining_candidates": len(candidates) - idx - 1
+                })
+                try:
+                    file_path = fetcher.download_sample(cand, output_dir=str(SAMPLES_DIR))
+                    # Basic integrity check
+                    if not file_path or not Path(file_path).exists() or Path(file_path).stat().st_size < 48:
+                        raise RuntimeError("file_invalid_or_too_small")
+                    success_entry = {
+                        "instrument": inst,
+                        "id": cand_id,
+                        "name": getattr(cand, 'name', cand_id),
+                        "file": file_path,
+                        "source": source,
+                        "origin_url": getattr(cand, 'origin_url', None),
+                    }
+                    chosen.append(success_entry)
+                    log("samples", "instrument_sample_ready", {"instrument": inst, "file": file_path, "source": source, "id": cand_id})
+                    break  # break retry loop
+                except Exception as e:  # capture failure
+                    err_txt = str(e)
+                    fail_reasons[inst].append({"id": cand_id, "source": str(source), "error": err_txt})
+                    log("samples", "download_failed", {"instrument": inst, "candidate_index": idx, "id": cand_id, "error": err_txt})
+            if success_entry:
+                break  # break candidate loop
 
-        entry = {
-            "instrument": inst,
-            "id": getattr(pick, 'id', inst),
-            "name": getattr(pick, 'name', inst),
-            "file": file_path,
-            "source": getattr(pick, 'source', None),
-            "origin_url": getattr(pick, 'origin_url', None),
-        }
-        chosen.append(entry)
-        log("samples", "instrument_sample_ready", {"instrument": inst, "file": file_path, "source": entry["source"], "origin_url": entry["origin_url"]})
+        if not success_entry:
+            missing.append(inst)
+            last_error = fail_reasons[inst][-1]["error"] if fail_reasons[inst] else None
+            log("samples", "instrument_no_sample", {
+                "instrument": inst,
+                "attempts": len(fail_reasons[inst]),
+                "fail_ids": [f["id"] for f in fail_reasons[inst]],
+                "last_error": last_error,
+            })
 
     if missing:
-        raise SampleSelectionError(f"Missing samples for instruments: {', '.join(missing)}")
+        # Build compact diagnostics
+        diag = {m: fail_reasons.get(m, []) for m in missing}
+        # Keep message short (strip errors to first 60 chars)
+        compact = {k: [{"id": fr["id"], "src": fr["source"], "err": fr["error"][:60]} for fr in v[:5]] for k, v in diag.items()}
+        raise SampleSelectionError(
+            f"Missing samples for instruments: {', '.join(missing)} | details={json.dumps(compact, ensure_ascii=False)}"
+        )
+
     log("samples", "prepared", {"count": len(chosen)})
     return {"samples": chosen}
