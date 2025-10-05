@@ -1,168 +1,218 @@
-# ai_param_test (AI-Enhanced Local Module)
+## Moduł ai-param-test — przewodnik krok po kroku
 
-Local-only variant of the parametrized music generation test pipeline. This module removes all external API dependencies (Freesound / Wikimedia) and instead operates purely on WAV samples present under a project-level `local_samples/` directory. It now supports **real MIDI export (.mid)**, per-run JSON pattern dumps, **pianoroll PNG visualization**, a persistent **inventory** (schema v3) of discovered samples, **per-run output subdirectories**, a reproducible **selection snapshot**, and **strict validation** (unknown instruments rejected with HTTP 422).
+Ten moduł testuje proces „AI-assisted parametrization” kompozycji: model LLM pomaga dobrać parametry (styl, nastrój, tempo, instrumentarium itd.), a następnie prosty silnik proceduralny generuje wzór MIDI i renderuje audio z lokalnych sampli. Na dziś:
 
-## Endpoints (prefixed with /api)
+- AI działa w warstwie doboru parametrów (LLM → JSON ze schematem midi+audio).
+- Generowanie MIDI jest proceduralne (nie-ML), ale respektuje parametry wejściowe.
+- Render audio korzysta wyłącznie z lokalnych plików WAV w katalogu `local_samples/` i jest celowo uproszczony.
 
-| Method | Path | Description |
-| ------ | ---- | ----------- |
-| GET | `/ai-param-test/presets` | Available preset parameter bundles |
-| GET | `/ai-param-test/meta` | Module metadata + schema version |
-| GET | `/ai-param-test/available-instruments` | Quick flat list of currently discoverable instruments |
-| GET | `/ai-param-test/inventory` | Detailed inventory (counts + filename examples). Auto-builds if missing. |
-| POST | `/ai-param-test/inventory/rebuild` | Force rebuild of inventory.json |
-| POST | `/ai-param-test/run/midi` | Generate MIDI pattern, export JSON + optional `.mid`, PNG pianoroll |
-| POST | `/ai-param-test/run/render` | Generate MIDI + strict local sample selection + audio render |
-| POST | `/ai-param-test/run/full` | Alias of render (parity naming) |
-| GET | `/ai-param-test/debug/{run_id}` | Retrieve structured debug timeline |
-| Static | `/api/ai-param-test/output/*` | Served artifacts: `.json`, `.mid`, `.png`, `.wav` |
 
-> Strict validation: All run endpoints reject unknown instruments with `HTTP 422` and payload `{ "error": "unknown_instruments", "unknown": [...], "available": [...] }`.
+### Co dostajesz po uruchomieniu
+- Wygenerowane artefakty per-run w `app/tests/ai-param-test/output/<UTC>_<RUN_ID>/`:
+	- `midi.json` — wewnętrzna reprezentacja wzoru (bary, eventy, warstwy).
+	- `midi.mid` + opcjonalnie `midi_<instrument>.mid` — eksport do pliku MIDI (jeśli zainstalowano `mido`).
+	- `pianoroll_<run>.png` + `pianoroll_<run>_<instrument>.png` — wizualizacje piano roll (jeśli zainstalowano `matplotlib`).
+	- `audio.wav` — miks mono.
+	- `stem_<instrument>.wav` — stem per instrument.
+	- `selection.json` — migawka użytych sampli (pełna reprodukowalność).
+- Szczegółowy log kroków (timeline) dostępny przez endpoint debug.
 
-## Request Payload Examples
 
-Generate minimal MIDI pattern:
-```jsonc
-POST /api/ai-param-test/run/midi
+## Architektura (pliki kluczowe)
+- `parameters.py` — walidacja i normalizacja parametrów MIDI/Audio (typy, domyślne, zakresy).
+- `midi_engine.py` — generator wzoru (warstwy per instrument, 8 kroków na takt, proste losowanie nut w skali).
+- `local_library.py` — skan lokalnych sampli WAV → mapowanie na instrumenty (heurystyki nazw katalogów/plików).
+- `audio_renderer.py` — prosty renderer audio: nakłada zdarzenia na zsamplowany dźwięk, zapisuje miks i stem’y.
+- `midi_visualizer.py` — render pianoroll do PNG (Matplotlib, tryb headless).
+- `inventory.py` — budowa i odczyt `inventory.json` (podsumowanie bibliotek lokalnych).
+- `pipeline.py` — spinacz przepływu (run_midi, run_render, run_full) + I/O artefaktów i logowanie.
+- `router.py` — endpointy FastAPI pod prefiksem `/api/ai-param-test` (w tym chat-smoke/paramify do LLM).
+
+
+## Przepływ działania (end-to-end)
+1) Klient (lub LLM) dostarcza parametry w schemacie JSON (sekcje `midi` i `audio`).
+2) `MidiParameters`/`AudioRenderParameters` walidują i uzupełniają wartości domyślne.
+3) `midi_engine.generate_midi` tworzy wzór (warstwy: po jednym patternie na instrument) i łączy je w całość.
+4) `local_library.discover_samples` skanuje `local_samples/` i wskazuje pliki .wav dopasowane do nazw instrumentów.
+5) `audio_renderer.render_audio` renderuje plik `audio.wav` oraz stem’y — pitch-shift przez resampling (jeśli `numpy/scipy`).
+6) Eksport: `midi.json`, `.mid` (jeśli `mido`), `pianoroll*.png` (jeśli `matplotlib`), `selection.json` i debug timeline.
+
+Ważne: jeśli jakikolwiek instrument nie ma zmapowanego sample’u, run kończy się błędem 422 (strict mode).
+
+
+## Dane wejściowe (schemat)
+Sekcja `midi` (kluczowe pola):
+- `style`, `mood`, `genre`(alias), `tempo`, `key`, `scale`, `meter` (np. "4/4"), `bars`, `length_seconds`.
+- `form`: lista sekcji np. ["intro", "theme_A", "outro"].
+- `dynamic_profile` (gentle|moderate|energetic), `arrangement_density` (minimal|balanced|dense), `harmonic_color` (diatonic|...).
+- `instruments`: lista nazw instrumentów (np. ["flute", "synth_pad"]).
+- `instrument_configs`: konfiguracje per instrument: `name`, `register` (low|mid|high|full), `role`, `volume` (0..1), `pan` (-1..1), `articulation`, `dynamic_range`, `effects`.
+- `seed`: liczba lub null (powtarzalność losowania).
+
+Sekcja `audio`:
+- `sample_rate` (8000..192000), `seconds` (0.5..600), `master_gain_db` (globalny gain miksu).
+
+Przykład (od LLM):
+```json
 {
-  "genre": "ambient",
-  "mood": "calm",
-  "tempo": 80,
-  "key": "C",
-  "scale": "major",
-  "instruments": ["piano"],
-  "bars": 4,
-  "seed": 123
+	"midi": {
+		"style": "ambient",
+		"mood": "calm",
+		"tempo": 60,
+		"key": "C",
+		"scale": "major",
+		"meter": "4/4",
+		"bars": 32,
+		"length_seconds": 32,
+		"form": ["intro", "theme_A", "outro"],
+		"dynamic_profile": "moderate",
+		"arrangement_density": "balanced",
+		"harmonic_color": "diatonic",
+		"instruments": ["flute", "synth_pad"],
+		"instrument_configs": [
+			{"name":"flute","register":"mid","role":"accompaniment","volume":0.8,"pan":0,"articulation":"legato","dynamic_range":"moderate","effects":["reverb_long","delay_subtle"]},
+			{"name":"synth_pad","register":"mid","role":"accompaniment","volume":0.6,"pan":0,"articulation":"sustain","dynamic_range":"moderate","effects":["reverb_long","chorus"]}
+		],
+		"seed": null,
+		"genre": "ambient"
+	},
+	"audio": {"sample_rate":44100, "seconds":32, "master_gain_db":-3}
 }
 ```
 
-Full render (explicit split object accepted by /run/render and /run/full):
-```jsonc
-POST /api/ai-param-test/run/render
-{
-  "midi": {"bars": 8, "instruments": ["piano", "pad"], "tempo": 90},
-  "audio": {"seconds": 6, "sample_rate": 44100}
-}
+
+## Wymagania i przygotowanie środowiska
+Minimalnie Python 3.12. Zainstaluj zależności z `backend-fastapi/requirements.txt`:
+
+```powershell
+cd "d:\Informatyka URZ\THE-HUB\backend-fastapi"
+python -m venv .venv; .\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 ```
 
-## Local Sample Discovery & Strictness
+Opcjonalne (zalecane) biblioteki dla dodatkowych artefaktów:
+- `mido` — eksport `.mid`.
+- `matplotlib` — pianoroll `.png`.
+- `numpy`, `scipy` — lepsze próbkowanie/pitch-shift i szersze wsparcie WAV.
 
-Place WAV files inside `backend-fastapi/local_samples/` (or nested). Naming heuristics map filenames → instruments (substring match). Granular percussion tokens are treated as *separate* instruments so you can request them independently:
+Klucze do dostawców LLM (dla endpointów `chat-smoke/*`) umieść w `backend-fastapi/.env` (np. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`).
 
-`piano`, `pad`, `string`, `guitar`, `bass`, `lead`, `choir`, `flute`, `trumpet`, `sax`, plus drums: `kick`, `snare`, `hihat`, `clap`, `rim`, `tom`, `808`, `perc`, and generic `drum`, `drumkit`.
 
-Unmatched fall into a `misc` bucket but are not auto-selected unless explicitly requested with matching heuristic.
+## Katalog lokalnych sampli
+- Domyślny katalog: `THE-HUB/local_samples/` (czyli obok `backend-fastapi/`).
+- Moduł skanuje rekursywnie pliki: `.wav`, `.aiff`, `.aif`, `.flac`.
+- Mapowanie instrumentów opiera się o tokeny w ścieżce nazwy, np. `piano`, `pad`, `strings`, `flute`, `bass`, perkusja: `kick`, `snare`, `hihat`, `clap`, `808`, `perc`, `tom`, `rim`, FX: `uplifter`, `downlifter`, `riser`, `impact`, `subdrop`, `fx`.
+- Błędny lub brakujący instrument → 422 (strict mode). Najpierw sprawdź `/available-instruments`.
 
-Strict mode: If any requested instrument lacks at least one discovered sample, the render/full run aborts with `SampleMissingError` (422 if pre-validation catches it). No synthetic / placeholder samples are generated.
 
-Selection is deterministic (sorted list index) so same parameters + same sample set → identical selection.
+## Jak uruchomić backend i sprawdzić moduł
+1) Uruchom FastAPI (UVicorn):
 
-## MIDI Representation & Visualization
-
-Per run we create a unique directory:
-
-`output/<UTC_TS>_<RUN_ID>/`
-
-Inside it (relative names also returned with `_rel` fields):
-
-| Artifact | Filename | Notes |
-| -------- | -------- | ----- |
-| JSON Pattern | `midi.json` | Full structured internal pattern (bars / events) |
-| Standard MIDI | `midi.mid` | Single-track export (quantized 8 steps/bar) using `mido` if installed |
-| Piano Roll PNG | `pianoroll_<run>.png` | Combined events scatter visualization |
-| Audio Mix | `audio.wav` | Mono mixed render of selected instrument samples |
-
-If `mido` or `matplotlib` are not available, respective artifacts are skipped and debug events record the omission.
-
-## Inventory (schema v3)
-
-`inventory.json` (module directory) now uses **schema_version: "3"** and stores both a concise instrument summary and a flat `samples` array with extended metadata:
-
-```jsonc
-{
-  "schema_version": "3",
-  "generated_at": 1727280000.123,
-  "root": "/abs/path/local_samples",
-  "instrument_count": 12,
-  "total_files": 57,
-  "total_bytes": 123456789,
-  "deep": false,
-  "instruments": {
-    "piano": { "count": 4, "examples": ["soft_piano1.wav", "soft_piano2.wav"] },
-    "kick": { "count": 8, "examples": ["kick_deep.wav", "kick_soft.wav"] }
-  },
-  "samples": [
-    {
-      "instrument": "piano",
-      "id": "soft_piano1",
-      "file_rel": "keys/piano/soft_piano1.wav",
-      "file_abs": "/abs/.../soft_piano1.wav",
-      "bytes": 345678,
-      "source": "local",
-      "pitch": "F",
-      "category": "instrument",
-      "family": "melodic",
-      "subtype": "piano",
-      "is_loop": false
-    },
-    {
-      "instrument": "kick",
-      "id": "kick_deep",
-      "file_rel": "drums/kick/kick_deep.wav",
-      "file_abs": "/abs/.../kick_deep.wav",
-      "bytes": 12345,
-      "source": "local",
-      "pitch": null,
-      "category": "oneshot",
-      "family": "drum",
-      "subtype": "kick",
-      "is_loop": false
-    }
-  ]
-}
+```powershell
+cd "d:\Informatyka URZ\THE-HUB\backend-fastapi"
+uvicorn app.main:app --reload --port 8000
 ```
 
-Deep scan: `POST /api/ai-param-test/inventory/rebuild?mode=deep` populates `sample_rate` + `length_sec` inside each sample object and sets `deep: true`.
+2) Sprawdź metadane modułu:
 
-Frontend nadal używa uproszczonego widoku; można rozszerzyć o filtry po `family` / `category`.
-
-### Selection Snapshot
-
-Każdy run renderujący audio zapisuje `selection.json` w swoim katalogu per-run:
-```jsonc
-{
-  "run_id": "ab12cd",
-  "instruments": ["kick","snare","bass"],
-  "samples": [
-    {"instrument": "kick", "file": "/abs/.../kick_deep.wav", "subtype": "kick", "family": "drum"},
-    {"instrument": "snare", "file": "/abs/.../snare_crisp.wav", "subtype": "snare", "family": "drum"}
-  ]
-}
+```powershell
+Invoke-RestMethod -Method GET http://localhost:8000/api/ai-param-test/meta | ConvertTo-Json -Depth 6
 ```
-To pozwala w 100% odtworzyć miks później.
 
-## Debug Events
+3) Zobacz listę dostępnych instrumentów (na podstawie `local_samples/`):
 
-Every run collects a timeline of structured events (stage, message, data). Retrieve via:
-`GET /api/ai-param-test/debug/{run_id}`.
+```powershell
+Invoke-RestMethod -Method GET http://localhost:8000/api/ai-param-test/available-instruments | ConvertTo-Json -Depth 4
+```
 
-## Git Ignore
+4) Wygeneruj MIDI (bez audio):
 
-The `.gitignore` has been updated to exclude:
-- `local_samples/`
-- generated `output/` directories
-- common audio (`*.wav`) & MIDI (`*.mid`) artifacts
+```powershell
+$body = @{ genre="ambient"; mood="calm"; tempo=80; key="C"; scale="major"; bars=8; instruments=@("piano") } | ConvertTo-Json
+Invoke-RestMethod -Method POST http://localhost:8000/api/ai-param-test/run/midi -ContentType 'application/json' -Body $body | ConvertTo-Json -Depth 8
+```
 
-## Roadmap / Possible Enhancements
-- Per-layer multi-track MIDI export
-- Individual layer pianoroll sprites (current: combined only)
-- Configurable instrument ↔ filename mapping (JSON / env)
-- More advanced rhythmic / chordal generation
-- Optional stem caching & re-use (avoid re-render when same sample+events)
-- Hash-based content addressing for identical pattern outputs
-- Frontend filtracja po family/category/pitch
+5) Pełny render (MIDI + audio):
 
-## Version & Schema
-Schema version exposed under `/ai-param-test/meta`: `2025-10-05-1` (niezależna od inventory `schema_version` = `3`).
+```powershell
+$payload = @{ midi = @{ bars=8; instruments=@("flute"); tempo=80 }; audio = @{ seconds=6; sample_rate=44100 } } | ConvertTo-Json -Depth 10
+Invoke-RestMethod -Method POST http://localhost:8000/api/ai-param-test/run/render -ContentType 'application/json' -Body $payload | ConvertTo-Json -Depth 8
+```
 
-Increment the date-stamped suffix on any breaking API response shape change; bump `inventory` schema_version independently for compendium shape changes.
+Artefakty pojawią się w `app/tests/ai-param-test/output/<TS>_<RUN_ID>/`. Możesz je też serwować statycznie z 
+`/api/ai-param-test/output/...` (patrz `app.main` → `StaticFiles`).
+
+
+## Endpointy (skrót)
+- `GET /api/ai-param-test/presets` — gotowe presety parametrów (minimal/full).
+- `GET /api/ai-param-test/meta` — metadane modułu, wersja schematu.
+- `GET /api/ai-param-test/available-instruments` — szybki spis instrumentów.
+- `GET /api/ai-param-test/inventory` — pełny inwentarz sampli (zliczenia, przykłady, wiersze `samples`).
+- `POST /api/ai-param-test/inventory/rebuild?mode=deep` — przebuduj inwentarz (w `deep` dodaje `sample_rate`, `length_sec`).
+- `POST /api/ai-param-test/run/midi` — tylko MIDI (+ eksporty).
+- `POST /api/ai-param-test/run/render` — MIDI + wybór sampli + render audio.
+- `POST /api/ai-param-test/run/full` — alias `run/render`.
+- `GET /api/ai-param-test/debug/{run_id}` — timeline debug dla wskazanego run’u.
+
+Opcjonalnie (LLM):
+- `POST /api/ai-param-test/chat-smoke/paramify` — poproś LLM o zwrócenie JSON-a w naszym schemacie i normalizację.
+- `POST /api/ai-param-test/chat-smoke/send` — czat surowy lub „structured” (jak wyżej) zależnie od parametru.
+
+
+## Przykładowy timeline (debug)
+Fragment struktury zdarzeń (czas, stage, message, data), np.:
+
+```
+[run] started
+[meta] module_version {"module":"ai_param_test","version":"0.1.0"}
+[run] render_phase
+[params] composition { ... }
+[params] instrumentarium { ... }
+[params] audio_render { ... }
+[call] generate_midi {"seed":null}
+[func] enter {"module":"midi_engine","function":"generate_midi"}
+[midi] bar_composed {"bar":0,"events":7,"layer":"flute"}
+...
+[audio] render_done {"file":".../audio.wav","bytes":2822444}
+[viz] pianoroll_saved {"file":".../pianoroll_<run>.png"}
+[midi] export_mid {"file":".../midi.mid"}
+[run] completed
+```
+
+Użyj `GET /api/ai-param-test/debug/{run_id}` aby pobrać pełen timeline.
+
+
+## Ograniczenia i uwagi
+- MIDI: prosty generator (losowość w ramach skali i siatki 8 kroków/takt). Nie jest to model ml.
+- Audio: render uproszczony, mono, bez zaawansowanego miksu/FX; pitch-shift przez resampling.
+- Strict mode: wymagany co najmniej jeden plik na każdy wnioskowany instrument.
+- Mapowanie instrumentów jest heurystyczne (na podstawie nazw). Dostosuj strukturę `local_samples/`, aby poprawić trafność.
+
+
+## Troubleshooting
+- 422 unknown_instruments — sprawdź `GET /available-instruments`, dopasuj nazwy `instruments` do wyników.
+- 422 missing_samples — brak sample’a dla któregoś instrumentu. Dodaj pliki do `local_samples/` lub usuń instrument z listy.
+- Brak `midi.mid` — doinstaluj `mido` (jest w `requirements.txt`).
+- Brak `pianoroll_*.png` — doinstaluj `matplotlib`.
+- Błędy odczytu WAV — zainstaluj `numpy` i `scipy` (szersza obsługa formatów), sprawdź 16‑bit PCM.
+- Ścieżka `local_samples/` — moduł oczekuje katalogu na poziomie repo (`THE-HUB/local_samples`).
+- Windows/PowerShell — jeśli masz restrykcje ExecutionPolicy, włącz sesyjnie: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
+
+
+## Roadmap (kierunki rozwoju)
+- Lepszy silnik kompozycyjny (motywy, harmonie, patterny per styl).
+- Wielościeżkowy eksport MIDI (per warstwa do osobnych tracków).
+- Miks wielokanałowy i efekty (reverb/delay/chorus) konfigurowalne z `instrument_configs`.
+- Lepsze odwzorowanie głośności/panoramy z `instrument_configs` podczas renderu.
+- Konfigurowalne mapowanie instrument↔folder (JSON/ENV).
+
+
+## Szybka ściąga
+- Prefiks API: `/api/ai-param-test`.
+- Artefakty: `app/tests/ai-param-test/output/<TS>_<RUN_ID>/` oraz statycznie pod `/api/ai-param-test/output/...`.
+- Klucze LLM w `.env` jeśli używasz `chat-smoke/*`.
+- Najpierw sprawdź `/available-instruments`, potem wołaj `/run/render`.
+
+
+Miłej eksploracji — jeśli chcesz, mogę przygotować też gotowe zapytania w formacie `.http` lub skrypty PowerShell do szybkich testów.
+
