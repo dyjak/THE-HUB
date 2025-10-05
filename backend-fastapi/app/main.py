@@ -19,6 +19,13 @@ except Exception as e:  # broad for diagnostic
     param_sampling_router = None  # type: ignore
     _PARAM_SAMPLING_AVAILABLE = False
     _PARAM_SAMPLING_IMPORT_ERROR = str(e)
+try:
+    from .tests.ai_param_test.router import router as ai_param_router  # type: ignore
+    _AI_PARAM_AVAILABLE = True
+except Exception as e:  # broad for diagnostic
+    ai_param_router = None  # type: ignore
+    _AI_PARAM_AVAILABLE = False
+    _AI_PARAM_IMPORT_ERROR = str(e)
 import subprocess
 import sys
 from pathlib import Path
@@ -104,6 +111,25 @@ if _PARAM_SAMPLING_AVAILABLE and param_sampling_router:
         print("[WARN] failed to enumerate param-sampling routes:", e)
 else:
     print("[WARN] param_sampling_router not loaded:", globals().get('_PARAM_SAMPLING_IMPORT_ERROR'))
+
+# Include AI param test router (next-gen variant)
+if _AI_PARAM_AVAILABLE and ai_param_router:
+    app.include_router(ai_param_router, prefix="/api")
+    try:
+        ai_param_output = Path(__file__).parent / "tests" / "ai-param-test" / "output"
+        ai_param_output.mkdir(parents=True, exist_ok=True)
+        app.mount("/api/ai-param-test/output", StaticFiles(directory=str(ai_param_output)), name="ai_param_output")
+    except Exception as e:
+        print("[WARN] failed to mount ai-param-test static output:", e)
+    try:
+        ai_routes = [getattr(r, "path", str(r)) for r in app.routes if "/ai-param-test" in getattr(r, "path", "")]
+        print("[ai-param-test] registered routes:")
+        for p in sorted(ai_routes):
+            print("   ", p)
+    except Exception as e:
+        print("[WARN] failed to enumerate ai-param-test routes:", e)
+else:
+    print("[WARN] ai_param_router not loaded:", globals().get('_AI_PARAM_IMPORT_ERROR'))
 
 
 # MUSIC TEST ENDPOINTS - dodane bezpośrednio

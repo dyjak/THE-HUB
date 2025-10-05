@@ -72,6 +72,7 @@ export default function AirPanel() {
                         <AnimatedCard path={"/air/music-test"} name={"sample-simple-test"} index={0} />
                         <AnimatedCard path={"/air/param-adv"} name={"parametrize-advanced-test"} index={1} />
                         <AnimatedCard path={"/air/param-sampling"} name={"param-sampling-local"} index={2} />
+                        <AnimatedCard path={"/air/ai-param-test"} name={"ai-param-test"} index={3} />
                     </div>
 
                     <div className="text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-red-500 mb-4">
