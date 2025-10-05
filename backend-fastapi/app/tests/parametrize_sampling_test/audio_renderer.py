@@ -39,18 +39,41 @@ class SampleMissingError(RuntimeError):
     pass
 
 def _read_wav_mono(path: Path) -> List[float] | None:
+    # Prefer scipy for broad codec support
     try:
         import scipy.io.wavfile as wavfile  # type: ignore
+        import numpy as _np  # type: ignore
         sr, data = wavfile.read(str(path))
-        if len(data.shape) > 1:
-            data = data[:,0]
+        # stereo -> mono first channel
+        if hasattr(data, 'shape') and len(getattr(data, 'shape', ())) > 1:
+            data = data[:, 0]
+        # normalize depending on dtype
         if hasattr(data, 'dtype'):
-            import numpy as np  # type: ignore
-            maxv = float(np.iinfo(data.dtype).max)
-            data = data.astype('float32')/maxv
-        return data.tolist()
+            if data.dtype.kind in ('i', 'u'):  # integer PCM
+                maxv = float(_np.iinfo(data.dtype).max)
+                data = data.astype('float32') / (maxv if maxv else 1.0)
+            elif data.dtype.kind == 'f':  # already float PCM
+                data = data.astype('float32')
+        return _np.asarray(data, dtype='float32').tolist()
     except Exception:
-        return None
+        # Fallback: basic 16-bit PCM reader using wave
+        try:
+            import wave, struct
+            with wave.open(str(path), 'rb') as wf:
+                n_channels = wf.getnchannels()
+                sampwidth = wf.getsampwidth()
+                n_frames = wf.getnframes()
+                if sampwidth != 2:
+                    return None  # only 16-bit fallback supported
+                raw = wf.readframes(n_frames)
+                total_samples = n_frames * n_channels
+                fmt = '<' + 'h' * total_samples
+                ints = struct.unpack(fmt, raw)
+                # pick first channel
+                mono = ints[0::n_channels]
+                return [v / 32768.0 for v in mono]
+        except Exception:
+            return None
 
 BASE_FREQ = 261.63  # assume C4 for raw samples
 

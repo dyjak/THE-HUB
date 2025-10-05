@@ -12,7 +12,29 @@ interface DebugEvent { ts: number; stage: string; message: string; data?: Record
 interface DebugRun { run_id: string; events: DebugEvent[] }
 interface AvailableInstruments { available: string[]; count: number }
 interface InventoryInstrumentInfo { count: number; examples: string[] }
-interface InventoryPayload { generated_at: number; root: string; instruments: Record<string, InventoryInstrumentInfo> }
+interface InventorySampleMeta {
+  instrument: string;
+  id: string;
+  file_rel: string;
+  file_abs?: string;
+  bytes?: number;
+  source?: string;
+  pitch?: string | null;
+  category?: string | null;
+  family?: string | null;
+  subtype?: string | null;
+  is_loop?: boolean;
+  sample_rate?: number | null;
+  length_sec?: number | null;
+}
+interface InventoryPayload {
+  schema_version?: string;
+  deep?: boolean;
+  generated_at: number;
+  root: string;
+  instruments: Record<string, InventoryInstrumentInfo>;
+  samples?: InventorySampleMeta[];
+}
 
 const DEFAULT_MIDI: MidiParameters = { genre: 'ambient', mood: 'calm', tempo: 80, key: 'C', scale: 'major', instruments: ['piano','pad'], bars: 8, seed: null };
 const DEFAULT_AUDIO: AudioRenderParameters = { sample_rate: 44100, seconds: 6, master_gain_db: -3 };
@@ -35,6 +57,8 @@ export default function ParamSamplingPage() {
   const [midiMidFile, setMidiMidFile] = useState<string | null>(null);
   const [pianoRoll, setPianoRoll] = useState<string | null>(null);
   const [inventory, setInventory] = useState<InventoryPayload | null>(null);
+  const [sampleFilterInst, setSampleFilterInst] = useState<string>("");
+  const [sampleFilterText, setSampleFilterText] = useState<string>("");
 
   const loadAvailable = async () => {
     try {
@@ -57,6 +81,14 @@ export default function ParamSamplingPage() {
     } catch (e) {
       console.warn('inventory fetch fail', e);
     }
+  };
+  const rebuildInventory = async (mode?: 'deep' | 'quick') => {
+    try {
+      const url = `${API_BASE}${API_PREFIX}/param-sampling/inventory/rebuild${mode==='deep' ? '?mode=deep':''}`;
+      const res = await fetch(url, { method: 'POST' });
+      if (!res.ok) return;
+      await loadInventory();
+    } catch (e) { console.warn('inventory rebuild fail', e); }
   };
   useEffect(() => { loadAvailable(); loadInventory(); }, []);
 
@@ -129,6 +161,15 @@ export default function ParamSamplingPage() {
   };
 
   const disableInst = (inst: string) => !available.includes(inst);
+
+  const formatBytes = (n?: number) => {
+    if (!n || n <= 0) return '-';
+    const units = ['B','KB','MB','GB'];
+    let i=0; let v=n;
+    while (v>=1024 && i<units.length-1) { v/=1024; i++; }
+    return `${v.toFixed(1)} ${units[i]}`;
+  };
+  const formatSec = (s?: number | null) => (s==null? '-' : `${s.toFixed(2)}s`);
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-black via-gray-950 to-black text-white px-6 py-10 space-y-10">
@@ -291,6 +332,8 @@ export default function ParamSamplingPage() {
           <div className="flex gap-2 mt-3">
             <button onClick={loadAvailable} className="px-3 py-1 rounded bg-gray-800 hover:bg-gray-700 border border-gray-600 text-[11px]">Refresh</button>
             <button onClick={loadInventory} className="px-3 py-1 rounded bg-gray-800 hover:bg-gray-700 border border-gray-600 text-[11px]">Load Inventory</button>
+            <button onClick={()=>rebuildInventory('quick')} className="px-3 py-1 rounded bg-gray-800 hover:bg-gray-700 border border-gray-600 text-[11px]">Rebuild</button>
+            <button onClick={()=>rebuildInventory('deep')} className="px-3 py-1 rounded bg-gray-800 hover:bg-gray-700 border border-gray-600 text-[11px]">Deep Rebuild</button>
           </div>
           <div className="text-[10px] text-gray-600 mt-2">/available-instruments (lista skrócona)</div>
         </div>
@@ -313,10 +356,74 @@ export default function ParamSamplingPage() {
               </div>
             )}
             {inventory && (
-              <div className="text-[10px] text-gray-600 mt-2">Root: {inventory.root}</div>
+              <div className="text-[10px] text-gray-600 mt-2">Root: {inventory.root} • Schema: v{inventory.schema_version ?? 'n/a'} • Deep: {String(inventory.deep ?? false)}</div>
             )}
             <div className="text-[10px] text-gray-600 mt-2">Zapisane w inventory.json</div>
         </div>
+      </div>
+
+      {/* Samples table */}
+      <div className="bg-gray-900/40 p-4 rounded-lg border border-gray-800 text-xs">
+        <div className="flex items-end justify-between mb-3 gap-3 flex-wrap">
+          <h3 className="font-semibold text-gray-300">Samples (from inventory)</h3>
+          <div className="flex gap-2 items-center">
+            <select value={sampleFilterInst} onChange={e=>setSampleFilterInst(e.target.value)} className="bg-black/60 p-1.5 rounded border border-gray-700">
+              <option value="">All instruments</option>
+              {Object.keys(inventory?.instruments || {}).sort().map(k => <option key={k} value={k}>{k}</option>)}
+            </select>
+            <input value={sampleFilterText} onChange={e=>setSampleFilterText(e.target.value)} placeholder="Search..." className="bg-black/60 p-1.5 rounded border border-gray-700" />
+          </div>
+        </div>
+        {!inventory?.samples || inventory.samples.length===0 ? (
+          <div className="text-gray-500">Brak danych próbek. Użyj Load/Deep Rebuild.</div>
+        ) : (
+          <div className="overflow-auto max-h-96">
+            <table className="min-w-full border-collapse">
+              <thead className="sticky top-0 bg-gray-900">
+                <tr className="text-gray-400">
+                  <th className="text-left p-2 border-b border-gray-800">instrument</th>
+                  <th className="text-left p-2 border-b border-gray-800">subtype</th>
+                  <th className="text-left p-2 border-b border-gray-800">family</th>
+                  <th className="text-left p-2 border-b border-gray-800">category</th>
+                  <th className="text-left p-2 border-b border-gray-800">pitch</th>
+                  <th className="text-left p-2 border-b border-gray-800">file</th>
+                  <th className="text-left p-2 border-b border-gray-800">size</th>
+                  <th className="text-left p-2 border-b border-gray-800">len</th>
+                  <th className="text-left p-2 border-b border-gray-800">sr</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inventory.samples
+                  .filter(s => !sampleFilterInst || s.instrument === sampleFilterInst)
+                  .filter(s => {
+                    if (!sampleFilterText) return true;
+                    const q = sampleFilterText.toLowerCase();
+                    return (
+                      s.id.toLowerCase().includes(q) ||
+                      s.file_rel.toLowerCase().includes(q) ||
+                      (s.subtype||'').toLowerCase().includes(q) ||
+                      (s.family||'').toLowerCase().includes(q) ||
+                      (s.category||'').toLowerCase().includes(q) ||
+                      (s.pitch||'').toLowerCase().includes(q)
+                    );
+                  })
+                  .map((s, i) => (
+                    <tr key={`${s.instrument}-${s.id}-${i}`} className="hover:bg-gray-800/40">
+                      <td className="p-2 border-b border-gray-800 text-emerald-300">{s.instrument}</td>
+                      <td className="p-2 border-b border-gray-800">{s.subtype || '-'}</td>
+                      <td className="p-2 border-b border-gray-800">{s.family || '-'}</td>
+                      <td className="p-2 border-b border-gray-800">{s.category || '-'}</td>
+                      <td className="p-2 border-b border-gray-800">{s.pitch || '-'}</td>
+                      <td className="p-2 border-b border-gray-800 break-all">{s.file_rel}</td>
+                      <td className="p-2 border-b border-gray-800">{formatBytes(s.bytes)}</td>
+                      <td className="p-2 border-b border-gray-800">{formatSec(s.length_sec)}</td>
+                      <td className="p-2 border-b border-gray-800">{s.sample_rate ?? '-'}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="mt-12 text-center text-xs text-gray-600">Param Sampling UI • Strict local samples</div>

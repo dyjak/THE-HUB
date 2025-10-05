@@ -43,10 +43,18 @@ app = FastAPI(
 # Konfiguracja CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    # Keep explicit common dev origins and add a regex for any localhost/127.0.0.1 port
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    max_age=86400,  # cache preflight for a day in dev
 )
 
 # Upewnij się, że tabele są utworzone

@@ -4,6 +4,7 @@ from .pipeline import run_midi, run_render, run_full
 from .local_library import discover_samples, list_available_instruments
 from .inventory import build_inventory, load_inventory, INVENTORY_SCHEMA_VERSION
 from .debug_store import DEBUG_STORE
+from .audio_renderer import SampleMissingError
 
 router = APIRouter(prefix="/param-sampling", tags=["param-sampling"])
 SCHEMA_VERSION = "2025-09-25-1"
@@ -39,7 +40,12 @@ def run_midi_endpoint(params: MidiParameters):
     bad = [i for i in params.instruments if i not in available]
     if bad:
         raise HTTPException(status_code=422, detail={"error": "unknown_instruments", "unknown": bad, "available": sorted(available)})
-    return run_midi(params.to_dict())
+    try:
+        return run_midi(params.to_dict())
+    except SampleMissingError as e:
+        raise HTTPException(status_code=422, detail={"error": "missing_samples", "message": str(e)})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": "internal", "message": str(e)})
 
 @router.post("/run/render")
 def run_render_endpoint(payload: dict = Body(...)):
@@ -50,7 +56,12 @@ def run_render_endpoint(payload: dict = Body(...)):
     bad = [i for i in req if i not in available]
     if bad:
         raise HTTPException(status_code=422, detail={"error": "unknown_instruments", "unknown": bad, "available": sorted(available)})
-    return run_render(midi, audio)
+    try:
+        return run_render(midi, audio)
+    except SampleMissingError as e:
+        raise HTTPException(status_code=422, detail={"error": "missing_samples", "message": str(e)})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": "internal", "message": str(e)})
 
 @router.post("/run/full")
 def run_full_endpoint(payload: dict = Body(...)):
@@ -61,7 +72,12 @@ def run_full_endpoint(payload: dict = Body(...)):
     bad = [i for i in req if i not in available]
     if bad:
         raise HTTPException(status_code=422, detail={"error": "unknown_instruments", "unknown": bad, "available": sorted(available)})
-    return run_full(midi, audio)
+    try:
+        return run_full(midi, audio)
+    except SampleMissingError as e:
+        raise HTTPException(status_code=422, detail={"error": "missing_samples", "message": str(e)})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": "internal", "message": str(e)})
 
 @router.get("/debug/{run_id}")
 def get_debug(run_id: str):
