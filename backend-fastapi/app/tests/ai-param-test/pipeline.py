@@ -108,56 +108,61 @@ def run_midi(midi_params: dict):
         run.log("midi", "saved", {"file": str(midi_path)})
     except Exception as e:
         run.log("midi", "save_failed", {"error": str(e)})
-    # Real MIDI export (single combined track) if mido available
+    # Helpers for MIDI export
+    def _export_pattern_to_mid(pattern: list[dict], tempo_bpm: int, out_path: Path) -> Path | None:
+        if mido is None:
+            return None
+        mid = mido.MidiFile()
+        track = mido.MidiTrack()
+        mid.tracks.append(track)
+        mpb = int(60_000_000 / max(1, tempo_bpm))
+        track.append(mido.MetaMessage('set_tempo', tempo=mpb, time=0))
+        ticks_per_beat = mid.ticks_per_beat  # default 480
+        step_ticks = int(ticks_per_beat * 0.5)  # 8 steps/bar -> 0.5 beat per step (4/4)
+        flat: list[tuple[int,bool,int,int]] = []
+        for bar in pattern:
+            b_index = bar.get('bar', 0)
+            for ev in bar.get('events', []):
+                note = ev.get('note', 60)
+                vel = ev.get('vel', 64)
+                step = ev.get('step', 0)
+                start_tick = (b_index * 8 + step) * step_ticks
+                length_steps = ev.get('len', 1)
+                end_tick = start_tick + length_steps * step_ticks
+                flat.append((start_tick, True, note, vel))
+                flat.append((end_tick, False, note, vel))
+        flat.sort(key=lambda x: x[0])
+        current_tick = 0
+        for tick, is_on, note, vel in flat:
+            delta = tick - current_tick
+            current_tick = tick
+            if is_on:
+                track.append(mido.Message('note_on', note=note, velocity=vel, time=delta))
+            else:
+                track.append(mido.Message('note_off', note=note, velocity=0, time=delta))
+        mid.save(str(out_path))
+        return out_path
+
+    # Real MIDI export (combined + per layer)
     midi_file_path = None
+    midi_layer_paths: dict[str, str] = {}
     if mido is not None:
         try:
-            mid = mido.MidiFile()
-            track = mido.MidiTrack()
-            mid.tracks.append(track)
             tempo_bpm = midi_data.get('meta', {}).get('tempo', 80)
-            # mido tempo is microseconds per beat
-            mpb = int(60_000_000 / max(1, tempo_bpm))
-            track.append(mido.MetaMessage('set_tempo', tempo=mpb, time=0))
-            ticks_per_beat = mid.ticks_per_beat  # default 480
-            step_div = 8  # we used 8 steps per bar
-            # duration of one bar in beats = 4 (assuming 4/4)
-            # one step -> 4 beats / 8 = 0.5 beat
-            step_ticks = int(ticks_per_beat * 0.5)
-            for bar in midi_data.get('pattern', []):
-                b_index = bar.get('bar', 0)
-                for ev in bar.get('events', []):
-                    note = ev.get('note', 60)
-                    vel = ev.get('vel', 64)
-                    step = ev.get('step', 0)
-                    start_tick = (b_index * step_div + step) * step_ticks
-                    # Insert time deltas: ensure events sorted
-                    # We'll accumulate events then sort
-            # Build flattened events list
-            flat = []
-            for bar in midi_data.get('pattern', []):
-                b_index = bar.get('bar', 0)
-                for ev in bar.get('events', []):
-                    note = ev.get('note', 60)
-                    vel = ev.get('vel', 64)
-                    step = ev.get('step', 0)
-                    start_tick = (b_index * step_div + step) * step_ticks
-                    length_steps = ev.get('len', 1)
-                    end_tick = start_tick + length_steps * step_ticks
-                    flat.append((start_tick, True, note, vel))
-                    flat.append((end_tick, False, note, vel))
-            flat.sort(key=lambda x: x[0])
-            current_tick = 0
-            for tick, is_on, note, vel in flat:
-                delta = tick - current_tick
-                current_tick = tick
-                if is_on:
-                    track.append(mido.Message('note_on', note=note, velocity=vel, time=delta))
-                else:
-                    track.append(mido.Message('note_off', note=note, velocity=0, time=delta))
-            midi_file_path = run_dir / "midi.mid"
-            mid.save(str(midi_file_path))
-            run.log("midi", "export_mid", {"file": str(midi_file_path)})
+            # Combined
+            midi_file_path = _export_pattern_to_mid(midi_data.get('pattern', []), tempo_bpm, run_dir / "midi.mid")
+            if midi_file_path:
+                run.log("midi", "export_mid", {"file": str(midi_file_path)})
+            # Per-instrument layers
+            layers: dict = midi_data.get('layers', {}) or {}
+            for inst, pat in layers.items():
+                try:
+                    p = _export_pattern_to_mid(pat, tempo_bpm, run_dir / f"midi_{inst}.mid")
+                    if p:
+                        midi_layer_paths[inst] = str(p)
+                        run.log("midi", "export_mid_layer", {"instrument": inst, "file": str(p)})
+                except Exception as e:
+                    run.log("midi", "export_mid_layer_failed", {"instrument": inst, "error": str(e)})
         except Exception as e:
             run.log("midi", "export_mid_failed", {"error": str(e)})
     # Visualization
@@ -174,12 +179,25 @@ def run_midi(midi_params: dict):
                "midi_json": str(midi_path), "midi_json_rel": _rel(midi_path),
                "midi_mid": str(midi_file_path) if midi_file_path else None,
                "midi_mid_rel": _rel(midi_file_path) if midi_file_path else None,
+               "midi_mid_layers": midi_layer_paths if midi_layer_paths else None,
+               "midi_mid_layers_rel": {k: _rel(Path(v)) for k, v in midi_layer_paths.items()} if midi_layer_paths else None,
                "midi_image": None,
                "blueprint": {"midi": midi_payload},
                "debug": DEBUG_STORE.get(run.run_id)}
     if viz and 'combined' in viz:
         img_path = Path(viz['combined'])
         payload['midi_image'] = {"combined": str(img_path), "combined_rel": _rel(img_path)}
+        # Per-instrument pianorolls
+        layers_viz = viz.get('layers') if isinstance(viz, dict) else None
+        if isinstance(layers_viz, dict) and layers_viz:
+            payload['midi_image_layers'] = {k: str(v) for k, v in layers_viz.items()}
+            payload['midi_image_layers_rel'] = {k: _rel(Path(v)) for k, v in layers_viz.items()}
+            run.log("viz", "pianoroll_layers_present", {"count": len(layers_viz)})
+        # Per-instrument pianorolls
+        layers_viz = viz.get('layers') if isinstance(viz, dict) else None
+        if isinstance(layers_viz, dict) and layers_viz:
+            payload['midi_image_layers'] = {k: str(v) for k, v in layers_viz.items()}
+            payload['midi_image_layers_rel'] = {k: _rel(Path(v)) for k, v in layers_viz.items()}
     return payload
 
 
@@ -304,47 +322,62 @@ def run_render(midi_params: dict, audio_params: dict):
         "blueprint": {"midi": midi_payload, "audio": audio_payload},
         "debug": DEBUG_STORE.get(run.run_id)
     }
-    # Add midi export info if run_midi logic reused here -> replicate minimal export for convenience
+    # Add midi export info if run_midi logic reused here -> combined + per-layer export
     try:
-        # reuse run_dir/ts already defined above
         if mido is not None:
-            mid = mido.MidiFile(); track = mido.MidiTrack(); mid.tracks.append(track)
             tempo_bpm = midi_data.get('meta', {}).get('tempo', 80)
-            mpb = int(60_000_000 / max(1, tempo_bpm))
-            track.append(mido.MetaMessage('set_tempo', tempo=mpb, time=0))
-            ticks_per_beat = mid.ticks_per_beat
-            step_div = 8; step_ticks = int(ticks_per_beat * 0.5)
-            flat = []
-            for bar in midi_data.get('pattern', []):
-                b_index = bar.get('bar', 0)
-                for ev in bar.get('events', []):
-                    note = ev.get('note', 60); vel = ev.get('vel', 64); step = ev.get('step', 0)
-                    start_tick = (b_index * step_div + step) * step_ticks
-                    length_steps = ev.get('len', 1)
-                    end_tick = start_tick + length_steps * step_ticks
-                    flat.append((start_tick, True, note, vel))
-                    flat.append((end_tick, False, note, vel))
-            flat.sort(key=lambda x: x[0])
-            current_tick = 0
-            track_path = run_dir / "midi.mid"
+            # Ensure JSON snapshot
             track_json = run_dir / "midi.json"
-            # Write JSON pattern (overwrite okay)
             try:
                 with track_json.open('w', encoding='utf-8') as f:
                     json.dump(midi_data, f)
+                result['midi_json'] = str(track_json)
+                result['midi_json_rel'] = _rel(track_json)
+                run.log("midi", "json_saved", {"file": str(track_json)})
             except Exception:
                 pass
-            for tick, is_on, note, vel in flat:
-                delta = tick - current_tick; current_tick = tick
-                if is_on:
-                    track.append(mido.Message('note_on', note=note, velocity=vel, time=delta))
-                else:
-                    track.append(mido.Message('note_off', note=note, velocity=0, time=delta))
-            mid.save(str(track_path))
-            result['midi_mid'] = str(track_path)
-            result['midi_json'] = str(track_json)
-            result['midi_mid_rel'] = _rel(track_path)
-            result['midi_json_rel'] = _rel(track_json)
+            # Combined export
+            def _export_pattern_to_mid(pattern: list[dict], tempo_bpm: int, out_path: Path) -> Path | None:
+                mid = mido.MidiFile()
+                track = mido.MidiTrack(); mid.tracks.append(track)
+                mpb = int(60_000_000 / max(1, tempo_bpm))
+                track.append(mido.MetaMessage('set_tempo', tempo=mpb, time=0))
+                ticks_per_beat = mid.ticks_per_beat; step_ticks = int(ticks_per_beat * 0.5)
+                flat: list[tuple[int,bool,int,int]] = []
+                for bar in pattern:
+                    b_index = bar.get('bar', 0)
+                    for ev in bar.get('events', []):
+                        note = ev.get('note', 60); vel = ev.get('vel', 64); step = ev.get('step', 0)
+                        start_tick = (b_index * 8 + step) * step_ticks
+                        length_steps = ev.get('len', 1); end_tick = start_tick + length_steps * step_ticks
+                        flat.append((start_tick, True, note, vel)); flat.append((end_tick, False, note, vel))
+                flat.sort(key=lambda x: x[0])
+                current_tick = 0
+                for tick, is_on, note, vel in flat:
+                    delta = tick - current_tick; current_tick = tick
+                    if is_on:
+                        track.append(mido.Message('note_on', note=note, velocity=vel, time=delta))
+                    else:
+                        track.append(mido.Message('note_off', note=note, velocity=0, time=delta))
+                mid.save(str(out_path)); return out_path
+            track_path = _export_pattern_to_mid(midi_data.get('pattern', []), tempo_bpm, run_dir / "midi.mid")
+            if track_path:
+                result['midi_mid'] = str(track_path)
+                result['midi_mid_rel'] = _rel(track_path)
+                run.log("midi", "export_mid", {"file": str(track_path)})
+            # Per-layer exports
+            layer_map: dict[str, str] = {}
+            for inst, pat in (midi_data.get('layers', {}) or {}).items():
+                try:
+                    p = _export_pattern_to_mid(pat, tempo_bpm, run_dir / f"midi_{inst}.mid")
+                    if p:
+                        layer_map[inst] = str(p)
+                        run.log("midi", "export_mid_layer", {"instrument": inst, "file": str(p)})
+                except Exception:
+                    continue
+            if layer_map:
+                result['midi_mid_layers'] = layer_map
+                result['midi_mid_layers_rel'] = {k: _rel(Path(v)) for k, v in layer_map.items()}
     except Exception as e:  # pragma: no cover simple safety
         run.log("midi", "inline_export_failed", {"error": str(e)})
     if 'midi_json' not in result or 'midi_mid' not in result:
@@ -356,6 +389,20 @@ def run_render(midi_params: dict, audio_params: dict):
         result['midi_image'] = {"combined": str(img_path), "combined_rel": _rel(img_path)}
     else:
         result['midi_image'] = viz
+    # Add per-instrument pianorolls (relative) if present
+    if isinstance(viz, dict) and isinstance(viz.get('layers'), dict) and viz['layers']:
+        result['midi_image_layers'] = viz['layers']
+        try:
+            result['midi_image_layers_rel'] = {k: _rel(Path(v)) for k, v in viz['layers'].items()}
+        except Exception:
+            pass
+        run.log("viz", "pianoroll_layers_present", {"count": len(viz['layers'])})
+    # Audio stems summary if present
+    if isinstance(audio, dict) and isinstance(audio.get('stems_rel'), dict):
+        try:
+            run.log("audio", "stems_present", {"count": len(audio['stems_rel']), "instruments": list(audio['stems_rel'].keys())})
+        except Exception:
+            pass
     return result
 
 

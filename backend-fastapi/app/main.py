@@ -23,9 +23,30 @@ try:
     from .tests.ai_param_test.router import router as ai_param_router  # type: ignore
     _AI_PARAM_AVAILABLE = True
 except Exception as e:  # broad for diagnostic
+    # Fallback: load from hyphenated folder 'ai-param-test'
     ai_param_router = None  # type: ignore
     _AI_PARAM_AVAILABLE = False
     _AI_PARAM_IMPORT_ERROR = str(e)
+    try:
+        import importlib.util
+        spec_name = "app.tests.ai_param_test.router"
+        file_path = Path(__file__).parent / "tests" / "ai-param-test" / "router.py"
+        if file_path.exists():
+            spec = importlib.util.spec_from_file_location(spec_name, str(file_path))
+            if spec and spec.loader:
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[spec_name] = module
+                spec.loader.exec_module(module)  # type: ignore[attr-defined]
+                ai_param_router = getattr(module, "router", None)  # type: ignore
+                _AI_PARAM_AVAILABLE = ai_param_router is not None
+                if not _AI_PARAM_AVAILABLE:
+                    _AI_PARAM_IMPORT_ERROR = "router object not found in ai-param-test/router.py"
+            else:
+                _AI_PARAM_IMPORT_ERROR = "failed to create import spec for ai-param-test/router.py"
+        else:
+            _AI_PARAM_IMPORT_ERROR = f"not found: {file_path}"
+    except Exception as e2:
+        _AI_PARAM_IMPORT_ERROR = f"{_AI_PARAM_IMPORT_ERROR}; fallback failed: {e2}"
 import subprocess
 import sys
 from pathlib import Path
@@ -33,10 +54,23 @@ from pathlib import Path
 import os
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
-# Load .env early so downstream modules (sample fetcher) see FREESOUND_API_KEY
+# Load .env early so downstream modules (sample fetcher / chat) see secrets
 try:
-    from dotenv import load_dotenv  # type: ignore
-    load_dotenv()
+    import os as _os
+    from dotenv import load_dotenv, dotenv_values  # type: ignore
+    env_file = Path(__file__).parent.parent / ".env"  # backend-fastapi/.env
+    if env_file.exists():
+        # Parse values explicitly and inject if missing/empty
+        vals = dotenv_values(str(env_file))
+        for k, v in vals.items():
+            if v is None:
+                continue
+            if not _os.getenv(k):
+                _os.environ[k] = v
+        # Also call load_dotenv to ensure any other behavior (e.g., export) is preserved
+        load_dotenv(dotenv_path=env_file, override=False)
+    else:
+        load_dotenv()
 except Exception:
     pass
 

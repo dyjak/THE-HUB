@@ -323,6 +323,9 @@ export default function AIParamTestPage() {
   const [sampleFilterInst, setSampleFilterInst] = useState<string>("");
   const [sampleFilterText, setSampleFilterText] = useState<string>("");
   const [blueprint, setBlueprint] = useState<{ midi: any; audio: any } | null>(null);
+  const [midiMidLayers, setMidiMidLayers] = useState<Record<string, string> | null>(null);
+  const [pianoRollLayers, setPianoRollLayers] = useState<Record<string, string> | null>(null);
+  const [audioStems, setAudioStems] = useState<Record<string, string> | null>(null);
 
   const loadAvailable = async () => {
     try {
@@ -504,7 +507,7 @@ export default function AIParamTestPage() {
   };
 
   const run = async (mode: 'midi' | 'render' | 'full') => {
-    setIsRunning(true); setError(null); setRunId(null); setDebugRun(null); setAudioFile(null); setMidiJsonFile(null); setMidiMidFile(null); setPianoRoll(null); setRawResponse(null); setResponseStatus(null); setBlueprint(null);
+    setIsRunning(true); setError(null); setRunId(null); setDebugRun(null); setAudioFile(null); setMidiJsonFile(null); setMidiMidFile(null); setPianoRoll(null); setRawResponse(null); setResponseStatus(null); setBlueprint(null); setMidiMidLayers(null); setPianoRollLayers(null); setAudioStems(null);
     const buildMidiRequest = (params: MidiParameters) => ({
       ...params,
       genre: params.style,
@@ -562,6 +565,26 @@ export default function AIParamTestPage() {
       } else if (data.midi_image?.combined) {
         const segs = String(data.midi_image.combined).split(/\\|\//).slice(-2).join('/');
         setPianoRoll(segs || null);
+      }
+      if (data.midi_image_layers_rel && typeof data.midi_image_layers_rel === 'object') {
+        setPianoRollLayers(data.midi_image_layers_rel as Record<string, string>);
+      } else if (data.midi_image_layers && typeof data.midi_image_layers === 'object') {
+        const rels: Record<string, string> = {};
+        for (const [k, v] of Object.entries(data.midi_image_layers as Record<string, string>)) {
+          const segs = String(v).split(/\\|\//).slice(-2).join('/');
+          rels[k] = segs;
+        }
+        setPianoRollLayers(rels);
+      }
+      if (data.audio?.stems_rel && typeof data.audio.stems_rel === 'object') {
+        setAudioStems(data.audio.stems_rel as Record<string, string>);
+      } else if (data.audio?.stems && typeof data.audio.stems === 'object') {
+        const rels: Record<string, string> = {};
+        for (const [k, v] of Object.entries(data.audio.stems as Record<string, string>)) {
+          const segs = String(v).split(/\\|\//).slice(-2).join('/');
+          rels[k] = segs;
+        }
+        setAudioStems(rels);
       }
     } catch (e: any) {
       setError(String(e)); setIsRunning(false);
@@ -1145,7 +1168,7 @@ export default function AIParamTestPage() {
       </div>
 
       {/* Artifacts */}
-      {(audioFile || midiJsonFile || midiMidFile || pianoRoll) && (
+      {(audioFile || midiJsonFile || midiMidFile || pianoRoll || (midiMidLayers && Object.keys(midiMidLayers).length>0) || (pianoRollLayers && Object.keys(pianoRollLayers).length>0) || (audioStems && Object.keys(audioStems).length>0)) && (
         <div className="grid md:grid-cols-4 gap-6">
           {audioFile && (
             <div className="bg-gray-900/60 p-4 rounded-lg border border-gray-700">
@@ -1173,6 +1196,48 @@ export default function AIParamTestPage() {
               <h3 className="font-semibold text-cyan-300 mb-2">Piano Roll</h3>
               <img src={`${API_BASE}${API_PREFIX}${OUTPUT_PREFIX}/${pianoRoll}`} alt="pianoroll" className="w-full rounded" />
               <div className="text-[10px] text-gray-500 mt-1 break-all">{pianoRoll}</div>
+            </div>
+          )}
+          {midiMidLayers && Object.keys(midiMidLayers).length>0 && (
+            <div className="bg-gray-900/60 p-4 rounded-lg border border-gray-700 text-xs md:col-span-2">
+              <h3 className="font-semibold text-pink-300 mb-2">Per-instrument MIDI</h3>
+              <ul className="space-y-1">
+                {Object.entries(midiMidLayers).map(([inst, rel]) => (
+                  <li key={inst} className="flex items-center justify-between gap-2">
+                    <span className="text-emerald-200 uppercase tracking-wide">{inst}</span>
+                    <a className="underline break-all" target="_blank" href={`${API_BASE}${API_PREFIX}${OUTPUT_PREFIX}/${rel}`}>{rel}</a>
+                  </li>
+                ))}
+              </ul>
+              <div className="text-[10px] text-gray-500 mt-1">Osobne pliki .mid dla każdej warstwy instrumentu.</div>
+            </div>
+          )}
+          {pianoRollLayers && Object.keys(pianoRollLayers).length>0 && (
+            <div className="bg-gray-900/60 p-4 rounded-lg border border-gray-700 text-xs md:col-span-2">
+              <h3 className="font-semibold text-cyan-300 mb-2">Per-instrument Piano Rolls</h3>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {Object.entries(pianoRollLayers).map(([inst, rel]) => (
+                  <div key={inst} className="border border-gray-700 rounded p-2">
+                    <div className="text-emerald-300 uppercase tracking-wide mb-1">{inst}</div>
+                    <img src={`${API_BASE}${API_PREFIX}${OUTPUT_PREFIX}/${rel}`} alt={`pianoroll-${inst}`} className="w-full rounded" />
+                    <div className="text-[10px] text-gray-500 mt-1 break-all">{rel}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {audioStems && Object.keys(audioStems).length>0 && (
+            <div className="bg-gray-900/60 p-4 rounded-lg border border-gray-700 text-xs md:col-span-2">
+              <h3 className="font-semibold text-blue-300 mb-2">Per-instrument Audio Stems</h3>
+              <div className="space-y-2">
+                {Object.entries(audioStems).map(([inst, rel]) => (
+                  <div key={inst} className="flex flex-col gap-1">
+                    <div className="text-emerald-300 uppercase tracking-wide">{inst}</div>
+                    <audio controls src={`${API_BASE}${API_PREFIX}${OUTPUT_PREFIX}/${rel}`} className="w-full" />
+                    <div className="text-[10px] text-gray-500 break-all">{rel}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

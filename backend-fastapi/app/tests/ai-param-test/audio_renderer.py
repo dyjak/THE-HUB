@@ -93,6 +93,7 @@ def render_audio(audio_params: Dict[str, Any], midi: Dict[str, Any], samples: Di
     sample_map: Dict[str, str] = {s.get("instrument"): s.get("file") for s in samples.get("samples", [])}
     log("audio", "render_start", {"instruments": instruments, "sample_count": len(sample_map)})
     tracks: List[List[float]] = []
+    per_instrument_tracks: dict[str, List[float]] = {}
     missing: List[str] = []
     for inst in instruments:
         file = sample_map.get(inst)
@@ -128,7 +129,9 @@ def render_audio(audio_params: Dict[str, Any], midi: Dict[str, Any], samples: Di
                     if i < a: amp = i/a
                     elif i > nl-r: amp = max(0.0, (nl-i)/r)
                     buf[start+i] += pitched[i]*vel*amp
+        # after processing this instrument's layer, store its buffer
         tracks.append(buf)
+        per_instrument_tracks[inst] = buf
     if missing:
         raise SampleMissingError(f"Missing samples for: {', '.join(missing)}")
     if not tracks:
@@ -144,4 +147,23 @@ def render_audio(audio_params: Dict[str, Any], midi: Dict[str, Any], samples: Di
         rel_path = str(wav_path.relative_to(base_output))
     except Exception:
         rel_path = wav_path.name
-    return {"audio_file": str(wav_path), "audio_file_rel": rel_path}
+    # Export per-instrument stems
+    stems_abs: dict[str, str] = {}
+    stems_rel: dict[str, str] = {}
+    for inst, buf in per_instrument_tracks.items():
+        try:
+            safe = ''.join(c if (c.isalnum() or c in ('-', '_')) else '-' for c in str(inst).lower())
+            stem_path = run_dir / f"stem_{safe}.wav"
+            with wave.open(str(stem_path), 'w') as wf:
+                wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(sr)
+                for v in buf:
+                    wf.writeframes(struct.pack('<h', int(max(-1,min(1,v))*32767)))
+            stems_abs[inst] = str(stem_path)
+            try:
+                stems_rel[inst] = str(stem_path.relative_to(base_output))
+            except Exception:
+                stems_rel[inst] = stem_path.name
+            log("audio", "stem_saved", {"instrument": inst, "file": stems_abs[inst]})
+        except Exception as e:
+            log("audio", "stem_failed", {"instrument": inst, "error": str(e)})
+    return {"audio_file": str(wav_path), "audio_file_rel": rel_path, "stems": stems_abs, "stems_rel": stems_rel}

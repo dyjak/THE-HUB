@@ -6,6 +6,18 @@
   <component name="ChangeListManager">
     <list default="true" id="ef57549e-657e-452d-a664-0549a6f13605" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/backend-fastapi/.env.example" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/backend-fastapi/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend-fastapi/app/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/app/tests/ai-param-test/audio_renderer.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend-fastapi/app/tests/ai-param-test/audio_renderer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/app/tests/ai-param-test/midi_visualizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend-fastapi/app/tests/ai-param-test/midi_visualizer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/app/tests/ai-param-test/pipeline.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend-fastapi/app/tests/ai-param-test/pipeline.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/app/tests/ai-param-test/router.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend-fastapi/app/tests/ai-param-test/router.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/backend-fastapi/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend-next/src/app/air/ai-param-test/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend-next/src/app/air/ai-param-test/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend-next/src/app/air/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend-next/src/app/air/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend-next/src/app/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend-next/src/app/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj_struct.txt" beforeDir="false" afterPath="$PROJECT_DIR$/proj_struct.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -33,28 +45,28 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Python tests.pytest for audio_synthesizer.test_midi_to_audio.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for midi_generator.test_basic_generation.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for router.test_info.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for sample_fetcher.test_sample_fetching.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_basic_generation.test_full_pipeline.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in midi_generator.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in test_basic_generation.py.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;test-samples&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/Informatyka URZ/THE-HUB/backend-fastapi/app/tests/readme&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;ts.external.directory.path&quot;: &quot;D:\\Informatyka URZ\\THE-HUB\\frontend-next\\node_modules\\typescript\\lib&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python tests.pytest for audio_synthesizer.test_midi_to_audio.executor": "Run",
+    "Python tests.pytest for midi_generator.test_basic_generation.executor": "Run",
+    "Python tests.pytest for router.test_info.executor": "Run",
+    "Python tests.pytest for sample_fetcher.test_sample_fetching.executor": "Run",
+    "Python tests.pytest for test_basic_generation.test_full_pipeline.executor": "Run",
+    "Python tests.pytest in midi_generator.py.executor": "Run",
+    "Python tests.pytest in test_basic_generation.py.executor": "Run",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "test-ai",
+    "last_opened_file_path": "D:/Informatyka URZ/THE-HUB",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "ts.external.directory.path": "D:\\Informatyka URZ\\THE-HUB\\frontend-next\\node_modules\\typescript\\lib",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="D:\Informatyka URZ\THE-HUB\backend-fastapi\app\tests\readme" />
@@ -186,11 +198,18 @@
       <workItem from="1748849546449" duration="39000" />
       <workItem from="1748871246475" duration="5599000" />
       <workItem from="1748878271699" duration="24000" />
+      <workItem from="1759680361625" duration="502000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+    <option name="exactExcludedFiles">
+      <list>
+        <option value="$PROJECT_DIR$/frontend-next/src/components/ui/TypedText.jsx" />
+        <option value="$PROJECT_DIR$/frontend-next/src/components/ui/AnimatedCard.jsx" />
+      </list>
+    </option>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/THE_HUB$pytest_for_test_basic_generation_test_full_pipeline.coverage" NAME="pytest for test_basic_generation.test_full_pipeline Coverage Results" MODIFIED="1748811984442" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/backend-fastapi/app/tests" />

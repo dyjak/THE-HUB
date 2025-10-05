@@ -5,6 +5,7 @@ from .local_library import discover_samples, list_available_instruments
 from .inventory import build_inventory, load_inventory, INVENTORY_SCHEMA_VERSION
 from .debug_store import DEBUG_STORE
 from .audio_renderer import SampleMissingError
+from .chat_smoke.router import router as chat_smoke_router
 
 router = APIRouter(prefix="/ai-param-test", tags=["ai-param-test"])
 SCHEMA_VERSION = "2025-10-05-1"
@@ -26,6 +27,9 @@ def get_meta():
             "/ai-param-test/run/full",
             "/ai-param-test/debug/{run_id}",
             "/ai-param-test/available-instruments",
+            "/ai-param-test/chat-smoke/send",
+            "/ai-param-test/chat-smoke/providers",
+            "/ai-param-test/chat-smoke/models/{provider}",
         ]
     }
 
@@ -110,3 +114,6 @@ def get_inventory():
     if inv is None:
         inv = build_inventory()
     return {"schema_version": inv.get("schema_version"), **inv}
+
+# Mount nested chat smoke endpoints
+router.include_router(chat_smoke_router)
