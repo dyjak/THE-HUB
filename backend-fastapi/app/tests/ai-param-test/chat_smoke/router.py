@@ -110,40 +110,58 @@ def _paramify_core(prompt: str, provider: str, model: str | None, run=None):
             pass
 
     parsed = None
-    parse_error = None
+    parsed_dict: dict[str, object] | None = None
+    errors: list[str] = []
     try:
-        parsed = json.loads(raw)
+        candidate = json.loads(raw)
+        parsed = candidate
+        if isinstance(candidate, dict):
+            parsed_dict = candidate
+        else:
+            errors.append("parse: top-level JSON must be an object")
+            if run:
+                try:
+                    run.log("parse", "json_error", {"error": "top_level_not_object"})
+                except Exception:
+                    pass
     except Exception as e:
         parsed = None
-        parse_error = str(e)
+        parsed_dict = None
+        errors.append(f"parse: {e}")
         if run:
             try:
-                run.log("parse", "json_error", {"error": parse_error})
+                run.log("parse", "json_error", {"error": str(e)})
             except Exception:
                 pass
     midi_out = None
     audio_out = None
-    errors: list[str] = []
-    try:
-        midi_in = (parsed or {}).get("midi", {}) if isinstance(parsed, dict) else {}
-        audio_in = (parsed or {}).get("audio", {}) if isinstance(parsed, dict) else {}
-        midi = MidiParameters.from_dict(midi_in)
-        audio = AudioRenderParameters.from_dict(audio_in)
-        midi_out = midi.to_dict()
-        audio_out = audio.to_dict()
-    except Exception as e:
-        errors.append(f"normalize: {e}")
+    if parsed_dict is not None:
+        try:
+            midi_in = parsed_dict.get("midi") or {}
+            audio_in = parsed_dict.get("audio") or {}
+            midi = MidiParameters.from_dict(midi_in)
+            audio = AudioRenderParameters.from_dict(audio_in)
+            midi_out = midi.to_dict()
+            audio_out = audio.to_dict()
+        except Exception as e:
+            errors.append(f"normalize: {e}")
+            if run:
+                try:
+                    run.log("normalize", "error", {"error": str(e)})
+                except Exception:
+                    pass
+    else:
         if run:
             try:
-                run.log("normalize", "error", {"error": str(e)})
+                run.log("normalize", "skipped", {"reason": "parse_failed"})
             except Exception:
                 pass
-    if run:
+    if run and parsed_dict is not None:
         try:
             run.log("normalize", "done", {"ok": bool(midi_out) and bool(audio_out)})
         except Exception:
             pass
-    return {"raw": raw, "parsed": parsed, "normalized": {"midi": midi_out, "audio": audio_out}, "errors": errors}
+    return {"raw": raw, "parsed": parsed, "normalized": {"midi": midi_out, "audio": audio_out}, "errors": errors or None}
 
 
 @router.post("/send", response_model=ChatOut)

@@ -1,308 +1,159 @@
 "use client";
 import { useState, useEffect, useCallback } from 'react';
+import { ChatPlanner } from './components/ChatPlanner';
+import { MidiPanel } from './components/MidiPanel';
+import { AudioPanel } from './components/AudioPanel';
+import type {
+  AudioRenderParameters,
+  AvailableInstruments,
+  ChatProviderInfo,
+  DebugEvent,
+  DebugRun,
+  InstrumentConfig,
+  InventoryPayload,
+  MidiParameters,
+  ParamifyNormalizedPlan,
+  ParamifyResultView,
+} from './types';
+import {
+  DEFAULT_FORM,
+  INSTRUMENT_CHOICES,
+} from './constants';
+import {
+  DEFAULT_AUDIO,
+  DEFAULT_MIDI,
+  clamp,
+  cloneAudio,
+  cloneMidi,
+  createDefaultInstrumentConfig,
+  ensureInstrumentConfigs,
+  normalizeAudio,
+  normalizeMidi,
+  uniqueStrings,
+} from './utils';
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
 const API_PREFIX = '/api';
 const MODULE_PREFIX = '/ai-param-test';
 const OUTPUT_PREFIX = `${MODULE_PREFIX}/output`;
 
-const STYLE_OPTIONS = [
-  'ambient','jazz','rock','techno','classical','orchestral','lofi','hiphop','house','metal','trap','pop','cinematic','folk','world','experimental'
-] as const;
-const MOOD_OPTIONS = [
-  'calm','energetic','melancholic','joyful','mysterious','epic','relaxed','aggressive','dreamy','groovy','romantic','dark','uplifting','serene','tense'
-] as const;
-const KEY_OPTIONS = ['C','C#','Db','D','D#','Eb','E','F','F#','Gb','G','G#','Ab','A','A#','Bb','B'] as const;
-const SCALE_OPTIONS = ['major','minor','harmonic_minor','melodic_minor','dorian','phrygian','lydian','mixolydian','locrian','pentatonic_major','pentatonic_minor','blues','whole_tone','phrygian_dominant','hungarian_minor'] as const;
-const METER_OPTIONS = ['4/4','3/4','6/8','5/4','7/8','12/8'] as const;
-const DYNAMIC_PROFILE_OPTIONS = ['gentle','moderate','energetic'] as const;
-const ARRANGEMENT_DENSITY_OPTIONS = ['minimal','balanced','dense'] as const;
-const HARMONIC_COLOR_OPTIONS = ['diatonic','modal','chromatic','modulating','experimental'] as const;
-const REGISTER_OPTIONS = ['low','mid','high','full'] as const;
-const ROLE_OPTIONS = ['lead','accompaniment','rhythm','pad','bass','percussion','fx'] as const;
-const ARTICULATION_OPTIONS = ['sustain','staccato','legato','pizzicato','accented','slurred','percussive','glide','arpeggiated'] as const;
-const DYNAMIC_RANGE_OPTIONS = ['delicate','moderate','intense'] as const;
-const EFFECT_OPTIONS = ['reverb','delay','chorus','distortion','filter','compression','phaser','flanger','shimmer','lofi'] as const;
-const DEFAULT_FORM = ['intro','verse','chorus','verse','chorus','bridge','chorus','outro'] as const;
-const DEFAULT_INSTRUMENTS = ['piano','pad','strings'] as const;
-const INSTRUMENT_CHOICES = ['piano','pad','strings','bass','guitar','lead','choir','flute','trumpet','saxophone','kick','snare','hihat','clap','rim','tom','808','perc','drumkit','fx'] as const;
-const FORM_SECTION_OPTIONS = ['intro','verse','chorus','pre-chorus','bridge','build','drop','solo','breakdown','outro'] as const;
-
-type StyleOption = typeof STYLE_OPTIONS[number];
-type MoodOption = typeof MOOD_OPTIONS[number];
-type KeyOption = typeof KEY_OPTIONS[number];
-type ScaleOption = typeof SCALE_OPTIONS[number];
-type MeterOption = typeof METER_OPTIONS[number];
-type DynamicProfileOption = typeof DYNAMIC_PROFILE_OPTIONS[number];
-type ArrangementDensityOption = typeof ARRANGEMENT_DENSITY_OPTIONS[number];
-type HarmonicColorOption = typeof HARMONIC_COLOR_OPTIONS[number];
-type RegisterOption = typeof REGISTER_OPTIONS[number];
-type RoleOption = typeof ROLE_OPTIONS[number];
-type ArticulationOption = typeof ARTICULATION_OPTIONS[number];
-type DynamicRangeOption = typeof DYNAMIC_RANGE_OPTIONS[number];
-
-interface InstrumentConfig {
-  name: string;
-  register: RegisterOption;
-  role: RoleOption;
-  volume: number;
-  pan: number;
-  articulation: ArticulationOption;
-  dynamic_range: DynamicRangeOption;
-  effects: string[];
-}
-
-interface MidiParameters {
-  style: StyleOption;
-  genre: string;
-  mood: MoodOption;
-  tempo: number;
-  key: KeyOption;
-  scale: ScaleOption;
-  meter: MeterOption;
-  bars: number;
-  length_seconds: number;
-  form: string[];
-  dynamic_profile: DynamicProfileOption;
-  arrangement_density: ArrangementDensityOption;
-  harmonic_color: HarmonicColorOption;
-  instruments: string[];
-  instrument_configs: InstrumentConfig[];
-  seed: number | null;
-}
-
-interface AudioRenderParameters {
-  sample_rate: number;
-  seconds: number;
-  master_gain_db: number;
-}
-interface DebugEvent { ts: number; stage: string; message: string; data?: Record<string, any> | null }
-interface DebugRun { run_id: string; events: DebugEvent[] }
-interface AvailableInstruments { available: string[]; count: number }
-interface InventoryInstrumentInfo { count: number; examples: string[] }
-interface InventorySampleMeta {
-  instrument: string;
-  id: string;
-  file_rel: string;
-  file_abs?: string;
-  bytes?: number;
-  source?: string;
-  pitch?: string | null;
-  category?: string | null;
-  family?: string | null;
-  subtype?: string | null;
-  is_loop?: boolean;
-  sample_rate?: number | null;
-  length_sec?: number | null;
-}
-interface InventoryPayload {
-  schema_version?: string;
-  deep?: boolean;
-  generated_at: number;
-  root: string;
-  instruments: Record<string, InventoryInstrumentInfo>;
-  samples?: InventorySampleMeta[];
-}
-
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-const toNumber = (value: unknown, fallback: number): number => {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : fallback;
-};
-
-const pickFrom = <T extends readonly string[]>(value: unknown, options: T, fallback: T[number]): T[number] => {
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (!trimmed) return fallback;
-    const direct = (options as readonly string[]).find(opt => opt === trimmed);
-    if (direct) return direct as T[number];
-    const lower = trimmed.toLowerCase();
-    const match = (options as readonly string[]).find(opt => opt.toLowerCase() === lower);
-    if (match) return match as T[number];
-  }
-  return fallback;
-};
-
-const uniqueStrings = (items: string[]): string[] => {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  items.forEach(item => {
-    const key = item.toLowerCase();
-    if (!seen.has(key)) {
-      seen.add(key);
-      result.push(item);
-    }
-  });
-  return result;
-};
-
-const parseEffects = (value: unknown): string[] => {
-  if (Array.isArray(value)) {
-    return uniqueStrings(value.map(v => String(v).trim()).filter(Boolean));
-  }
-  if (typeof value === 'string') {
-    return uniqueStrings(value.split(',').map(v => v.trim()).filter(Boolean));
-  }
-  return [];
-};
-
-const createDefaultInstrumentConfig = (name: string, index = 0): InstrumentConfig => {
-  const lower = name.toLowerCase();
-  let register: RegisterOption = 'mid';
-  let role: RoleOption = index === 0 ? 'lead' : 'accompaniment';
-  let articulation: ArticulationOption = 'sustain';
-  let dynamic_range: DynamicRangeOption = 'moderate';
-  let effects: string[] = ['reverb'];
-  let volume = 0.8;
-  let pan = clamp(-0.2 + index * 0.3, -0.6, 0.6);
-
-  if (['bass','bass_synth','bass_guitar','808','reese'].includes(lower)) {
-    register = 'low';
-    role = 'bass';
-    dynamic_range = 'intense';
-    articulation = 'legato';
-    effects = ['compression','filter'];
-    volume = 0.9;
-    pan = 0;
-  } else if (['kick','snare','hihat','clap','rim','tom','perc','drumkit'].includes(lower)) {
-    register = 'low';
-    role = 'percussion';
-    dynamic_range = 'intense';
-    articulation = 'percussive';
-    effects = ['compression'];
-    volume = 0.95;
-    pan = 0;
-  } else if (['pad','strings','choir'].includes(lower)) {
-    register = 'full';
-    role = 'pad';
-    articulation = 'sustain';
-    effects = ['reverb','chorus'];
-    volume = 0.85;
-  } else if (['lead','synth','guitar','piano','flute','trumpet','saxophone'].includes(lower)) {
-    role = index === 0 ? 'lead' : 'accompaniment';
-    register = lower === 'flute' ? 'high' : 'mid';
-    articulation = ['synth','flute'].includes(lower) ? 'legato' : 'sustain';
-    effects = ['reverb','delay'];
-    volume = role === 'lead' ? 0.9 : 0.8;
-  }
-
-  return {
-    name,
-    register,
-    role,
-    volume: clamp(volume, 0, 1),
-    pan: clamp(pan, -1, 1),
-    articulation,
-    dynamic_range,
-    effects,
-  };
-};
-
-const toInstrumentConfig = (raw: unknown): InstrumentConfig | null => {
-  if (!raw || typeof raw !== 'object') return null;
-  const source = raw as Record<string, unknown>;
-  const name = String(source.name ?? '').trim();
-  if (!name) return null;
-  const register = pickFrom(source.register, REGISTER_OPTIONS, 'mid');
-  const role = pickFrom(source.role, ROLE_OPTIONS, 'accompaniment');
-  const articulation = pickFrom(source.articulation, ARTICULATION_OPTIONS, 'sustain');
-  const dynamic_range = pickFrom(source.dynamic_range, DYNAMIC_RANGE_OPTIONS, 'moderate');
-  const volume = clamp(toNumber(source.volume, 0.8), 0, 1);
-  const pan = clamp(toNumber(source.pan, 0), -1, 1);
-  const effects = parseEffects(source.effects);
-  return { name, register, role, articulation, dynamic_range, volume, pan, effects };
-};
-
-const ensureInstrumentConfigs = (instruments: string[], existing: InstrumentConfig[]): InstrumentConfig[] => {
-  const byName = new Map(existing.map(cfg => [cfg.name, cfg] as const));
-  return instruments.map((inst, index) => {
-    const prev = byName.get(inst);
-    if (!prev) return createDefaultInstrumentConfig(inst, index);
-    return {
-      ...prev,
-      name: inst,
-      effects: [...prev.effects],
-    };
-  });
-};
-
-const normalizeMidi = (input: Partial<MidiParameters> | Record<string, unknown>): MidiParameters => {
-  const style = pickFrom(input.style ?? input.genre, STYLE_OPTIONS, 'ambient');
-  const mood = pickFrom(input.mood, MOOD_OPTIONS, 'calm');
-  const key = pickFrom(input.key, KEY_OPTIONS, 'C');
-  const scale = pickFrom(input.scale, SCALE_OPTIONS, 'major');
-  const meter = pickFrom(input.meter, METER_OPTIONS, '4/4');
-  const dynamic_profile = pickFrom(input.dynamic_profile, DYNAMIC_PROFILE_OPTIONS, 'moderate');
-  const arrangement_density = pickFrom(input.arrangement_density, ARRANGEMENT_DENSITY_OPTIONS, 'balanced');
-  const harmonic_color = pickFrom(input.harmonic_color, HARMONIC_COLOR_OPTIONS, 'diatonic');
-  const tempo = clamp(Math.round(toNumber(input.tempo, 80)), 20, 300);
-  const bars = clamp(Math.round(toNumber(input.bars, 16)), 1, 512);
-  const length_seconds = clamp(toNumber(input.length_seconds, 180), 30, 3600);
-
-  const formArray = Array.isArray(input.form)
-    ? input.form.map(section => String(section).trim()).filter(Boolean)
-    : typeof input.form === 'string'
-      ? input.form.split(/[,\n]/).map(section => section.trim()).filter(Boolean)
-      : [];
-  const form = formArray.length ? formArray : Array.from(DEFAULT_FORM);
-
-  const instrumentsRaw = Array.isArray(input.instruments)
-    ? input.instruments
-    : typeof input.instruments === 'string'
-      ? input.instruments.split(',')
-      : Array.from(DEFAULT_INSTRUMENTS);
-  const instruments = uniqueStrings(instrumentsRaw.map(item => String(item).trim()).filter(Boolean));
-  const safeInstruments = instruments.length ? instruments : Array.from(DEFAULT_INSTRUMENTS);
-
-  const configsRaw = Array.isArray(input.instrument_configs) ? input.instrument_configs : [];
-  const parsedConfigs = configsRaw.map(toInstrumentConfig).filter(Boolean) as InstrumentConfig[];
-  const instrument_configs = ensureInstrumentConfigs(safeInstruments, parsedConfigs);
-
-  let seed: number | null = null;
-  if (input.seed !== undefined && input.seed !== null && input.seed !== '') {
-    const seedNum = Number(input.seed);
-    seed = Number.isFinite(seedNum) ? Math.trunc(seedNum) : null;
-  }
-
-  return {
-    style,
-    genre: style,
-    mood,
-    tempo,
-    key,
-    scale,
-    meter,
-    bars,
-    length_seconds,
-    form,
-    dynamic_profile,
-    arrangement_density,
-    harmonic_color,
-    instruments: safeInstruments,
-    instrument_configs,
-    seed,
-  };
-};
-
-const normalizeAudio = (input: Partial<AudioRenderParameters> | Record<string, unknown>): AudioRenderParameters => {
-  const sample_rate = clamp(Math.round(toNumber(input.sample_rate, 44100)), 8000, 192000);
-  const seconds = clamp(toNumber(input.seconds, 6), 0.5, 600);
-  const master_gain_db = toNumber(input.master_gain_db, -3);
-  return { sample_rate, seconds, master_gain_db };
-};
-
-const cloneMidi = (params: MidiParameters): MidiParameters => ({
-  ...params,
-  form: [...params.form],
-  instruments: [...params.instruments],
-  instrument_configs: params.instrument_configs.map(cfg => ({ ...cfg, effects: [...cfg.effects] })),
-});
-
-const cloneAudio = (params: AudioRenderParameters): AudioRenderParameters => ({ ...params });
-
-const DEFAULT_MIDI = cloneMidi(normalizeMidi({}));
-const DEFAULT_AUDIO = cloneAudio(normalizeAudio({}));
+type BlueprintSection = Record<string, unknown>;
+type BlueprintState = {
+  midi?: BlueprintSection | null;
+  audio?: BlueprintSection | null;
+} | null;
 
 const timeFmt = (unix: number) => new Date(unix * 1000).toLocaleTimeString();
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+
+const toBlueprintSection = (value: unknown): Record<string, unknown> | null => {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  return { ...(value as Record<string, unknown>) };
+};
+
+const getErrorMessage = (err: unknown): string => {
+  if (err instanceof Error && err.message) {
+    return err.message;
+  }
+  if (typeof err === 'string') {
+    return err;
+  }
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+};
+
+const extractErrorMessage = (value: unknown): string | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const detail = value['detail'];
+  if (typeof detail === 'string') {
+    return detail;
+  }
+  if (isRecord(detail)) {
+    const detailMessage = detail['message'];
+    if (typeof detailMessage === 'string') {
+      return detailMessage;
+    }
+    const detailError = detail['error'];
+    if (typeof detailError === 'string') {
+      return detailError;
+    }
+  }
+  const error = value['error'];
+  if (typeof error === 'string') {
+    return error;
+  }
+  const message = value['message'];
+  if (typeof message === 'string') {
+    return message;
+  }
+  return null;
+};
+
+const toStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((item): item is string => typeof item === 'string');
+};
+
+const toStringValue = (value: unknown): string | null => (typeof value === 'string' ? value : null);
+
+const toRecord = (value: unknown): Record<string, unknown> | null => (isRecord(value) ? value : null);
+
+const toRelativeArtifact = (value: string | null): string | null => {
+  if (!value) {
+    return null;
+  }
+  const segments = value.split(/\\|\//).slice(-2);
+  if (!segments.length) {
+    return value;
+  }
+  return segments.join('/');
+};
+
+const toStringRecord = (value: unknown): Record<string, string> | null => {
+  const source = toRecord(value);
+  if (!source) {
+    return null;
+  }
+  const result: Record<string, string> = {};
+  for (const [key, val] of Object.entries(source)) {
+    if (typeof val === 'string') {
+      result[key] = val;
+    }
+  }
+  return Object.keys(result).length ? result : null;
+};
+
+const toRelativeRecord = (value: Record<string, string> | null): Record<string, string> | null => {
+  if (!value) {
+    return null;
+  }
+  const result: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    result[key] = toRelativeArtifact(entry) ?? entry;
+  }
+  return Object.keys(result).length ? result : null;
+};
+
+const toParamifyNormalizedPlan = (value: unknown): ParamifyNormalizedPlan | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const midiValue = value['midi'];
+  const audioValue = value['audio'];
+  return {
+    midi: isRecord(midiValue) ? (midiValue as Partial<MidiParameters>) : null,
+    audio: isRecord(audioValue) ? (audioValue as Partial<AudioRenderParameters>) : null,
+  };
+};
 
 export default function AIParamTestPage() {
   const [midi, setMidi] = useState<MidiParameters>(() => cloneMidi(DEFAULT_MIDI));
@@ -312,7 +163,7 @@ export default function AIParamTestPage() {
   const [polling, setPolling] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [rawResponse, setRawResponse] = useState<any>(null);
+  const [rawResponse, setRawResponse] = useState<unknown>(null);
   const [responseStatus, setResponseStatus] = useState<number | null>(null);
   const [available, setAvailable] = useState<string[]>([]);
   const [audioFile, setAudioFile] = useState<string | null>(null);
@@ -322,10 +173,23 @@ export default function AIParamTestPage() {
   const [inventory, setInventory] = useState<InventoryPayload | null>(null);
   const [sampleFilterInst, setSampleFilterInst] = useState<string>("");
   const [sampleFilterText, setSampleFilterText] = useState<string>("");
-  const [blueprint, setBlueprint] = useState<{ midi: any; audio: any } | null>(null);
+  const [blueprint, setBlueprint] = useState<BlueprintState>(null);
   const [midiMidLayers, setMidiMidLayers] = useState<Record<string, string> | null>(null);
   const [pianoRollLayers, setPianoRollLayers] = useState<Record<string, string> | null>(null);
   const [audioStems, setAudioStems] = useState<Record<string, string> | null>(null);
+  const [chatPrompt, setChatPrompt] = useState<string>('');
+  const [chatProviders, setChatProviders] = useState<ChatProviderInfo[]>([]);
+  const [chatProvider, setChatProvider] = useState<string>('');
+  const [chatModels, setChatModels] = useState<string[]>([]);
+  const [chatModel, setChatModel] = useState<string>('');
+  const [chatStructured, setChatStructured] = useState<boolean>(true);
+  const [chatLoading, setChatLoading] = useState<boolean>(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const [chatWarnings, setChatWarnings] = useState<string[]>([]);
+  const [chatReply, setChatReply] = useState<string | null>(null);
+  const [chatParamResult, setChatParamResult] = useState<ParamifyResultView | null>(null);
+  const [chatRunId, setChatRunId] = useState<string | null>(null);
+  const [chatDebug, setChatDebug] = useState<DebugRun | null>(null);
 
   const loadAvailable = async () => {
     try {
@@ -390,6 +254,231 @@ export default function AIParamTestPage() {
     loadPresets();
   }, []);
 
+  useEffect(() => {
+    const loadProviders = async () => {
+      try {
+        const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/chat-smoke/providers`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const list = Array.isArray(data?.providers) ? data.providers as ChatProviderInfo[] : [];
+        setChatProviders(list);
+        if (list.length > 0) {
+          const first = list[0];
+          setChatProvider(prev => (prev ? prev : first.id));
+          setChatModel(prev => (prev ? prev : first.default_model ?? ''));
+        }
+      } catch (e) {
+        console.warn('providers fetch fail', e);
+      }
+    };
+    loadProviders();
+  }, []);
+
+  useEffect(() => {
+    if (!chatProvider) {
+      setChatModels([]);
+      return;
+    }
+    const loadModels = async () => {
+      try {
+        const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/chat-smoke/models/${chatProvider}`);
+        if (!res.ok) {
+          setChatModels([]);
+          return;
+        }
+        const data = await res.json();
+        const models = Array.isArray(data?.models) ? data.models as string[] : [];
+        setChatModels(models);
+        if (models.length > 0) {
+          setChatModel(prev => (prev && models.includes(prev) ? prev : models[0]));
+        } else {
+          setChatModel(prev => prev);
+        }
+      } catch (e) {
+        console.warn('models fetch fail', e);
+        setChatModels([]);
+      }
+    };
+    loadModels();
+  }, [chatProvider]);
+
+  const prettyJson = useCallback((value: unknown) => {
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  }, []);
+
+  const applyParamPlan = useCallback((plan: ParamifyNormalizedPlan | null) => {
+    const warnings: string[] = [];
+    let appliedMidi: MidiParameters | null = null;
+    let appliedAudio: AudioRenderParameters | null = null;
+
+    const midiInput = plan?.midi ?? null;
+    if (midiInput) {
+      try {
+        const normalized = normalizeMidi(midiInput);
+        const availableSet = new Set(available);
+        if (available.length > 0) {
+          const allowed = normalized.instruments.filter(inst => availableSet.has(inst));
+          if (allowed.length === 0) {
+            warnings.push('Model zasugerował instrumenty niedostępne w lokalnej bibliotece. Pozostawiamy poprzednią konfigurację instrumentów.');
+          } else {
+            if (allowed.length !== normalized.instruments.length) {
+              const missing = normalized.instruments.filter(inst => !availableSet.has(inst));
+              warnings.push(`Pominięto niedostępne instrumenty: ${missing.join(', ')}`);
+            }
+            const adjustedConfigs = ensureInstrumentConfigs(allowed, normalized.instrument_configs);
+            const nextMidi: MidiParameters = {
+              ...normalized,
+              instruments: allowed,
+              instrument_configs: adjustedConfigs,
+            };
+            setMidi(cloneMidi(nextMidi));
+            appliedMidi = nextMidi;
+          }
+        } else {
+          setMidi(cloneMidi(normalized));
+          appliedMidi = normalized;
+        }
+      } catch (e) {
+        warnings.push(`Nie udało się zastosować parametrów MIDI: ${String(e)}`);
+      }
+    }
+
+    const audioInput = plan?.audio ?? null;
+    if (audioInput) {
+      try {
+        const normalized = normalizeAudio(audioInput);
+        setAudio(cloneAudio(normalized));
+        appliedAudio = normalized;
+      } catch (e) {
+        warnings.push(`Nie udało się zastosować parametrów audio: ${String(e)}`);
+      }
+    }
+
+    if (appliedMidi || appliedAudio) {
+      const midiSection = toBlueprintSection(appliedMidi);
+      const audioSection = toBlueprintSection(appliedAudio);
+      setBlueprint(prev => {
+        const base: NonNullable<BlueprintState> = { ...(prev ?? {}) };
+        return {
+          ...base,
+          midi: midiSection ?? base.midi ?? null,
+          audio: audioSection ?? base.audio ?? null,
+        };
+      });
+    }
+
+    return { warnings, applied: { midi: appliedMidi, audio: appliedAudio } };
+  }, [available]);
+
+  const handleChatSend = useCallback(async () => {
+    if (!chatPrompt.trim()) {
+      setChatError('Wprowadź opis zanim wyślesz zapytanie.');
+      return;
+    }
+    const providerId = chatProvider || chatProviders[0]?.id || 'gemini';
+    setChatLoading(true);
+    setChatError(null);
+    setChatWarnings([]);
+    setChatReply(null);
+    setChatParamResult(null);
+    setChatRunId(null);
+    setChatDebug(null);
+    try {
+      const endpoint = chatStructured ? 'paramify' : 'send';
+      const requestBody: Record<string, unknown> = {
+        prompt: chatPrompt,
+        provider: providerId,
+      };
+      if (chatModel) {
+        requestBody.model = chatModel;
+      }
+      if (!chatStructured) {
+        requestBody.structured = false;
+      }
+      const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/chat-smoke/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+      const payload: unknown = await res.json().catch(() => null);
+      if (!res.ok) {
+        const message = extractErrorMessage(payload) || res.statusText || (chatStructured ? 'Błąd podczas generowania parametrów.' : 'Błąd podczas konwersacji.');
+        throw new Error(message);
+      }
+
+      const runIdValue = isRecord(payload) && typeof payload['run_id'] === 'string' ? payload['run_id'] : null;
+      setChatRunId(runIdValue);
+
+      if (chatStructured) {
+        const normalizedBlock = toParamifyNormalizedPlan(isRecord(payload) ? payload['normalized'] : null);
+        const applyResult = applyParamPlan(normalizedBlock);
+        const rawSource = isRecord(payload) ? payload['raw'] : null;
+        const rawString = typeof rawSource === 'string' ? rawSource : rawSource ? JSON.stringify(rawSource) : null;
+        const errorsList = isRecord(payload) ? toStringArray(payload['errors']) : [];
+        const result: ParamifyResultView = {
+          provider: isRecord(payload) && typeof payload['provider'] === 'string' ? payload['provider'] : providerId,
+          model: isRecord(payload) && typeof payload['model'] === 'string' ? payload['model'] : (chatModel || ''),
+          raw: rawString,
+          parsed: isRecord(payload) ? payload['parsed'] ?? null : null,
+          normalized: normalizedBlock,
+          applied: applyResult.applied,
+          errors: errorsList.length > 0 ? errorsList : null,
+        };
+        const combinedWarnings = [...applyResult.warnings];
+        if (result.errors) {
+          combinedWarnings.push(...result.errors.map(err => `Backend: ${err}`));
+        }
+        if (!normalizedBlock?.midi && !normalizedBlock?.audio) {
+          combinedWarnings.push('Model nie zwrócił pełnych parametrów.');
+        }
+        setChatParamResult(result);
+        setChatWarnings(Array.from(new Set(combinedWarnings.filter(Boolean))));
+      } else {
+        const replySource = isRecord(payload) ? payload['reply'] : null;
+        const replyText = typeof replySource === 'string'
+          ? replySource
+          : replySource
+            ? JSON.stringify(replySource)
+            : '';
+        setChatReply(replyText || '(empty)');
+      }
+    } catch (err) {
+      setChatError(getErrorMessage(err));
+    } finally {
+      setChatLoading(false);
+    }
+  }, [chatPrompt, chatStructured, chatProvider, chatProviders, chatModel, applyParamPlan]);
+
+  const handleChatClear = useCallback(() => {
+    setChatPrompt('');
+    setChatError(null);
+    setChatWarnings([]);
+    setChatReply(null);
+    setChatParamResult(null);
+    setChatRunId(null);
+    setChatDebug(null);
+  }, []);
+
+  const handleLoadChatDebug = useCallback(async () => {
+    if (!chatRunId) return;
+    try {
+      const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/chat-smoke/debug/${chatRunId}`);
+      if (!res.ok) {
+        throw new Error(`Debug HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setChatDebug(data);
+    } catch (err) {
+      const message = getErrorMessage(err);
+      setChatError(prev => (prev ? `${prev}
+Debug: ${message}` : `Debug: ${message}`));
+    }
+  }, [chatRunId]);
+
   const pollDebug = useCallback(async (rid: string) => {
     try {
       const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/debug/${rid}`);
@@ -400,7 +489,7 @@ export default function AIParamTestPage() {
           setPolling(false); setIsRunning(false);
         }
       }
-    } catch (e) { /* silent */ }
+  } catch { /* silent */ }
   }, []);
   useEffect(() => { if (polling && runId) { const id = setInterval(() => pollDebug(runId), 1000); return () => clearInterval(id); } }, [polling, runId, pollDebug]);
 
@@ -408,9 +497,11 @@ export default function AIParamTestPage() {
   const updateAudio = (patch: Partial<AudioRenderParameters>) => setAudio(p => ({...p, ...patch}));
 
   const toggleInstrument = (inst: string) => {
-    if (!available.includes(inst)) return; // guard
     setMidi(prev => {
       const exists = prev.instruments.includes(inst);
+      if (!exists && !available.includes(inst)) {
+        return prev;
+      }
       const nextInstruments = exists ? prev.instruments.filter(i => i !== inst) : [...prev.instruments, inst];
       return {
         ...prev,
@@ -507,7 +598,21 @@ export default function AIParamTestPage() {
   };
 
   const run = async (mode: 'midi' | 'render' | 'full') => {
-    setIsRunning(true); setError(null); setRunId(null); setDebugRun(null); setAudioFile(null); setMidiJsonFile(null); setMidiMidFile(null); setPianoRoll(null); setRawResponse(null); setResponseStatus(null); setBlueprint(null); setMidiMidLayers(null); setPianoRollLayers(null); setAudioStems(null);
+    setIsRunning(true);
+    setError(null);
+    setRunId(null);
+    setDebugRun(null);
+    setAudioFile(null);
+    setMidiJsonFile(null);
+    setMidiMidFile(null);
+    setPianoRoll(null);
+    setRawResponse(null);
+    setResponseStatus(null);
+    setBlueprint(null);
+    setMidiMidLayers(null);
+    setPianoRollLayers(null);
+    setAudioStems(null);
+
     const buildMidiRequest = (params: MidiParameters) => ({
       ...params,
       genre: params.style,
@@ -517,6 +622,7 @@ export default function AIParamTestPage() {
         effects: cfg.effects.filter(Boolean),
       })),
     });
+
     const buildAudioRequest = (params: AudioRenderParameters) => ({
       ...params,
       sample_rate: Number(params.sample_rate),
@@ -524,74 +630,103 @@ export default function AIParamTestPage() {
       master_gain_db: Number(params.master_gain_db),
     });
 
-    const body: any = {};
-    let endpoint: string;
     const midiPayload = buildMidiRequest(midi);
     const audioPayload = buildAudioRequest(audio);
-    if (mode === 'midi') { endpoint = `${MODULE_PREFIX}/run/midi`; Object.assign(body, midiPayload); }
-    else if (mode === 'render') { endpoint = `${MODULE_PREFIX}/run/render`; body.midi = midiPayload; body.audio = audioPayload; }
-    else { endpoint = `${MODULE_PREFIX}/run/full`; body.midi = midiPayload; body.audio = audioPayload; }
+
+    let endpoint: string;
+    let requestBody: Record<string, unknown>;
+    if (mode === 'midi') {
+      endpoint = `${MODULE_PREFIX}/run/midi`;
+      requestBody = { ...midiPayload } as Record<string, unknown>;
+    } else if (mode === 'render') {
+      endpoint = `${MODULE_PREFIX}/run/render`;
+      requestBody = { midi: midiPayload, audio: audioPayload };
+    } else {
+      endpoint = `${MODULE_PREFIX}/run/full`;
+      requestBody = { midi: midiPayload, audio: audioPayload };
+    }
 
     try {
-      const res = await fetch(`${API_BASE}${API_PREFIX}${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const res = await fetch(`${API_BASE}${API_PREFIX}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
       setResponseStatus(res.status);
-      let data: any = null; try { data = await res.json(); } catch { setError('JSON parse error'); setIsRunning(false); return; }
-      setRawResponse(data);
-      if (!res.ok) { setError(data?.detail || data?.error || `HTTP ${res.status}`); setIsRunning(false); return; }
-  setBlueprint(data?.blueprint ?? null);
-      if (data.run_id) { setRunId(data.run_id); setPolling(true); }
-      // Audio artifact path (new per-run naming)
-      if (data.audio?.audio_file_rel) {
-        setAudioFile(data.audio.audio_file_rel);
-      } else if (data.audio?.audio_file) { // legacy flat
-        const name = data.audio.audio_file.split(/\\|\//).slice(-2).join('/');
-        setAudioFile(name || null);
+      const payload: unknown = await res.json().catch(() => null);
+      setRawResponse(payload);
+      if (!res.ok) {
+        setError(extractErrorMessage(payload) || `HTTP ${res.status}`);
+        setIsRunning(false);
+        return;
       }
-      // New keys from backend for MIDI & visualization
-      if (data.midi_json_rel) {
-        setMidiJsonFile(data.midi_json_rel);
-      } else if (data.midi_json) {
-        const segs = String(data.midi_json).split(/\\|\//).slice(-2).join('/');
-        setMidiJsonFile(segs || null);
+
+      const data = toRecord(payload);
+      if (!data) {
+        setError('Unexpected response structure');
+        setIsRunning(false);
+        return;
       }
-      if (data.midi_mid_rel) {
-        setMidiMidFile(data.midi_mid_rel);
-      } else if (data.midi_mid) {
-        const segs = String(data.midi_mid).split(/\\|\//).slice(-2).join('/');
-        setMidiMidFile(segs || null);
+
+      const blueprintSource = toRecord(data['blueprint']);
+      if (blueprintSource) {
+        setBlueprint({
+          midi: toBlueprintSection(blueprintSource['midi']),
+          audio: toBlueprintSection(blueprintSource['audio']),
+        });
       }
-      if (data.midi_image?.combined_rel) {
-        setPianoRoll(data.midi_image.combined_rel);
-      } else if (data.midi_image?.combined) {
-        const segs = String(data.midi_image.combined).split(/\\|\//).slice(-2).join('/');
-        setPianoRoll(segs || null);
+
+      const runIdValue = toStringValue(data['run_id']);
+      if (runIdValue) {
+        setRunId(runIdValue);
+        setPolling(true);
       }
-      if (data.midi_image_layers_rel && typeof data.midi_image_layers_rel === 'object') {
-        setPianoRollLayers(data.midi_image_layers_rel as Record<string, string>);
-      } else if (data.midi_image_layers && typeof data.midi_image_layers === 'object') {
-        const rels: Record<string, string> = {};
-        for (const [k, v] of Object.entries(data.midi_image_layers as Record<string, string>)) {
-          const segs = String(v).split(/\\|\//).slice(-2).join('/');
-          rels[k] = segs;
+
+      const audioBlock = toRecord(data['audio']);
+      const audioFileValue = toRelativeArtifact(toStringValue(audioBlock?.['audio_file_rel'] ?? null))
+        ?? toRelativeArtifact(toStringValue(audioBlock?.['audio_file'] ?? null));
+      setAudioFile(audioFileValue ?? null);
+      if (audioBlock) {
+        const stemsRecord = toRelativeRecord(
+          toStringRecord(audioBlock['stems_rel']) ?? toStringRecord(audioBlock['stems']),
+        );
+        if (stemsRecord) {
+          setAudioStems(stemsRecord);
         }
-        setPianoRollLayers(rels);
       }
-      if (data.audio?.stems_rel && typeof data.audio.stems_rel === 'object') {
-        setAudioStems(data.audio.stems_rel as Record<string, string>);
-      } else if (data.audio?.stems && typeof data.audio.stems === 'object') {
-        const rels: Record<string, string> = {};
-        for (const [k, v] of Object.entries(data.audio.stems as Record<string, string>)) {
-          const segs = String(v).split(/\\|\//).slice(-2).join('/');
-          rels[k] = segs;
-        }
-        setAudioStems(rels);
+
+      const midiJsonValue = toRelativeArtifact(toStringValue(data['midi_json_rel']))
+        ?? toRelativeArtifact(toStringValue(data['midi_json']));
+      setMidiJsonFile(midiJsonValue ?? null);
+
+      const midiMidValue = toRelativeArtifact(toStringValue(data['midi_mid_rel']))
+        ?? toRelativeArtifact(toStringValue(data['midi_mid']));
+      setMidiMidFile(midiMidValue ?? null);
+
+      const midiImageBlock = toRecord(data['midi_image']);
+      const combinedValue = toRelativeArtifact(toStringValue(midiImageBlock?.['combined_rel'] ?? null))
+        ?? toRelativeArtifact(toStringValue(midiImageBlock?.['combined'] ?? null));
+      setPianoRoll(combinedValue ?? null);
+
+      const midiImageLayers = toRelativeRecord(
+        toStringRecord(data['midi_image_layers_rel']) ?? toStringRecord(data['midi_image_layers']),
+      );
+      if (midiImageLayers) {
+        setPianoRollLayers(midiImageLayers);
       }
-    } catch (e: any) {
-      setError(String(e)); setIsRunning(false);
+
+      const midiMidLayersValue = toRelativeRecord(
+        toStringRecord(data['midi_mid_layers_rel']) ?? toStringRecord(data['midi_mid_layers']),
+      );
+      if (midiMidLayersValue) {
+        setMidiMidLayers(midiMidLayersValue);
+      }
+    } catch (err) {
+      setError(getErrorMessage(err));
+      setIsRunning(false);
     }
   };
 
-  const disableInst = (inst: string) => !available.includes(inst);
   const selectableInstruments = [
     ...(INSTRUMENT_CHOICES as readonly string[]),
     ...available.filter(inst => !(INSTRUMENT_CHOICES as readonly string[]).includes(inst)),
@@ -636,59 +771,86 @@ export default function AIParamTestPage() {
     return text;
   };
 
-  const blueprintMidi = blueprint?.midi as Record<string, any> | undefined;
-  const blueprintAudio = blueprint?.audio as Record<string, any> | undefined;
-  const blueprintInstrumentConfigs = Array.isArray(blueprintMidi?.instrument_configs)
-    ? ((blueprintMidi!.instrument_configs as Record<string, any>[])
-        .map(item => {
-          const name = String(item?.name ?? '').trim();
-          if (!name) return null;
-          return {
-            name,
-            role: formatSummaryValue(item?.role) ?? '-',
-            register: formatSummaryValue(item?.register) ?? '-',
-            articulation: formatSummaryValue(item?.articulation) ?? '-',
-            dynamic_range: formatSummaryValue(item?.dynamic_range) ?? '-',
-            volume: typeof item?.volume === 'number' ? item.volume : undefined,
-            pan: typeof item?.pan === 'number' ? item.pan : undefined,
-            effects: Array.isArray(item?.effects) ? item.effects.map((eff: any) => String(eff)).filter(Boolean) : [],
-          };
-        })
-        .filter((item): item is {
-          name: string;
-          role: string;
-          register: string;
-          articulation: string;
-          dynamic_range: string;
-          volume: number | undefined;
-          pan: number | undefined;
-          effects: string[];
-        } => item !== null))
+  const blueprintMidi = toRecord(blueprint?.midi ?? null);
+  const blueprintAudio = toRecord(blueprint?.audio ?? null);
+
+  const getMidiValue = (key: string): unknown => (blueprintMidi ? blueprintMidi[key] : undefined);
+  const getAudioValue = (key: string): unknown => (blueprintAudio ? blueprintAudio[key] : undefined);
+
+  const instrumentConfigsRaw = Array.isArray(getMidiValue('instrument_configs'))
+    ? (getMidiValue('instrument_configs') as unknown[])
     : [];
+
+  const blueprintInstrumentConfigs = instrumentConfigsRaw
+    .map(item => {
+      const record = toRecord(item);
+      if (!record) {
+        return null;
+      }
+      const name = toStringValue(record['name'])?.trim();
+      if (!name) {
+        return null;
+      }
+      const effectsSource = Array.isArray(record['effects']) ? (record['effects'] as unknown[]) : [];
+      const effects = effectsSource
+        .map(effect => {
+          if (typeof effect === 'string') {
+            return effect;
+          }
+          try {
+            return String(effect);
+          } catch {
+            return '';
+          }
+        })
+        .filter(effect => effect !== '');
+      const volumeValue = record['volume'];
+      const panValue = record['pan'];
+      return {
+        name,
+        role: formatSummaryValue(record['role']) ?? '-',
+        register: formatSummaryValue(record['register']) ?? '-',
+        articulation: formatSummaryValue(record['articulation']) ?? '-',
+        dynamic_range: formatSummaryValue(record['dynamic_range']) ?? '-',
+        volume: typeof volumeValue === 'number' ? volumeValue : undefined,
+        pan: typeof panValue === 'number' ? panValue : undefined,
+        effects,
+      };
+    })
+    .filter((item): item is {
+      name: string;
+      role: string;
+      register: string;
+      articulation: string;
+      dynamic_range: string;
+      volume: number | undefined;
+      pan: number | undefined;
+      effects: string[];
+    } => item !== null);
 
   const blueprintMidiSummary: Array<[string, string]> = blueprintMidi
     ? ([
-        ['style', formatSummaryValue(blueprintMidi.style)],
-        ['mood', formatSummaryValue(blueprintMidi.mood)],
-        ['tempo', blueprintMidi.tempo !== undefined ? `${blueprintMidi.tempo} bpm` : undefined],
-        ['key', formatSummaryValue(blueprintMidi.key)],
-        ['scale', formatSummaryValue(blueprintMidi.scale)],
-        ['meter', formatSummaryValue(blueprintMidi.meter)],
-        ['length', blueprintMidi.length_seconds !== undefined ? `${blueprintMidi.length_seconds}s` : undefined],
-        ['bars', blueprintMidi.bars !== undefined ? String(blueprintMidi.bars) : undefined],
-        ['dynamic_profile', formatSummaryValue(blueprintMidi.dynamic_profile)],
-        ['arrangement_density', formatSummaryValue(blueprintMidi.arrangement_density)],
-        ['harmonic_color', formatSummaryValue(blueprintMidi.harmonic_color)],
-        ['form', formatSummaryValue(blueprintMidi.form, ' → ')],
-        ['instruments', formatSummaryValue(blueprintMidi.instruments)],
+        ['style', formatSummaryValue(getMidiValue('style'))],
+        ['mood', formatSummaryValue(getMidiValue('mood'))],
+        ['tempo', typeof getMidiValue('tempo') === 'number' ? `${getMidiValue('tempo')} bpm` : undefined],
+        ['key', formatSummaryValue(getMidiValue('key'))],
+        ['scale', formatSummaryValue(getMidiValue('scale'))],
+        ['meter', formatSummaryValue(getMidiValue('meter'))],
+        ['length', typeof getMidiValue('length_seconds') === 'number' ? `${getMidiValue('length_seconds')}s` : undefined],
+        ['bars', typeof getMidiValue('bars') === 'number' ? String(getMidiValue('bars')) : undefined],
+        ['dynamic_profile', formatSummaryValue(getMidiValue('dynamic_profile'))],
+        ['arrangement_density', formatSummaryValue(getMidiValue('arrangement_density'))],
+        ['harmonic_color', formatSummaryValue(getMidiValue('harmonic_color'))],
+        ['form', formatSummaryValue(getMidiValue('form'), ' → ')],
+        ['instruments', formatSummaryValue(getMidiValue('instruments'))],
       ].filter(([, value]) => value !== undefined) as Array<[string, string]>)
     : [];
 
   const blueprintAudioSummary: Array<[string, string]> = blueprintAudio
     ? ([
-        ['sample_rate', blueprintAudio.sample_rate !== undefined ? `${blueprintAudio.sample_rate} Hz` : undefined],
-        ['seconds', blueprintAudio.seconds !== undefined ? `${blueprintAudio.seconds}s` : undefined],
-        ['master_gain_db', blueprintAudio.master_gain_db !== undefined ? `${blueprintAudio.master_gain_db} dB` : undefined],
+        ['sample_rate', typeof getAudioValue('sample_rate') === 'number' ? `${getAudioValue('sample_rate')} Hz` : undefined],
+        ['seconds', typeof getAudioValue('seconds') === 'number' ? `${getAudioValue('seconds')}s` : undefined],
+        ['master_gain_db', typeof getAudioValue('master_gain_db') === 'number' ? `${getAudioValue('master_gain_db')} dB` : undefined],
       ].filter(([, value]) => value !== undefined) as Array<[string, string]>)
     : [];
 
@@ -699,370 +861,55 @@ export default function AIParamTestPage() {
   <h1 className="text-3xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-500">AI Param Test (Local Hybrid)</h1>
   <p className="text-sm text-gray-400 max-w-3xl">Eksperymentalny pipeline AI budowany na bazie lokalnych sampli: <span className='text-emerald-300'>MIDI → selekcja próbek → Audio</span>. Ta wersja zachowuje wszystkie restrykcje lokalne, ale będzie rozszerzana o generatywne modele. Wybieraj tylko instrumenty wykryte na backendzie.</p>
 
+      <ChatPlanner
+        prompt={chatPrompt}
+        onPromptChange={setChatPrompt}
+        providers={chatProviders}
+        provider={chatProvider}
+        onProviderChange={value => {
+          setChatProvider(value);
+          const found = chatProviders.find(item => item.id === value);
+          if (found) {
+            setChatModel(found.default_model ?? '');
+          }
+        }}
+        models={chatModels}
+        model={chatModel}
+        onModelChange={setChatModel}
+        structured={chatStructured}
+        onStructuredChange={setChatStructured}
+        onSend={handleChatSend}
+        onClear={handleChatClear}
+        loading={chatLoading}
+        error={chatError}
+        warnings={chatWarnings}
+        reply={chatReply}
+        paramResult={chatParamResult}
+        runId={chatRunId}
+        onLoadDebug={handleLoadChatDebug}
+        debugData={chatDebug}
+        prettyJson={prettyJson}
+      />
+
       <div className="grid md:grid-cols-3 gap-6">
-        {/* MIDI Panel */}
-        <div className="bg-gray-900/60 p-4 rounded-lg border border-gray-700 space-y-4 col-span-2">
-          <h2 className="font-semibold text-emerald-300">MIDI Parameters</h2>
-          <div className="grid sm:grid-cols-2 gap-4 text-sm">
-            <div>
-              <label className="block mb-1">Style</label>
-              <select
-                value={midi.style}
-                onChange={e => {
-                  const value = e.target.value as StyleOption;
-                  updateMidi({ style: value, genre: value });
-                }}
-                className="w-full bg-black/60 p-2 rounded border border-gray-700"
-              >
-                {STYLE_OPTIONS.map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block mb-1">Mood</label>
-              <select
-                value={midi.mood}
-                onChange={e => updateMidi({ mood: e.target.value as MoodOption })}
-                className="w-full bg-black/60 p-2 rounded border border-gray-700"
-              >
-                {MOOD_OPTIONS.map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block mb-1">Key</label>
-              <select
-                value={midi.key}
-                onChange={e => updateMidi({ key: e.target.value as KeyOption })}
-                className="w-full bg-black/60 p-2 rounded border border-gray-700"
-              >
-                {KEY_OPTIONS.map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block mb-1">Scale</label>
-              <select
-                value={midi.scale}
-                onChange={e => updateMidi({ scale: e.target.value as ScaleOption })}
-                className="w-full bg-black/60 p-2 rounded border border-gray-700"
-              >
-                {SCALE_OPTIONS.map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block mb-1">Meter</label>
-              <select
-                value={midi.meter}
-                onChange={e => updateMidi({ meter: e.target.value as MeterOption })}
-                className="w-full bg-black/60 p-2 rounded border border-gray-700"
-              >
-                {METER_OPTIONS.map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block mb-1">Tempo: {midi.tempo} BPM</label>
-              <input
-                type="range"
-                min={40}
-                max={240}
-                value={midi.tempo}
-                onChange={e => updateMidi({ tempo: parseInt(e.target.value, 10) })}
-                className="w-full"
-              />
-            </div>
-            <div>
-              <label className="block mb-1">Bars</label>
-              <input
-                type="number"
-                min={1}
-                max={512}
-                value={midi.bars}
-                onChange={e => updateMidi({ bars: parseInt(e.target.value, 10) || 1 })}
-                className="w-full bg-black/60 p-2 rounded border border-gray-700"
-              />
-            </div>
-            <div>
-              <label className="block mb-1">Length (seconds)</label>
-              <input
-                type="number"
-                min={30}
-                max={3600}
-                step={5}
-                value={midi.length_seconds}
-                onChange={e => updateMidi({ length_seconds: parseFloat(e.target.value) || 30 })}
-                className="w-full bg-black/60 p-2 rounded border border-gray-700"
-              />
-            </div>
-            <div>
-              <label className="block mb-1">Dynamic Profile</label>
-              <select
-                value={midi.dynamic_profile}
-                onChange={e => updateMidi({ dynamic_profile: e.target.value as DynamicProfileOption })}
-                className="w-full bg-black/60 p-2 rounded border border-gray-700"
-              >
-                {DYNAMIC_PROFILE_OPTIONS.map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block mb-1">Arrangement Density</label>
-              <select
-                value={midi.arrangement_density}
-                onChange={e => updateMidi({ arrangement_density: e.target.value as ArrangementDensityOption })}
-                className="w-full bg-black/60 p-2 rounded border border-gray-700"
-              >
-                {ARRANGEMENT_DENSITY_OPTIONS.map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block mb-1">Harmonic Color</label>
-              <select
-                value={midi.harmonic_color}
-                onChange={e => updateMidi({ harmonic_color: e.target.value as HarmonicColorOption })}
-                className="w-full bg-black/60 p-2 rounded border border-gray-700"
-              >
-                {HARMONIC_COLOR_OPTIONS.map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block mb-1">Seed (optional)</label>
-              <input
-                type="number"
-                value={midi.seed ?? ''}
-                onChange={e => {
-                  const raw = e.target.value;
-                  updateMidi({ seed: raw === '' ? null : parseInt(raw, 10) });
-                }}
-                className="w-full bg-black/60 p-2 rounded border border-gray-700"
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <label className="block mb-1">Form Blueprint</label>
-              <div className="flex gap-2 text-[10px]">
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="px-2 py-1 rounded border border-gray-600 hover:border-emerald-400"
-                >
-                  Reset
-                </button>
-                <button
-                  type="button"
-                  onClick={clearForm}
-                  className="px-2 py-1 rounded border border-gray-600 hover:border-red-400"
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {midi.form.length === 0 && (
-                <span className="text-[11px] text-gray-500">Brak sekcji — dodaj z presetów poniżej.</span>
-              )}
-              {midi.form.map((section, idx) => (
-                <span key={`${section}-${idx}`} className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-700/30 border border-emerald-500/60 text-xs uppercase tracking-wide">
-                  {section}
-                  <button
-                    type="button"
-                    onClick={() => removeFormSection(idx)}
-                    className="text-[10px] text-emerald-200 hover:text-emerald-100"
-                    aria-label={`Remove ${section}`}
-                  >
-                    ✕
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {FORM_SECTION_OPTIONS.map(option => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => addFormSection(option)}
-                  className="text-xs px-3 py-1 rounded border border-gray-600 hover:border-emerald-400"
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-            <div className="text-[10px] text-gray-500">Dodawaj sekcje klikając preset. Reset przywraca domyślny układ, Clear usuwa wszystkie.</div>
-          </div>
-          <div>
-            <label className="block mb-2">Instruments (only available)</label>
-            <div className="flex flex-wrap gap-2">
-              {selectableInstruments.map(inst => {
-                const disabled = disableInst(inst);
-                const active = midi.instruments.includes(inst);
-                return (
-                  <button
-                    type="button"
-                    key={inst}
-                    disabled={disabled}
-                    onClick={() => toggleInstrument(inst)}
-                    className={`text-xs px-2 py-1 rounded border transition ${disabled ? 'opacity-30 cursor-not-allowed border-gray-800' : 'cursor-pointer'} ${active ? 'bg-emerald-600 border-emerald-400' : 'border-gray-600 hover:border-emerald-400'}`}
-                  >
-                    {inst}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="text-[10px] text-gray-500 mt-1">Niedostępne instrumenty są wyszarzone (brak sample na backendzie).</div>
-          </div>
-          {midi.instrument_configs.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="font-semibold text-emerald-200 text-sm">Instrument Profiles</h3>
-              <div className="space-y-3">
-                {midi.instrument_configs.map(cfg => (
-                  <div key={cfg.name} className="bg-black/40 border border-gray-800 rounded-lg p-3 space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="uppercase tracking-wide text-xs text-emerald-300">{cfg.name}</span>
-                      <span className="text-[11px] text-gray-500">role: {cfg.role}</span>
-                    </div>
-                    <div className="grid sm:grid-cols-2 gap-3 text-xs">
-                      <div>
-                        <label className="block mb-1">Register</label>
-                        <select
-                          value={cfg.register}
-                          onChange={e => updateInstrumentConfig(cfg.name, { register: e.target.value as RegisterOption })}
-                          className="w-full bg-black/60 p-2 rounded border border-gray-700"
-                        >
-                          {REGISTER_OPTIONS.map(opt => (
-                            <option key={opt} value={opt}>{opt}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block mb-1">Role</label>
-                        <select
-                          value={cfg.role}
-                          onChange={e => updateInstrumentConfig(cfg.name, { role: e.target.value as RoleOption })}
-                          className="w-full bg-black/60 p-2 rounded border border-gray-700"
-                        >
-                          {ROLE_OPTIONS.map(opt => (
-                            <option key={opt} value={opt}>{opt}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block mb-1">Articulation</label>
-                        <select
-                          value={cfg.articulation}
-                          onChange={e => updateInstrumentConfig(cfg.name, { articulation: e.target.value as ArticulationOption })}
-                          className="w-full bg-black/60 p-2 rounded border border-gray-700"
-                        >
-                          {ARTICULATION_OPTIONS.map(opt => (
-                            <option key={opt} value={opt}>{opt}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block mb-1">Dynamic Range</label>
-                        <select
-                          value={cfg.dynamic_range}
-                          onChange={e => updateInstrumentConfig(cfg.name, { dynamic_range: e.target.value as DynamicRangeOption })}
-                          className="w-full bg-black/60 p-2 rounded border border-gray-700"
-                        >
-                          {DYNAMIC_RANGE_OPTIONS.map(opt => (
-                            <option key={opt} value={opt}>{opt}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block mb-1">Volume {cfg.volume.toFixed(2)}</label>
-                        <input
-                          type="range"
-                          min={0}
-                          max={1}
-                          step={0.05}
-                          value={cfg.volume}
-                          onChange={e => updateInstrumentConfig(cfg.name, { volume: parseFloat(e.target.value) })}
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="block mb-1">Pan {cfg.pan.toFixed(2)}</label>
-                        <input
-                          type="range"
-                          min={-1}
-                          max={1}
-                          step={0.1}
-                          value={cfg.pan}
-                          onChange={e => updateInstrumentConfig(cfg.name, { pan: parseFloat(e.target.value) })}
-                          className="w-full"
-                        />
-                      </div>
-                    </div>
-                    <div className="text-xs space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="block">Effects</label>
-                        <button
-                          type="button"
-                          onClick={() => resetInstrumentEffects(cfg.name)}
-                          className="px-2 py-1 rounded border border-gray-600 hover:border-emerald-400"
-                        >
-                          Reset
-                        </button>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {EFFECT_OPTIONS.map(effect => {
-                          const active = cfg.effects.includes(effect);
-                          return (
-                            <button
-                              key={effect}
-                              type="button"
-                              onClick={() => toggleInstrumentEffect(cfg.name, effect)}
-                              className={`px-3 py-1 rounded border text-[11px] uppercase tracking-wide transition ${active ? 'bg-fuchsia-700/40 border-fuchsia-400 text-fuchsia-200' : 'border-gray-600 hover:border-fuchsia-300 text-gray-300'}`}
-                            >
-                              {effect}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div className="text-[10px] text-gray-500 flex flex-wrap gap-1">
-                        {cfg.effects.length === 0 && <span>no effects</span>}
-                        {cfg.effects.map(effect => (
-                          <span key={effect} className="px-2 py-0.5 rounded bg-gray-800 border border-gray-700 uppercase tracking-wide">{effect}</span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-        {/* Audio panel */}
-        <div className="bg-gray-900/60 p-4 rounded-lg border border-gray-700 space-y-4">
-          <h2 className="font-semibold text-cyan-300">Audio</h2>
-          <div className="space-y-3 text-sm">
-            <div>
-              <label className="block mb-1">Sample Rate</label>
-              <select value={audio.sample_rate} onChange={e=>updateAudio({sample_rate: parseInt(e.target.value)})} className="w-full bg-black/60 p-2 rounded border border-gray-700">
-                {[44100,48000,96000].map(sr=> <option key={sr}>{sr}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block mb-1">Seconds</label>
-              <input type="number" step={0.5} min={0.5} max={600} value={audio.seconds} onChange={e=>updateAudio({seconds: parseFloat(e.target.value)})} className="w-full bg-black/60 p-2 rounded border border-gray-700" />
-            </div>
-          </div>
-          <div className="text-[10px] text-gray-500">Master gain i inne parametry pominięte w uproszczonej wersji.</div>
-        </div>
+        <MidiPanel
+          midi={midi}
+          availableInstruments={available}
+          selectableInstruments={selectableInstruments}
+          onUpdate={updateMidi}
+          onToggleInstrument={toggleInstrument}
+          onAddFormSection={addFormSection}
+          onRemoveFormSection={removeFormSection}
+          onResetForm={resetForm}
+          onClearForm={clearForm}
+          onUpdateInstrumentConfig={updateInstrumentConfig}
+          onToggleInstrumentEffect={toggleInstrumentEffect}
+          onResetInstrumentEffects={resetInstrumentEffects}
+        />
+        <AudioPanel
+          audio={audio}
+          onUpdate={updateAudio}
+        />
       </div>
 
       {/* Run controls */}
