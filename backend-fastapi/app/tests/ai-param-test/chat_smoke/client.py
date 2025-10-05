@@ -88,13 +88,13 @@ def get_gemini_client() -> Any:
     return genai
 
 
-def simple_chat(prompt: str, provider: str = "openai", model: str | None = None) -> str:
+def simple_chat(prompt: str, provider: str = "gemini", model: str | None = None) -> str:
     """Unified simple chat across providers.
 
     provider: one of 'openai' | 'anthropic' | 'gemini'.
     model: optional override; sensible defaults provided.
     """
-    p = (provider or "openai").lower()
+    p = (provider or "gemini").lower()
     if p == "openai":
         client = get_openai_client()
         use_model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
@@ -131,7 +131,7 @@ def simple_chat(prompt: str, provider: str = "openai", model: str | None = None)
 
     elif p == "gemini":
         g = get_gemini_client()
-        use_model = model or os.getenv("GOOGLE_MODEL", "gemini-1.5-flash")
+        use_model = model or os.getenv("GOOGLE_MODEL", "gemini-2.5-flash")
         try:
             m = g.GenerativeModel(use_model)
             r = m.generate_content(prompt)
@@ -151,7 +151,7 @@ def list_providers() -> list[dict[str, str]]:
     return [
         {"id": "openai", "name": "OpenAI", "default_model": os.getenv("OPENAI_MODEL", "gpt-4o-mini")},
         {"id": "anthropic", "name": "Anthropic Claude", "default_model": os.getenv("ANTHROPIC_MODEL", "claude-3-5-haiku-latest")},
-        {"id": "gemini", "name": "Google Gemini", "default_model": os.getenv("GOOGLE_MODEL", "gemini-1.5-flash")},
+        {"id": "gemini", "name": "Google Gemini", "default_model": os.getenv("GOOGLE_MODEL", "gemini-2.5-flash")},
     ]
 
 
@@ -219,11 +219,13 @@ def list_models(provider: str) -> list[str]:
             found = []
             for m in g.list_models():
                 mid = getattr(m, "name", "") or getattr(m, "model", "") or ""
+                if mid.startswith("models/"):
+                    mid = mid.split("/", 1)[1]
                 methods = set(getattr(m, "supported_generation_methods", []) or [])
                 if "generateContent" in methods:
                     # model names can include versions; expose plain id
                     found.append(mid)
-            defaults = [os.getenv("GOOGLE_MODEL", "gemini-1.5-flash")]
+            defaults = [os.getenv("GOOGLE_MODEL", "gemini-2.5-flash")]
             uniq = []
             for x in defaults + found:
                 if x and x not in uniq:
@@ -231,7 +233,9 @@ def list_models(provider: str) -> list[str]:
             return uniq[:50]
         except Exception:
             return [
-                os.getenv("GOOGLE_MODEL", "gemini-1.5-flash"),
+                os.getenv("GOOGLE_MODEL", "gemini-2.5-flash"),
+                "gemini-2.5-pro",
+                "gemini-1.5-flash",
                 "gemini-1.5-pro",
                 "gemini-2.0-flash",
             ]

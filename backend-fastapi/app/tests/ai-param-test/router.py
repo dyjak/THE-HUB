@@ -30,6 +30,8 @@ def get_meta():
             "/ai-param-test/chat-smoke/send",
             "/ai-param-test/chat-smoke/providers",
             "/ai-param-test/chat-smoke/models/{provider}",
+            "/ai-param-test/chat-smoke/paramify",
+            "/ai-param-test/chat-smoke/debug/{run_id}",
         ]
     }
 

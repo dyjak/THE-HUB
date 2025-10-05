@@ -11,9 +11,12 @@ export default function ChatSmokePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [providers, setProviders] = useState<{id:string; name:string; default_model:string}[]>([]);
-  const [provider, setProvider] = useState<string>("openai");
+  const [provider, setProvider] = useState<string>("gemini");
   const [model, setModel] = useState<string>("");
   const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [structured, setStructured] = useState<boolean>(false);
+  const [runId, setRunId] = useState<string | null>(null);
+  const [debugData, setDebugData] = useState<any | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -48,12 +51,12 @@ export default function ChatSmokePage() {
   }, [provider]);
 
   const send = async () => {
-    setLoading(true); setError(null); setReply(null);
+    setLoading(true); setError(null); setReply(null); setRunId(null); setDebugData(null);
     try {
       const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/chat-smoke/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: prompt || "Say hello.", provider, model: model || undefined }),
+        body: JSON.stringify({ prompt: prompt || "Say hello.", provider, model: model || undefined, structured }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -61,10 +64,31 @@ export default function ChatSmokePage() {
         throw new Error(message || "Request failed");
       }
       setReply(String(data.reply ?? ""));
+      if (data?.run_id) setRunId(String(data.run_id));
     } catch (e: any) {
       setError(String(e?.message || e));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadDebug = async () => {
+    if (!runId) return;
+    try {
+      const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/chat-smoke/debug/${runId}`);
+      const data = await res.json();
+      setDebugData(data);
+    } catch (e: any) {
+      setError(`Failed to load debug: ${String(e?.message || e)}`);
+    }
+  };
+
+  const prettyIfJson = (text: string) => {
+    try {
+      const obj = JSON.parse(text);
+      return JSON.stringify(obj, null, 2);
+    } catch {
+      return text;
     }
   };
 
@@ -126,6 +150,10 @@ export default function ChatSmokePage() {
             onChange={(e) => setPrompt(e.target.value)}
           />
           <div className="mt-4 flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm text-blue-300">
+              <input type="checkbox" checked={structured} onChange={(e) => setStructured(e.target.checked)} />
+              Structured JSON
+            </label>
             <button
               onClick={send}
               disabled={loading}
@@ -140,7 +168,20 @@ export default function ChatSmokePage() {
         {reply !== null && (
           <div className="bg-black/50 border border-green-700 rounded-xl p-4">
             <div className="text-green-300 text-sm mb-1">Reply</div>
-            <div className="whitespace-pre-wrap">{reply || "(empty)"}</div>
+            <div className="whitespace-pre-wrap">{structured ? prettyIfJson(reply || "(empty)") : (reply || "(empty)")}</div>
+            {runId && (
+              <div className="mt-3 text-xs text-gray-400">
+                Run: <span className="font-mono">{runId}</span>
+                <button onClick={loadDebug} className="ml-3 px-2 py-1 border border-purple-700 rounded">Load debug</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {debugData && (
+          <div className="bg-black/50 border border-yellow-700 rounded-xl p-4 mt-4">
+            <div className="text-yellow-300 text-sm mb-1">Debug Events</div>
+            <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(debugData, null, 2)}</pre>
           </div>
         )}
       </div>
