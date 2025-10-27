@@ -1,0 +1,18 @@
+{
+  "run_id": "09dadd2255e9",
+  "instruments": [
+    "flute"
+  ],
+  "samples": [
+    {
+      "instrument": "flute",
+      "id": "99Sounds x Monosounds - Flute - C",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Instrument Oneshots\\Instruments\\99Sounds x Monosounds - Flute - C.wav",
+      "source": "local",
+      "subtype": "flute",
+      "family": "melodic",
+      "category": "loop",
+      "pitch": "C"
+    }
+  ]
+}

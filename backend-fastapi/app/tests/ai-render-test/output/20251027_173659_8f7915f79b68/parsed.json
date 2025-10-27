@@ -1,0 +1,1113 @@
+{
+  "midi": {
+    "style": "ambient",
+    "mood": "calm",
+    "tempo": 80,
+    "key": "C",
+    "scale": "major",
+    "meter": "4/4",
+    "bars": 16,
+    "length_seconds": 180.0,
+    "form": [
+      "intro",
+      "verse",
+      "chorus",
+      "bridge",
+      "outro"
+    ],
+    "dynamic_profile": "moderate",
+    "arrangement_density": "balanced",
+    "harmonic_color": "diatonic",
+    "instruments": [
+      "piano",
+      "pad",
+      "strings"
+    ],
+    "instrument_configs": [
+      {
+        "name": "piano",
+        "register": "mid",
+        "role": "lead",
+        "volume": 0.9,
+        "pan": -0.2,
+        "articulation": "sustain",
+        "dynamic_range": "moderate",
+        "effects": [
+          "reverb",
+          "delay"
+        ]
+      },
+      {
+        "name": "pad",
+        "register": "full",
+        "role": "pad",
+        "volume": 0.85,
+        "pan": 0.09999999999999998,
+        "articulation": "sustain",
+        "dynamic_range": "moderate",
+        "effects": [
+          "reverb",
+          "chorus"
+        ]
+      },
+      {
+        "name": "strings",
+        "register": "full",
+        "role": "pad",
+        "volume": 0.85,
+        "pan": 0.39999999999999997,
+        "articulation": "sustain",
+        "dynamic_range": "moderate",
+        "effects": [
+          "reverb",
+          "chorus"
+        ]
+      }
+    ],
+    "seed": null,
+    "genre": "ambient"
+  },
+  "layers": {
+    "piano": [
+      {
+        "bar": 0,
+        "events": [
+          {
+            "step": 0,
+            "note": 60,
+            "vel": 97,
+            "len": 1
+          },
+          {
+            "step": 2,
+            "note": 62,
+            "vel": 86,
+            "len": 4
+          },
+          {
+            "step": 0,
+            "note": 67,
+            "vel": 107,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 1,
+        "events": [
+          {
+            "step": 0,
+            "note": 60,
+            "vel": 93,
+            "len": 1
+          },
+          {
+            "step": 0,
+            "note": 67,
+            "vel": 92,
+            "len": 4
+          },
+          {
+            "step": 6,
+            "note": 62,
+            "vel": 108,
+            "len": 4
+          }
+        ]
+      },
+      {
+        "bar": 2,
+        "events": [
+          {
+            "step": 4,
+            "note": 71,
+            "vel": 80,
+            "len": 1
+          },
+          {
+            "step": 6,
+            "note": 64,
+            "vel": 97,
+            "len": 1
+          },
+          {
+            "step": 2,
+            "note": 71,
+            "vel": 101,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 3,
+        "events": [
+          {
+            "step": 0,
+            "note": 65,
+            "vel": 86,
+            "len": 2
+          },
+          {
+            "step": 4,
+            "note": 67,
+            "vel": 96,
+            "len": 1
+          },
+          {
+            "step": 6,
+            "note": 67,
+            "vel": 87,
+            "len": 2
+          }
+        ]
+      },
+      {
+        "bar": 4,
+        "events": [
+          {
+            "step": 0,
+            "note": 67,
+            "vel": 98,
+            "len": 4
+          },
+          {
+            "step": 4,
+            "note": 67,
+            "vel": 92,
+            "len": 4
+          },
+          {
+            "step": 0,
+            "note": 60,
+            "vel": 94,
+            "len": 2
+          }
+        ]
+      },
+      {
+        "bar": 5,
+        "events": [
+          {
+            "step": 0,
+            "note": 71,
+            "vel": 94,
+            "len": 1
+          },
+          {
+            "step": 6,
+            "note": 64,
+            "vel": 109,
+            "len": 4
+          },
+          {
+            "step": 4,
+            "note": 62,
+            "vel": 103,
+            "len": 2
+          }
+        ]
+      },
+      {
+        "bar": 6,
+        "events": [
+          {
+            "step": 2,
+            "note": 69,
+            "vel": 97,
+            "len": 4
+          },
+          {
+            "step": 0,
+            "note": 67,
+            "vel": 90,
+            "len": 4
+          },
+          {
+            "step": 2,
+            "note": 62,
+            "vel": 109,
+            "len": 2
+          }
+        ]
+      },
+      {
+        "bar": 7,
+        "events": [
+          {
+            "step": 4,
+            "note": 69,
+            "vel": 115,
+            "len": 1
+          },
+          {
+            "step": 4,
+            "note": 71,
+            "vel": 83,
+            "len": 1
+          },
+          {
+            "step": 0,
+            "note": 71,
+            "vel": 100,
+            "len": 2
+          }
+        ]
+      },
+      {
+        "bar": 8,
+        "events": [
+          {
+            "step": 4,
+            "note": 60,
+            "vel": 93,
+            "len": 4
+          },
+          {
+            "step": 4,
+            "note": 62,
+            "vel": 111,
+            "len": 2
+          },
+          {
+            "step": 6,
+            "note": 62,
+            "vel": 96,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 9,
+        "events": [
+          {
+            "step": 2,
+            "note": 69,
+            "vel": 115,
+            "len": 4
+          },
+          {
+            "step": 4,
+            "note": 69,
+            "vel": 107,
+            "len": 4
+          },
+          {
+            "step": 6,
+            "note": 64,
+            "vel": 94,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 10,
+        "events": [
+          {
+            "step": 6,
+            "note": 60,
+            "vel": 83,
+            "len": 1
+          },
+          {
+            "step": 2,
+            "note": 69,
+            "vel": 90,
+            "len": 4
+          },
+          {
+            "step": 6,
+            "note": 67,
+            "vel": 84,
+            "len": 2
+          }
+        ]
+      },
+      {
+        "bar": 11,
+        "events": [
+          {
+            "step": 6,
+            "note": 67,
+            "vel": 109,
+            "len": 4
+          },
+          {
+            "step": 4,
+            "note": 67,
+            "vel": 80,
+            "len": 4
+          },
+          {
+            "step": 0,
+            "note": 69,
+            "vel": 114,
+            "len": 2
+          }
+        ]
+      },
+      {
+        "bar": 12,
+        "events": [
+          {
+            "step": 4,
+            "note": 60,
+            "vel": 98,
+            "len": 2
+          },
+          {
+            "step": 2,
+            "note": 65,
+            "vel": 80,
+            "len": 4
+          },
+          {
+            "step": 4,
+            "note": 67,
+            "vel": 91,
+            "len": 4
+          }
+        ]
+      },
+      {
+        "bar": 13,
+        "events": [
+          {
+            "step": 0,
+            "note": 71,
+            "vel": 99,
+            "len": 4
+          },
+          {
+            "step": 2,
+            "note": 62,
+            "vel": 103,
+            "len": 1
+          },
+          {
+            "step": 0,
+            "note": 67,
+            "vel": 100,
+            "len": 2
+          }
+        ]
+      },
+      {
+        "bar": 14,
+        "events": [
+          {
+            "step": 0,
+            "note": 60,
+            "vel": 103,
+            "len": 2
+          },
+          {
+            "step": 2,
+            "note": 60,
+            "vel": 95,
+            "len": 4
+          },
+          {
+            "step": 0,
+            "note": 60,
+            "vel": 111,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 15,
+        "events": [
+          {
+            "step": 2,
+            "note": 62,
+            "vel": 110,
+            "len": 4
+          },
+          {
+            "step": 2,
+            "note": 64,
+            "vel": 113,
+            "len": 4
+          },
+          {
+            "step": 6,
+            "note": 62,
+            "vel": 114,
+            "len": 4
+          }
+        ]
+      }
+    ],
+    "pad": [
+      {
+        "bar": 0,
+        "events": [
+          {
+            "step": 2,
+            "note": 69,
+            "vel": 99,
+            "len": 2
+          },
+          {
+            "step": 4,
+            "note": 65,
+            "vel": 113,
+            "len": 2
+          }
+        ]
+      },
+      {
+        "bar": 1,
+        "events": [
+          {
+            "step": 0,
+            "note": 62,
+            "vel": 94,
+            "len": 1
+          },
+          {
+            "step": 4,
+            "note": 60,
+            "vel": 115,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 2,
+        "events": [
+          {
+            "step": 2,
+            "note": 60,
+            "vel": 84,
+            "len": 4
+          },
+          {
+            "step": 0,
+            "note": 62,
+            "vel": 84,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 3,
+        "events": [
+          {
+            "step": 4,
+            "note": 60,
+            "vel": 112,
+            "len": 1
+          },
+          {
+            "step": 4,
+            "note": 69,
+            "vel": 111,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 4,
+        "events": [
+          {
+            "step": 2,
+            "note": 69,
+            "vel": 110,
+            "len": 1
+          },
+          {
+            "step": 6,
+            "note": 71,
+            "vel": 106,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 5,
+        "events": [
+          {
+            "step": 0,
+            "note": 60,
+            "vel": 107,
+            "len": 2
+          },
+          {
+            "step": 6,
+            "note": 65,
+            "vel": 109,
+            "len": 4
+          }
+        ]
+      },
+      {
+        "bar": 6,
+        "events": [
+          {
+            "step": 0,
+            "note": 69,
+            "vel": 86,
+            "len": 1
+          },
+          {
+            "step": 6,
+            "note": 69,
+            "vel": 101,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 7,
+        "events": [
+          {
+            "step": 2,
+            "note": 62,
+            "vel": 92,
+            "len": 4
+          },
+          {
+            "step": 6,
+            "note": 62,
+            "vel": 107,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 8,
+        "events": [
+          {
+            "step": 4,
+            "note": 65,
+            "vel": 95,
+            "len": 1
+          },
+          {
+            "step": 6,
+            "note": 71,
+            "vel": 115,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 9,
+        "events": [
+          {
+            "step": 0,
+            "note": 69,
+            "vel": 114,
+            "len": 1
+          },
+          {
+            "step": 0,
+            "note": 71,
+            "vel": 95,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 10,
+        "events": [
+          {
+            "step": 6,
+            "note": 65,
+            "vel": 110,
+            "len": 1
+          },
+          {
+            "step": 6,
+            "note": 60,
+            "vel": 90,
+            "len": 2
+          }
+        ]
+      },
+      {
+        "bar": 11,
+        "events": [
+          {
+            "step": 0,
+            "note": 65,
+            "vel": 96,
+            "len": 2
+          },
+          {
+            "step": 4,
+            "note": 65,
+            "vel": 115,
+            "len": 4
+          }
+        ]
+      },
+      {
+        "bar": 12,
+        "events": [
+          {
+            "step": 6,
+            "note": 62,
+            "vel": 92,
+            "len": 2
+          },
+          {
+            "step": 2,
+            "note": 60,
+            "vel": 114,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 13,
+        "events": [
+          {
+            "step": 4,
+            "note": 60,
+            "vel": 83,
+            "len": 4
+          },
+          {
+            "step": 6,
+            "note": 67,
+            "vel": 113,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 14,
+        "events": [
+          {
+            "step": 0,
+            "note": 67,
+            "vel": 85,
+            "len": 1
+          },
+          {
+            "step": 0,
+            "note": 67,
+            "vel": 84,
+            "len": 4
+          }
+        ]
+      },
+      {
+        "bar": 15,
+        "events": [
+          {
+            "step": 2,
+            "note": 65,
+            "vel": 87,
+            "len": 4
+          },
+          {
+            "step": 2,
+            "note": 67,
+            "vel": 82,
+            "len": 4
+          }
+        ]
+      }
+    ],
+    "strings": [
+      {
+        "bar": 0,
+        "events": [
+          {
+            "step": 0,
+            "note": 65,
+            "vel": 113,
+            "len": 2
+          },
+          {
+            "step": 4,
+            "note": 62,
+            "vel": 100,
+            "len": 1
+          },
+          {
+            "step": 4,
+            "note": 65,
+            "vel": 88,
+            "len": 4
+          }
+        ]
+      },
+      {
+        "bar": 1,
+        "events": [
+          {
+            "step": 4,
+            "note": 65,
+            "vel": 100,
+            "len": 1
+          },
+          {
+            "step": 0,
+            "note": 65,
+            "vel": 86,
+            "len": 1
+          },
+          {
+            "step": 2,
+            "note": 67,
+            "vel": 96,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 2,
+        "events": [
+          {
+            "step": 4,
+            "note": 60,
+            "vel": 95,
+            "len": 2
+          },
+          {
+            "step": 4,
+            "note": 62,
+            "vel": 108,
+            "len": 4
+          },
+          {
+            "step": 4,
+            "note": 67,
+            "vel": 113,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 3,
+        "events": [
+          {
+            "step": 4,
+            "note": 69,
+            "vel": 86,
+            "len": 1
+          },
+          {
+            "step": 4,
+            "note": 60,
+            "vel": 86,
+            "len": 4
+          },
+          {
+            "step": 2,
+            "note": 64,
+            "vel": 98,
+            "len": 4
+          }
+        ]
+      },
+      {
+        "bar": 4,
+        "events": [
+          {
+            "step": 2,
+            "note": 69,
+            "vel": 101,
+            "len": 1
+          },
+          {
+            "step": 4,
+            "note": 67,
+            "vel": 111,
+            "len": 2
+          },
+          {
+            "step": 0,
+            "note": 60,
+            "vel": 107,
+            "len": 2
+          }
+        ]
+      },
+      {
+        "bar": 5,
+        "events": [
+          {
+            "step": 0,
+            "note": 60,
+            "vel": 101,
+            "len": 1
+          },
+          {
+            "step": 4,
+            "note": 62,
+            "vel": 108,
+            "len": 4
+          },
+          {
+            "step": 6,
+            "note": 67,
+            "vel": 80,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 6,
+        "events": [
+          {
+            "step": 0,
+            "note": 69,
+            "vel": 89,
+            "len": 4
+          },
+          {
+            "step": 0,
+            "note": 71,
+            "vel": 103,
+            "len": 4
+          },
+          {
+            "step": 2,
+            "note": 65,
+            "vel": 88,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 7,
+        "events": [
+          {
+            "step": 4,
+            "note": 64,
+            "vel": 82,
+            "len": 2
+          },
+          {
+            "step": 2,
+            "note": 69,
+            "vel": 95,
+            "len": 4
+          },
+          {
+            "step": 0,
+            "note": 64,
+            "vel": 115,
+            "len": 2
+          }
+        ]
+      },
+      {
+        "bar": 8,
+        "events": [
+          {
+            "step": 2,
+            "note": 62,
+            "vel": 90,
+            "len": 1
+          },
+          {
+            "step": 6,
+            "note": 60,
+            "vel": 91,
+            "len": 4
+          },
+          {
+            "step": 4,
+            "note": 71,
+            "vel": 106,
+            "len": 4
+          }
+        ]
+      },
+      {
+        "bar": 9,
+        "events": [
+          {
+            "step": 2,
+            "note": 64,
+            "vel": 90,
+            "len": 4
+          },
+          {
+            "step": 0,
+            "note": 65,
+            "vel": 82,
+            "len": 2
+          },
+          {
+            "step": 2,
+            "note": 62,
+            "vel": 109,
+            "len": 2
+          }
+        ]
+      },
+      {
+        "bar": 10,
+        "events": [
+          {
+            "step": 4,
+            "note": 71,
+            "vel": 94,
+            "len": 1
+          },
+          {
+            "step": 0,
+            "note": 69,
+            "vel": 92,
+            "len": 2
+          },
+          {
+            "step": 4,
+            "note": 64,
+            "vel": 84,
+            "len": 2
+          }
+        ]
+      },
+      {
+        "bar": 11,
+        "events": [
+          {
+            "step": 4,
+            "note": 69,
+            "vel": 112,
+            "len": 2
+          },
+          {
+            "step": 4,
+            "note": 60,
+            "vel": 87,
+            "len": 2
+          },
+          {
+            "step": 2,
+            "note": 67,
+            "vel": 96,
+            "len": 1
+          }
+        ]
+      },
+      {
+        "bar": 12,
+        "events": [
+          {
+            "step": 0,
+            "note": 67,
+            "vel": 107,
+            "len": 2
+          },
+          {
+            "step": 4,
+            "note": 65,
+            "vel": 112,
+            "len": 1
+          },
+          {
+            "step": 6,
+            "note": 67,
+            "vel": 92,
+            "len": 2
+          }
+        ]
+      },
+      {
+        "bar": 13,
+        "events": [
+          {
+            "step": 0,
+            "note": 69,
+            "vel": 107,
+            "len": 1
+          },
+          {
+            "step": 2,
+            "note": 64,
+            "vel": 107,
+            "len": 1
+          },
+          {
+            "step": 4,
+            "note": 67,
+            "vel": 100,
+            "len": 4
+          }
+        ]
+      },
+      {
+        "bar": 14,
+        "events": [
+          {
+            "step": 0,
+            "note": 69,
+            "vel": 99,
+            "len": 4
+          },
+          {
+            "step": 4,
+            "note": 69,
+            "vel": 106,
+            "len": 2
+          },
+          {
+            "step": 6,
+            "note": 69,
+            "vel": 98,
+            "len": 4
+          }
+        ]
+      },
+      {
+        "bar": 15,
+        "events": [
+          {
+            "step": 2,
+            "note": 62,
+            "vel": 106,
+            "len": 4
+          },
+          {
+            "step": 6,
+            "note": 69,
+            "vel": 91,
+            "len": 4
+          },
+          {
+            "step": 4,
+            "note": 65,
+            "vel": 115,
+            "len": 1
+          }
+        ]
+      }
+    ]
+  },
+  "samples": [
+    {
+      "instrument": "piano",
+      "family": "melodic",
+      "subtype": "piano"
+    },
+    {
+      "instrument": "pad",
+      "family": "melodic",
+      "subtype": "pad",
+      "tags": [
+        "wide"
+      ]
+    },
+    {
+      "instrument": "strings",
+      "family": "melodic",
+      "subtype": "strings",
+      "tags": [
+        "ensemble"
+      ]
+    }
+  ],
+  "meta": {
+    "notes": "Stub planner response. Replace with provider output once integrated.",
+    "seed": 42
+  }
+}

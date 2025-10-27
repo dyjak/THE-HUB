@@ -12,7 +12,7 @@ if exist venv\Scripts\activate (
 	echo [WARN] venv not found at backend-fastapi\venv. Ensure dependencies are installed.
 )
 REM Force reloader to watch app and test module dirs (Windows file watchers can be flaky)
-start cmd /k "uvicorn app.main:app --reload --reload-dir app --reload-dir app\tests\parametrize_advanced_test --reload-dir app\tests\parametrize_sampling_test"
+start cmd /k "uvicorn app.main:app --reload --reload-dir app --reload-dir app\tests\parametrize_advanced_test --reload-dir app\tests\parametrize_sampling_test --reload-dir app\tests\ai-render-test --reload-dir app\tests\ai-param-test"
 
 REM Frontend
 cd ..\frontend-next

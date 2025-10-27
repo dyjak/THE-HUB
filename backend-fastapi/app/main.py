@@ -5,6 +5,7 @@ from .auth.router import router as auth_router
 from .users import router as users_router
 from .database.seeder import seed_users
 from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 try:
     from .tests.parametrize_advanced_test.router import router as param_adv_router
     _PARAM_ADV_AVAILABLE = True
@@ -23,15 +24,22 @@ try:
     from .tests.ai_param_test.router import router as ai_param_router  # type: ignore
     _AI_PARAM_AVAILABLE = True
 except Exception as e:  # broad for diagnostic
-    # Fallback: load from hyphenated folder 'ai-param-test'
+    # Fallback: load from hyphenated folder 'ai-param-test' with a synthetic package so relative imports work
     ai_param_router = None  # type: ignore
     _AI_PARAM_AVAILABLE = False
     _AI_PARAM_IMPORT_ERROR = str(e)
     try:
-        import importlib.util
-        spec_name = "app.tests.ai_param_test.router"
-        file_path = Path(__file__).parent / "tests" / "ai-param-test" / "router.py"
+        import importlib.util, types
+        pkg_name = "app.tests.ai_param_test"
+        spec_name = pkg_name + ".router"
+        dir_path = Path(__file__).parent / "tests" / "ai-param-test"
+        file_path = dir_path / "router.py"
         if file_path.exists():
+            # Create a synthetic package module to back relative imports like `.parameters`
+            if pkg_name not in sys.modules:
+                pkg = types.ModuleType(pkg_name)
+                pkg.__path__ = [str(dir_path)]  # type: ignore[attr-defined]
+                sys.modules[pkg_name] = pkg
             spec = importlib.util.spec_from_file_location(spec_name, str(file_path))
             if spec and spec.loader:
                 module = importlib.util.module_from_spec(spec)
@@ -73,6 +81,43 @@ try:
         load_dotenv()
 except Exception:
     pass
+
+# Include AI render test router (1:1 copy of ai-param-test under new prefix) - define before router wiring
+try:
+    from .tests.ai_render_test.router import router as ai_render_router  # type: ignore
+    _AI_RENDER_AVAILABLE = True
+except Exception as e:  # broad for diagnostic
+    # Fallback: load from hyphenated folder 'ai-render-test' with a synthetic package so relative imports work
+    ai_render_router = None  # type: ignore
+    _AI_RENDER_AVAILABLE = False
+    _AI_RENDER_IMPORT_ERROR = str(e)
+    try:
+        import importlib.util, types
+        pkg_name = "app.tests.ai_render_test"
+        spec_name = pkg_name + ".router"
+        dir_path = Path(__file__).parent / "tests" / "ai-render-test"
+        file_path = dir_path / "router.py"
+        if file_path.exists():
+            # Create a synthetic package module to back relative imports like `.parameters`
+            if pkg_name not in sys.modules:
+                pkg = types.ModuleType(pkg_name)
+                pkg.__path__ = [str(dir_path)]  # type: ignore[attr-defined]
+                sys.modules[pkg_name] = pkg
+            spec = importlib.util.spec_from_file_location(spec_name, str(file_path))
+            if spec and spec.loader:
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[spec_name] = module
+                spec.loader.exec_module(module)  # type: ignore[attr-defined]
+                ai_render_router = getattr(module, "router", None)  # type: ignore
+                _AI_RENDER_AVAILABLE = ai_render_router is not None
+                if not _AI_RENDER_AVAILABLE:
+                    _AI_RENDER_IMPORT_ERROR = "router object not found in ai-render-test/router.py"
+            else:
+                _AI_RENDER_IMPORT_ERROR = "failed to create import spec for ai-render-test/router.py"
+        else:
+            _AI_RENDER_IMPORT_ERROR = f"not found: {file_path}"
+    except Exception as e2:
+        _AI_RENDER_IMPORT_ERROR = f"{_AI_RENDER_IMPORT_ERROR}; fallback failed: {e2}"
 
 
 app = FastAPI(
@@ -164,6 +209,38 @@ if _AI_PARAM_AVAILABLE and ai_param_router:
         print("[WARN] failed to enumerate ai-param-test routes:", e)
 else:
     print("[WARN] ai_param_router not loaded:", globals().get('_AI_PARAM_IMPORT_ERROR'))
+
+# Include AI render test router
+if _AI_RENDER_AVAILABLE and ai_render_router:
+    app.include_router(ai_render_router, prefix="/api")
+    try:
+        ai_render_output = Path(__file__).parent / "tests" / "ai-render-test" / "output"
+        ai_render_output.mkdir(parents=True, exist_ok=True)
+        app.mount("/api/ai-render-test/output", StaticFiles(directory=str(ai_render_output)), name="ai_render_output")
+    except Exception as e:
+        print("[WARN] failed to mount ai-render-test static output:", e)
+    # Mount local_samples for sample previews
+    try:
+        # backend-fastapi/app/main.py -> parents[2] is repo root
+        repo_root = Path(__file__).resolve().parents[2]
+        local_samples_dir = repo_root / "local_samples"
+        if local_samples_dir.exists():
+            app.mount("/api/local-samples", StaticFiles(directory=str(local_samples_dir)), name="local_samples")
+        else:
+            print("[WARN] local_samples directory not found:", local_samples_dir)
+    except Exception as e:
+        print("[WARN] failed to mount local_samples:", e)
+    try:
+        ar_routes = [getattr(r, "path", str(r)) for r in app.routes if "/ai-render-test" in getattr(r, "path", "")]
+        print("[ai-render-test] registered routes:")
+        for p in sorted(ar_routes):
+            print("   ", p)
+    except Exception as e:
+        print("[WARN] failed to enumerate ai-render-test routes:", e)
+else:
+    print("[WARN] ai_render_router not loaded:", globals().get('_AI_RENDER_IMPORT_ERROR'))
+
+# (end of ai-render-test import definition)
 
 
 # MUSIC TEST ENDPOINTS - dodane bezpośrednio
