@@ -45,28 +45,28 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python tests.pytest for audio_synthesizer.test_midi_to_audio.executor": "Run",
-    "Python tests.pytest for midi_generator.test_basic_generation.executor": "Run",
-    "Python tests.pytest for router.test_info.executor": "Run",
-    "Python tests.pytest for sample_fetcher.test_sample_fetching.executor": "Run",
-    "Python tests.pytest for test_basic_generation.test_full_pipeline.executor": "Run",
-    "Python tests.pytest in midi_generator.py.executor": "Run",
-    "Python tests.pytest in test_basic_generation.py.executor": "Run",
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "test-ai",
-    "last_opened_file_path": "D:/Informatyka URZ/THE-HUB",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "ts.external.directory.path": "D:\\Informatyka URZ\\THE-HUB\\frontend-next\\node_modules\\typescript\\lib",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python tests.pytest for audio_synthesizer.test_midi_to_audio.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for midi_generator.test_basic_generation.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for router.test_info.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for sample_fetcher.test_sample_fetching.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_basic_generation.test_full_pipeline.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest in midi_generator.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest in test_basic_generation.py.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;test-ai&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/Informatyka URZ/THE-HUB&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;D:\\Informatyka URZ\\THE-HUB\\frontend-next\\node_modules\\typescript\\lib&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="D:\Informatyka URZ\THE-HUB\backend-fastapi\app\tests\readme" />
@@ -199,6 +199,7 @@
       <workItem from="1748871246475" duration="5599000" />
       <workItem from="1748878271699" duration="24000" />
       <workItem from="1759680361625" duration="502000" />
+      <workItem from="1760030621536" duration="38000" />
     </task>
     <servers />
   </component>
