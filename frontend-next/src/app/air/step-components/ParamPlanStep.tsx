@@ -1,9 +1,9 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { MidiPanel } from "../ai-render-test/components/MidiPanel";
-import type { MidiParameters, InstrumentConfig } from "../ai-render-test/types";
-import { INSTRUMENT_CHOICES, DEFAULT_FORM } from "../ai-render-test/constants";
-import { ensureInstrumentConfigs, normalizeMidi, cloneMidi } from "../ai-render-test/utils";
+import { MidiPanel } from "../tests/ai-render-test/components/MidiPanel";
+import type { MidiParameters, InstrumentConfig } from "../tests/ai-render-test/types";
+import { INSTRUMENT_CHOICES } from "../tests/ai-render-test/constants";
+import { ensureInstrumentConfigs, normalizeMidi, cloneMidi } from "../tests/ai-render-test/utils";
 
 type ChatProviderInfo = { id: string; name: string; default_model?: string };
 
@@ -211,15 +211,15 @@ export default function ParamPlanStep() {
             compact
             columns={4}
             hideFx
-            onUpdate={(patch) => setMidi(prev => prev ? { ...prev, ...patch } : prev)}
-            onToggleInstrument={(inst) => {
-              setMidi(prev => {
+            onUpdate={(patch: Partial<MidiParameters>) => setMidi((prev: MidiParameters | null) => prev ? { ...prev, ...patch } : prev)}
+            onToggleInstrument={(inst: string) => {
+              setMidi((prev: MidiParameters | null) => {
                 if (!prev) return prev;
                 const exists = prev.instruments.includes(inst);
-                const nextInstruments = exists ? prev.instruments.filter(i => i !== inst) : [...prev.instruments, inst];
+                const nextInstruments = exists ? prev.instruments.filter((i: string) => i !== inst) : [...prev.instruments, inst];
                 // Cleanup sample selection for removed
                 if (exists) {
-                  setSelectedSamples(ss => {
+                  setSelectedSamples((ss: Record<string, string | undefined>) => {
                     const copy = { ...ss }; delete copy[inst]; return copy;
                   });
                 }
@@ -230,13 +230,13 @@ export default function ParamPlanStep() {
                 };
               });
             }}
-            onUpdateInstrumentConfig={(name, patch) => setMidi(prev => {
+            onUpdateInstrumentConfig={(name: string, patch: Partial<InstrumentConfig>) => setMidi((prev: MidiParameters | null) => {
               if (!prev) return prev;
-              const next = prev.instrument_configs.map(cfg => cfg.name === name ? { ...cfg, ...patch } as InstrumentConfig : cfg);
+              const next = prev.instrument_configs.map((cfg: InstrumentConfig) => cfg.name === name ? { ...cfg, ...patch } as InstrumentConfig : cfg);
               return { ...prev, instrument_configs: ensureInstrumentConfigs(prev.instruments, next) };
             })}
             selectedSamples={selectedSamples}
-            onSelectSample={(instrument, sampleId) => setSelectedSamples(prev => ({ ...prev, [instrument]: sampleId || undefined }))}
+            onSelectSample={(instrument: string, sampleId: string | null) => setSelectedSamples((prev: Record<string, string | undefined>) => ({ ...prev, [instrument]: sampleId || undefined }))}
           />
         </div>
       )}

@@ -1,0 +1,142 @@
+{
+  "run_id": "2bf753f0fbf8",
+  "instruments": [
+    "kick",
+    "snare",
+    "hihat",
+    "bass_synth",
+    "pad",
+    "lead"
+  ],
+  "samples": [
+    {
+      "instrument": "kick",
+      "id": "99Sounds x Monosounds - Kick - 001 - G#",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Drum Oneshots\\Moon - Hip-Hop Drum Kit\\Kicks\\99Sounds x Monosounds - Kick - 001 - G#.wav",
+      "source": "local",
+      "subtype": "kick",
+      "family": "drum",
+      "category": "loop",
+      "pitch": "G#"
+    },
+    {
+      "instrument": "snare",
+      "id": "99Sounds x Monosounds - Snare - 01 - C",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Drum Oneshots\\Moon - Hip-Hop Drum Kit\\Snares\\99Sounds x Monosounds - Snare - 01 - C.wav",
+      "source": "local",
+      "subtype": "snare",
+      "family": "drum",
+      "category": "loop",
+      "pitch": "C"
+    },
+    {
+      "instrument": "hihat",
+      "id": "99Sounds x Monosounds - Hats - 01 - C",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Drum Oneshots\\Moon - Hip-Hop Drum Kit\\Hats\\99Sounds x Monosounds - Hats - 01 - C.wav",
+      "source": "local",
+      "subtype": "hihat",
+      "family": "drum",
+      "category": "loop",
+      "pitch": "C"
+    },
+    {
+      "instrument": "bass_synth",
+      "id": "99Sounds x Monosounds - Bass - 001 - F",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Instrument Oneshots\\Bass Synth\\99Sounds x Monosounds - Bass - 001 - F.wav",
+      "source": "local",
+      "subtype": "bass_synth",
+      "family": "bass",
+      "category": "loop",
+      "pitch": "F"
+    },
+    {
+      "instrument": "pad",
+      "id": "99Sounds x Monosounds - PAD 5 - C",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Instrument Oneshots\\Instruments\\99Sounds x Monosounds - PAD 5 - C.wav",
+      "source": "local",
+      "subtype": "pad",
+      "family": "melodic",
+      "category": "loop",
+      "pitch": "C"
+    },
+    {
+      "instrument": "lead",
+      "id": "99Sounds x Monosounds - Lead - 01 - F",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Instrument Oneshots\\Leads\\99Sounds x Monosounds - Lead - 01 - F.wav",
+      "source": "local",
+      "subtype": "lead",
+      "family": "melodic",
+      "category": "loop",
+      "pitch": "F"
+    }
+  ],
+  "instrument_configs": [
+    {
+      "name": "kick",
+      "register": "low",
+      "role": "accompaniment",
+      "volume": 0.8,
+      "pan": 0.0,
+      "articulation": "sustain",
+      "dynamic_range": "moderate",
+      "effects": []
+    },
+    {
+      "name": "snare",
+      "register": "mid",
+      "role": "accompaniment",
+      "volume": 0.7,
+      "pan": 0.0,
+      "articulation": "sustain",
+      "dynamic_range": "moderate",
+      "effects": []
+    },
+    {
+      "name": "hihat",
+      "register": "high",
+      "role": "accompaniment",
+      "volume": 0.6,
+      "pan": 0.1,
+      "articulation": "sustain",
+      "dynamic_range": "moderate",
+      "effects": []
+    },
+    {
+      "name": "bass_synth",
+      "register": "low",
+      "role": "bass",
+      "volume": 0.75,
+      "pan": 0.0,
+      "articulation": "sustain",
+      "dynamic_range": "moderate",
+      "effects": []
+    },
+    {
+      "name": "pad",
+      "register": "mid",
+      "role": "accompaniment",
+      "volume": 0.65,
+      "pan": 0.3,
+      "articulation": "sustain",
+      "dynamic_range": "moderate",
+      "effects": []
+    },
+    {
+      "name": "lead",
+      "register": "mid",
+      "role": "accompaniment",
+      "volume": 0.7,
+      "pan": 0.0,
+      "articulation": "legato",
+      "dynamic_range": "moderate",
+      "effects": []
+    }
+  ],
+  "form": [
+    "intro",
+    "verse",
+    "chorus",
+    "bridge",
+    "outro"
+  ]
+}

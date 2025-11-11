@@ -198,10 +198,10 @@ const ChatPlannerComponent = ({
               <pre className="mt-2 whitespace-pre-wrap break-words">{paramResult.raw}</pre>
             </details>
           )}
-          {paramResult.parsed && (
+          {typeof paramResult.parsed !== 'undefined' && paramResult.parsed !== null && (
             <details className="bg-gray-900/40 rounded-xl px-3 py-2">
               <summary className="cursor-pointer text-emerald-300">Parsed JSON (po stronie backendu)</summary>
-              <pre className="mt-2 whitespace-pre-wrap break-words">{prettyJson(paramResult.parsed)}</pre>
+              <pre className="mt-2 whitespace-pre-wrap break-words">{prettyJson(paramResult.parsed as any)}</pre>
             </details>
           )}
           {paramResult.normalized && (paramResult.normalized.midi || paramResult.normalized.audio) && (
