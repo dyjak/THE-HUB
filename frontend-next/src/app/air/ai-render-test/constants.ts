@@ -38,14 +38,14 @@ export type ArticulationOption = typeof ARTICULATION_OPTIONS[number];
 export const DYNAMIC_RANGE_OPTIONS = ['delicate','moderate','intense'] as const;
 export type DynamicRangeOption = typeof DYNAMIC_RANGE_OPTIONS[number];
 
-export const EFFECT_OPTIONS = ['reverb','delay','chorus','distortion','filter','compression','phaser','flanger','shimmer','lofi'] as const;
-
-export const DEFAULT_FORM = ['intro','verse','chorus','verse','chorus','bridge','chorus','outro'] as const;
+// Removed EFFECT_OPTIONS and DEFAULT_FORM as effects and arrangement form are no longer part of the model.
+// export const EFFECT_OPTIONS = [...];
+// export const DEFAULT_FORM = [...];
 export const DEFAULT_INSTRUMENTS = ['piano','pad','strings'] as const;
 
 export const INSTRUMENT_CHOICES = ['piano','pad','strings','bass','guitar','lead','choir','flute','trumpet','saxophone','kick','snare','hihat','clap','rim','tom','808','perc','drumkit','fx'] as const;
 
-export const FORM_SECTION_OPTIONS = ['intro','verse','chorus','pre-chorus','bridge','build','drop','solo','breakdown','outro'] as const;
+// export const FORM_SECTION_OPTIONS = [...];
 
 export const AUDIO_MODEL_OPTIONS = ['basic','enhanced','neural','hybrid'] as const;
 export type AudioModelOption = typeof AUDIO_MODEL_OPTIONS[number];

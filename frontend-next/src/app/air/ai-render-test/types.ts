@@ -21,7 +21,6 @@ export interface InstrumentConfig {
   pan: number;
   articulation: ArticulationOption;
   dynamic_range: DynamicRangeOption;
-  effects: string[];
 }
 
 export interface MidiParameters {
@@ -34,7 +33,6 @@ export interface MidiParameters {
   meter: MeterOption;
   bars: number;
   length_seconds: number;
-  form: string[];
   dynamic_profile: DynamicProfileOption;
   arrangement_density: ArrangementDensityOption;
   harmonic_color: HarmonicColorOption;

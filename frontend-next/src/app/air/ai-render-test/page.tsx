@@ -15,10 +15,7 @@ import type {
   ParamifyNormalizedPlan,
   ParamifyResultView,
 } from './types';
-import {
-  DEFAULT_FORM,
-  INSTRUMENT_CHOICES,
-} from './constants';
+// form/effects constants removed from model scope; no longer importing DEFAULT_FORM or effect/form options
 import {
   DEFAULT_AUDIO,
   DEFAULT_MIDI,
@@ -543,10 +540,7 @@ Debug: ${message}` : `Debug: ${message}`));
           const panValue = Number(patch.pan);
           next.pan = clamp(Number.isFinite(panValue) ? panValue : cfg.pan, -1, 1);
         }
-        if (patch.effects !== undefined) {
-          next.effects = uniqueStrings(patch.effects);
-        }
-        return { ...next, effects: [...next.effects] };
+        return { ...next };
       });
       return {
         ...prev,
@@ -554,64 +548,9 @@ Debug: ${message}` : `Debug: ${message}`));
       };
     });
   };
-  const addFormSection = (section: string) => {
-    setMidi(prev => ({
-      ...prev,
-      form: [...prev.form, section],
-    }));
-  };
+  // form removed
 
-  const removeFormSection = (index: number) => {
-    setMidi(prev => ({
-      ...prev,
-      form: prev.form.filter((_, idx) => idx !== index),
-    }));
-  };
-
-  const resetForm = () => {
-    setMidi(prev => ({
-      ...prev,
-      form: Array.from(DEFAULT_FORM),
-    }));
-  };
-
-  const clearForm = () => {
-    setMidi(prev => ({
-      ...prev,
-      form: [],
-    }));
-  };
-
-  const toggleInstrumentEffect = (name: string, effect: string) => {
-    setMidi(prev => {
-      const nextConfigs = prev.instrument_configs.map(cfg => {
-        if (cfg.name !== name) return cfg;
-        const has = cfg.effects.includes(effect);
-        const nextEffects = has
-          ? cfg.effects.filter(e => e !== effect)
-          : uniqueStrings([...cfg.effects, effect]);
-        return { ...cfg, effects: nextEffects };
-      });
-      return {
-        ...prev,
-        instrument_configs: ensureInstrumentConfigs(prev.instruments, nextConfigs),
-      };
-    });
-  };
-
-  const resetInstrumentEffects = (name: string) => {
-    setMidi(prev => {
-      const instrumentIndex = prev.instruments.indexOf(name);
-      const defaultConfig = createDefaultInstrumentConfig(name, instrumentIndex >= 0 ? instrumentIndex : 0);
-      const nextConfigs = prev.instrument_configs.map(cfg => (
-        cfg.name === name ? { ...cfg, effects: [...defaultConfig.effects] } : cfg
-      ));
-      return {
-        ...prev,
-        instrument_configs: ensureInstrumentConfigs(prev.instruments, nextConfigs),
-      };
-    });
-  };
+  // effects removed
 
   const run = async (mode: 'midi' | 'render' | 'full') => {
     setIsRunning(true);
@@ -632,11 +571,7 @@ Debug: ${message}` : `Debug: ${message}`));
     const buildMidiRequest = (params: MidiParameters) => ({
       ...params,
       genre: params.style,
-      form: params.form.filter(Boolean),
-      instrument_configs: params.instrument_configs.map(cfg => ({
-        ...cfg,
-        effects: cfg.effects.filter(Boolean),
-      })),
+      instrument_configs: params.instrument_configs.map(cfg => ({ ...cfg })),
     });
 
     const buildAudioRequest = (params: AudioRenderParameters) => ({
@@ -931,13 +866,7 @@ Debug: ${message}` : `Debug: ${message}`));
           modulePrefix={MODULE_PREFIX}
           onUpdate={updateMidi}
           onToggleInstrument={toggleInstrument}
-          onAddFormSection={addFormSection}
-          onRemoveFormSection={removeFormSection}
-          onResetForm={resetForm}
-          onClearForm={clearForm}
           onUpdateInstrumentConfig={updateInstrumentConfig}
-          onToggleInstrumentEffect={toggleInstrumentEffect}
-          onResetInstrumentEffects={resetInstrumentEffects}
           selectedSamples={selectedSamples}
           onSelectSample={(inst, id) => setSelectedSamples(prev => ({ ...prev, [inst]: id || '' }))}
         />
@@ -992,11 +921,7 @@ Debug: ${message}` : `Debug: ${message}`));
             const buildMidiRequest = (params: MidiParameters) => ({
               ...params,
               genre: params.style,
-              form: params.form.filter(Boolean),
-              instrument_configs: params.instrument_configs.map(cfg => ({
-                ...cfg,
-                effects: cfg.effects.filter(Boolean),
-              })),
+              instrument_configs: params.instrument_configs.map(cfg => ({ ...cfg })),
             });
             const midiPayload = buildMidiRequest(midi);
             const body: Record<string, unknown> = { ...midiPayload, ai_midi: aiMidi };
@@ -1068,11 +993,7 @@ Debug: ${message}` : `Debug: ${message}`));
             const buildMidiRequest = (params: MidiParameters) => ({
               ...params,
               genre: params.style,
-              form: params.form.filter(Boolean),
-              instrument_configs: params.instrument_configs.map(cfg => ({
-                ...cfg,
-                effects: cfg.effects.filter(Boolean),
-              })),
+              instrument_configs: params.instrument_configs.map(cfg => ({ ...cfg })),
             });
             const buildAudioRequest = (params: AudioRenderParameters) => ({
               ...params,

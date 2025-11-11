@@ -4,8 +4,6 @@ import {
   ARTICULATION_OPTIONS,
   DYNAMIC_PROFILE_OPTIONS,
   DYNAMIC_RANGE_OPTIONS,
-  EFFECT_OPTIONS,
-  FORM_SECTION_OPTIONS,
   HARMONIC_COLOR_OPTIONS,
   KEY_OPTIONS,
   METER_OPTIONS,
@@ -26,15 +24,14 @@ interface MidiPanelProps {
   modulePrefix: string;
   onUpdate: (patch: Partial<MidiParameters>) => void;
   onToggleInstrument: (instrument: string) => void;
-  onAddFormSection: (section: string) => void;
-  onRemoveFormSection: (index: number) => void;
-  onResetForm: () => void;
-  onClearForm: () => void;
+  // form removed
   onUpdateInstrumentConfig: (name: string, patch: Partial<InstrumentConfig>) => void;
-  onToggleInstrumentEffect: (name: string, effect: string) => void;
-  onResetInstrumentEffects: (name: string) => void;
+  // effects removed
   selectedSamples: Record<string, string | undefined>;
   onSelectSample: (instrument: string, sampleId: string | null) => void;
+  compact?: boolean;
+  columns?: 1 | 2 | 3 | 4;
+  hideFx?: boolean;
 }
 
 const MidiPanelComponent = ({
@@ -43,19 +40,16 @@ const MidiPanelComponent = ({
   selectableInstruments,
   onUpdate,
   onToggleInstrument,
-  onAddFormSection,
-  onRemoveFormSection,
-  onResetForm,
-  onClearForm,
   onUpdateInstrumentConfig,
-  onToggleInstrumentEffect,
-  onResetInstrumentEffects,
   fxSubtypes = [],
   apiBase,
   apiPrefix,
   modulePrefix,
   selectedSamples,
   onSelectSample,
+  compact = false,
+  columns = 2,
+  hideFx = false,
 }: MidiPanelProps) => {
   const handleStyleChange = useCallback<React.ChangeEventHandler<HTMLSelectElement>>(
     event => {
@@ -102,30 +96,22 @@ const MidiPanelComponent = ({
     [availableInstruments, onToggleInstrument],
   );
 
-  const handleFormPreset = useCallback(
-    (section: string) => () => onAddFormSection(section),
-    [onAddFormSection],
-  );
-
   const handleInstrumentConfigChange = useCallback(
     (name: string, patch: Partial<InstrumentConfig>) => onUpdateInstrumentConfig(name, patch),
     [onUpdateInstrumentConfig],
   );
 
-  const handleEffectToggle = useCallback(
-    (name: string, effect: string) => () => onToggleInstrumentEffect(name, effect),
-    [onToggleInstrumentEffect],
-  );
+  const gridCols = columns === 4 ? 'sm:grid-cols-4' : columns === 3 ? 'sm:grid-cols-3' : columns === 1 ? 'sm:grid-cols-1' : 'sm:grid-cols-2';
+  const sizeClass = compact ? 'text-xs' : 'text-sm';
 
-  const handleResetEffects = useCallback(
-    (name: string) => () => onResetInstrumentEffects(name),
-    [onResetInstrumentEffects],
-  );
+  // Avoid duplicating drums in the generic instrument list
+  const DRUMS = ['kick','snare','hihat','clap','808'];
+  const genericInstruments = selectableInstruments.filter(inst => !DRUMS.includes(inst));
 
   return (
     <div className="bg-gray-900/60 p-4 rounded-lg border border-gray-700 space-y-4 col-span-2">
       <h2 className="font-semibold text-emerald-300">MIDI Parameters</h2>
-      <div className="grid sm:grid-cols-2 gap-4 text-sm">
+      <div className={`grid ${gridCols} gap-4 ${sizeClass}`}>
         <div>
           <label className="block mb-1">Style</label>
           <select value={midi.style} onChange={handleStyleChange} className="w-full bg-black/60 p-2 rounded border border-gray-700">
@@ -208,37 +194,13 @@ const MidiPanelComponent = ({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <div className="text-xs text-gray-400 uppercase tracking-widest">Form</div>
-          <div className="flex gap-2">
-            <button onClick={onResetForm} className="px-2 py-1 text-[11px] border border-gray-700 rounded">Reset</button>
-            <button onClick={onClearForm} className="px-2 py-1 text-[11px] border border-gray-700 rounded">Clear</button>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {midi.form.map((section, index) => (
-            <div key={`${section}-${index}`} className="px-3 py-1 bg-black/40 border border-gray-700 rounded-full text-xs flex items-center gap-2">
-              <span>{section}</span>
-              <button onClick={() => onRemoveFormSection(index)} className="text-gray-400 hover:text-white">×</button>
-            </div>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {FORM_SECTION_OPTIONS.map(section => (
-            <button key={section} onClick={handleFormPreset(section)} className="px-2 py-1 text-[11px] border border-gray-700 rounded bg-black/50 hover:bg-black/60">
-              {section}
-            </button>
-          ))}
-        </div>
-        <div className="text-[10px] text-gray-500">Dodawaj sekcje klikając preset. Reset przywraca domyślny układ, Clear usuwa wszystkie.</div>
-      </div>
+      {/* Form removed */}
 
-      <div>
+      <div className={compact ? 'text-xs' : undefined}>
         <label className="block mb-2">Instruments (only available)</label>
         {/* Drums quick panel */}
         {(() => {
-          const drums = ['kick','snare','hihat','clap','808'];
+          const drums = DRUMS;
           const present = drums.filter(d => availableInstruments.includes(d));
           if (present.length === 0) return null;
           const hasVirtual = true; // page adds 'drums' when any present
@@ -263,8 +225,8 @@ const MidiPanelComponent = ({
             </div>
           );
         })()}
-        {/* FX panel */}
-        {(() => {
+        {/* FX panel (optional) */}
+        {!hideFx && (() => {
           const hasFx = availableInstruments.includes('fx');
           if (!hasFx) return null;
           const active = midi.instruments.includes('fx');
@@ -290,7 +252,7 @@ const MidiPanelComponent = ({
         })()}
         <div className="mb-1 text-xs text-gray-400">Instruments</div>
         <div className="flex flex-wrap gap-2">
-          {selectableInstruments.map(instrument => {
+          {genericInstruments.map(instrument => {
             const active = midi.instruments.includes(instrument);
             const disabled = isInstrumentDisabled(instrument) && !active;
             const baseClasses = active ? 'bg-emerald-700 border-emerald-500 text-white' : 'bg-black/50 border-gray-700';
@@ -318,7 +280,6 @@ const MidiPanelComponent = ({
               <div className="flex flex-wrap gap-3 items-center">
                 <div className="font-semibold text-emerald-200">{config.name}</div>
                 <div className="text-[11px] text-gray-500">{config.role} • {config.register} • pan {config.pan.toFixed(2)}</div>
-                <button onClick={handleResetEffects(config.name)} className="ml-auto px-2 py-1 text-[11px] border border-gray-700 rounded">Reset FX</button>
               </div>
               {/* Sample selection with preview */}
               <SampleSelector
@@ -383,23 +344,7 @@ const MidiPanelComponent = ({
                   </select>
                 </label>
               </div>
-              <div>
-                <div className="text-[11px] text-gray-500 mb-1">Effects</div>
-                <div className="flex flex-wrap gap-2">
-                  {EFFECT_OPTIONS.map(effect => {
-                    const active = config.effects.includes(effect);
-                    return (
-                      <button
-                        key={effect}
-                        onClick={handleEffectToggle(config.name, effect)}
-                        className={`px-3 py-1 rounded-full border text-[11px] ${active ? 'bg-purple-600 border-purple-500 text-white' : 'bg-black/60 border-gray-700 hover:bg-black/70'}`}
-                      >
-                        {effect}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              {/* Effects removed */}
             </div>
           ))}
         </div>

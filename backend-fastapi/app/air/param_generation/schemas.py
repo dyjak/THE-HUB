@@ -17,24 +17,6 @@ class InstrumentConfig(BaseModel):
     pan: float = Field(ge=-1, le=1, default=0.0)
     articulation: str = Field(default="sustain")
     dynamic_range: str = Field(default="moderate")
-    effects: List[str] = Field(default_factory=lambda: ["reverb"])
-
-    @validator("effects", pre=True)
-    def validate_effects(cls, v):  # noqa: D401
-        if isinstance(v, str):
-            v = [x.strip() for x in v.split(",") if x.strip()]
-        if not isinstance(v, list):
-            return []
-        out: List[str] = []
-        seen: set[str] = set()
-        for item in v:
-            if not isinstance(item, str):
-                continue
-            key = item.lower().strip()
-            if key and key not in seen:
-                seen.add(key)
-                out.append(item.strip())
-        return out
 
 
 class MidiPlanIn(BaseModel):
@@ -46,7 +28,6 @@ class MidiPlanIn(BaseModel):
     meter: str = Field(default="4/4")
     bars: int = Field(default=16, ge=1, le=512)
     length_seconds: int = Field(default=180, ge=30, le=3600)
-    form: List[str] = Field(default_factory=lambda: ["intro","verse","chorus","verse","chorus","bridge","chorus","outro"])
     dynamic_profile: str = Field(default="moderate")
     arrangement_density: str = Field(default="balanced")
     harmonic_color: str = Field(default="diatonic")

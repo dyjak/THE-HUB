@@ -1,11 +1,9 @@
 import {
   ARTICULATION_OPTIONS,
   ARRANGEMENT_DENSITY_OPTIONS,
-  DEFAULT_FORM,
   DEFAULT_INSTRUMENTS,
   DYNAMIC_PROFILE_OPTIONS,
   DYNAMIC_RANGE_OPTIONS,
-  EFFECT_OPTIONS,
   HARMONIC_COLOR_OPTIONS,
   KEY_OPTIONS,
   METER_OPTIONS,
@@ -56,15 +54,8 @@ export const uniqueStrings = (items: string[]): string[] => {
   return result;
 };
 
-export const parseEffects = (value: unknown): string[] => {
-  if (Array.isArray(value)) {
-    return uniqueStrings(value.map(v => String(v).trim()).filter(Boolean));
-  }
-  if (typeof value === 'string') {
-    return uniqueStrings(value.split(',').map(v => v.trim()).filter(Boolean));
-  }
-  return [];
-};
+// Effects removed from model; parser retained as noop fallback (returns empty array) if referenced accidentally.
+export const parseEffects = (_value: unknown): string[] => [];
 
 export const createDefaultInstrumentConfig = (name: string, index = 0): InstrumentConfig => {
   const lower = name.toLowerCase();
@@ -72,7 +63,7 @@ export const createDefaultInstrumentConfig = (name: string, index = 0): Instrume
   let role: (typeof ROLE_OPTIONS)[number] = index === 0 ? 'lead' : 'accompaniment';
   let articulation: (typeof ARTICULATION_OPTIONS)[number] = 'sustain';
   let dynamic_range: (typeof DYNAMIC_RANGE_OPTIONS)[number] = 'moderate';
-  let effects: string[] = ['reverb'];
+  // effects removed
   let volume = 0.8;
   let pan = clamp(-0.2 + index * 0.3, -0.6, 0.6);
 
@@ -81,7 +72,7 @@ export const createDefaultInstrumentConfig = (name: string, index = 0): Instrume
     role = 'bass';
     dynamic_range = 'intense';
     articulation = 'legato';
-    effects = ['compression','filter'];
+  // effects removed
     volume = 0.9;
     pan = 0;
   } else if (['kick','snare','hihat','clap','rim','tom','perc','drumkit'].includes(lower)) {
@@ -89,20 +80,20 @@ export const createDefaultInstrumentConfig = (name: string, index = 0): Instrume
     role = 'percussion';
     dynamic_range = 'intense';
     articulation = 'percussive';
-    effects = ['compression'];
+  // effects removed
     volume = 0.95;
     pan = 0;
   } else if (['pad','strings','choir'].includes(lower)) {
     register = 'full';
     role = 'pad';
     articulation = 'sustain';
-    effects = ['reverb','chorus'];
+  // effects removed
     volume = 0.85;
   } else if (['lead','synth','guitar','piano','flute','trumpet','saxophone'].includes(lower)) {
     role = index === 0 ? 'lead' : 'accompaniment';
     register = lower === 'flute' ? 'high' : 'mid';
     articulation = ['synth','flute'].includes(lower) ? 'legato' : 'sustain';
-    effects = ['reverb','delay'];
+  // effects removed
     volume = role === 'lead' ? 0.9 : 0.8;
   }
 
@@ -114,7 +105,6 @@ export const createDefaultInstrumentConfig = (name: string, index = 0): Instrume
     pan: clamp(pan, -1, 1),
     articulation,
     dynamic_range,
-    effects,
   };
 };
 
@@ -129,8 +119,7 @@ export const toInstrumentConfig = (raw: unknown): InstrumentConfig | null => {
   const dynamic_range = pickFrom(source.dynamic_range, DYNAMIC_RANGE_OPTIONS, 'moderate');
   const volume = clamp(toNumber(source.volume, 0.8), 0, 1);
   const pan = clamp(toNumber(source.pan, 0), -1, 1);
-  const effects = parseEffects(source.effects);
-  return { name, register, role, articulation, dynamic_range, volume, pan, effects };
+  return { name, register, role, articulation, dynamic_range, volume, pan };
 };
 
 export const ensureInstrumentConfigs = (instruments: string[], existing: InstrumentConfig[]): InstrumentConfig[] => {
@@ -141,7 +130,6 @@ export const ensureInstrumentConfigs = (instruments: string[], existing: Instrum
     return {
       ...prev,
       name: inst,
-      effects: [...prev.effects],
     };
   });
 };
@@ -159,12 +147,7 @@ export const normalizeMidi = (input: Partial<MidiParameters> | Record<string, un
   const bars = clamp(Math.round(toNumber(input.bars, 16)), 1, 512);
   const length_seconds = clamp(toNumber(input.length_seconds, 180), 30, 3600);
 
-  const formArray = Array.isArray(input.form)
-    ? input.form.map(section => String(section).trim()).filter(Boolean)
-    : typeof input.form === 'string'
-      ? input.form.split(/[\n,]/).map(section => section.trim()).filter(Boolean)
-      : [];
-  const form = formArray.length ? formArray : Array.from(DEFAULT_FORM);
+  // form removed
 
   const instrumentsRaw = Array.isArray(input.instruments)
     ? input.instruments
@@ -194,7 +177,6 @@ export const normalizeMidi = (input: Partial<MidiParameters> | Record<string, un
     meter,
     bars,
     length_seconds,
-    form,
     dynamic_profile,
     arrangement_density,
     harmonic_color,
@@ -213,9 +195,8 @@ export const normalizeAudio = (input: Partial<AudioRenderParameters> | Record<st
 
 export const cloneMidi = (params: MidiParameters): MidiParameters => ({
   ...params,
-  form: [...params.form],
   instruments: [...params.instruments],
-  instrument_configs: params.instrument_configs.map(cfg => ({ ...cfg, effects: [...cfg.effects] })),
+  instrument_configs: params.instrument_configs.map(cfg => ({ ...cfg })),
 });
 
 export const cloneAudio = (params: AudioRenderParameters): AudioRenderParameters => ({ ...params });

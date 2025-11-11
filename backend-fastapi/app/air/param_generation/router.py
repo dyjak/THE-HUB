@@ -80,7 +80,7 @@ def _midi_plan_system(midi: MidiPlanIn) -> tuple[str, str]:
         f" Instruments must be exactly these (order preserved): {midi.instruments}. Do not invent others."
         f" meta.tempo must be {midi.tempo}. meta.seed may be null or a number."
         " The combined pattern must reflect the union of all layers (merge per-bar events)."
-        " Musicality: respect style/mood/form; bass lower register; lead higher; pads sustained (len 2-4)."
+        " Musicality: respect style/mood; bass lower register; lead higher; pads sustained (len 2-4)."
         " IMPORTANT: Allowed instrument names are strictly: [" + allowed + "]."
         " No markdown, no comments."
     )
@@ -92,7 +92,6 @@ def _midi_plan_system(midi: MidiPlanIn) -> tuple[str, str]:
             "key": midi.key,
             "scale": midi.scale,
             "meter": midi.meter,
-            "form": midi.form,
             "dynamic_profile": midi.dynamic_profile,
             "arrangement_density": midi.arrangement_density,
             "harmonic_color": midi.harmonic_color,
