@@ -119,6 +119,15 @@ except Exception as e:  # broad for diagnostic
     except Exception as e2:
         _AI_RENDER_IMPORT_ERROR = f"{_AI_RENDER_IMPORT_ERROR}; fallback failed: {e2}"
 
+# Include production param-generation module (separate step: AI MIDI plan)
+try:
+    from .air.param_generation.router import router as param_generation_router  # type: ignore
+    _PARAM_GEN_AVAILABLE = True
+except Exception as e:
+    param_generation_router = None  # type: ignore
+    _PARAM_GEN_AVAILABLE = False
+    _PARAM_GEN_IMPORT_ERROR = str(e)
+
 
 app = FastAPI(
     title="AIR 4.0 API",
@@ -241,6 +250,25 @@ else:
     print("[WARN] ai_render_router not loaded:", globals().get('_AI_RENDER_IMPORT_ERROR'))
 
 # (end of ai-render-test import definition)
+
+# Mount param-generation router and its static outputs
+if _PARAM_GEN_AVAILABLE and param_generation_router:
+    app.include_router(param_generation_router, prefix="/api")
+    try:
+        param_gen_output = Path(__file__).parent / "air" / "param_generation" / "output"
+        param_gen_output.mkdir(parents=True, exist_ok=True)
+        app.mount("/api/param-generation/output", StaticFiles(directory=str(param_gen_output)), name="param_generation_output")
+    except Exception as e:
+        print("[WARN] failed to mount param-generation static output:", e)
+    try:
+        pg_routes = [getattr(r, "path", str(r)) for r in app.routes if "/param-generation" in getattr(r, "path", "")]
+        print("[param-generation] registered routes:")
+        for p in sorted(pg_routes):
+            print("   ", p)
+    except Exception as e:
+        print("[WARN] failed to enumerate param-generation routes:", e)
+else:
+    print("[WARN] param_generation_router not loaded:", globals().get('_PARAM_GEN_IMPORT_ERROR'))
 
 
 # MUSIC TEST ENDPOINTS - dodane bezpośrednio

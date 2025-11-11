@@ -292,6 +292,29 @@ export default function AIParamTestPage() {
     }
   }, []);
 
+  // Robustly extract a JSON object from raw model output, even if wrapped in code fences or extra text
+  const extractJsonObject = useCallback((text: string): any | null => {
+    if (!text) return null;
+    let s = text.trim();
+    // strip ```json ... ``` fences
+    if (s.startsWith("```")) {
+      const first = s.indexOf("\n");
+      if (first !== -1) s = s.slice(first + 1);
+      const lastFence = s.lastIndexOf("```");
+      if (lastFence !== -1) s = s.slice(0, lastFence).trim();
+    }
+    // fast path
+    try { return JSON.parse(s); } catch {}
+    // fallback: take substring from first '{' to last '}'
+    const start = s.indexOf('{');
+    const end = s.lastIndexOf('}');
+    if (start !== -1 && end !== -1 && end > start) {
+      const sub = s.slice(start, end + 1);
+      try { return JSON.parse(sub); } catch {}
+    }
+    return null;
+  }, []);
+
   const applyParamPlan = useCallback((plan: ParamifyNormalizedPlan | null) => {
     const warnings: string[] = [];
     let appliedMidi: MidiParameters | null = null;
@@ -945,7 +968,7 @@ Debug: ${message}` : `Debug: ${message}`));
           // Prefer parsed JSON; fallback to parsing raw
           let aiMidi: any = parsed ?? null;
           if (!aiMidi && typeof raw === 'string') {
-            try { aiMidi = JSON.parse(raw); } catch {}
+            aiMidi = extractJsonObject(raw);
           }
           if (!aiMidi) { return; }
           setAiMidiData(aiMidi);
@@ -993,6 +1016,9 @@ Debug: ${message}` : `Debug: ${message}`));
               }
               const data = toRecord(payload);
               if (!data) { setError('Unexpected response structure'); setIsRunning(false); return; }
+              // Ensure we keep AI MIDI for subsequent render even if initial parse failed
+              const midiObj = toRecord(data['midi']);
+              if (midiObj) setAiMidiData(midiObj);
               const blueprintSource = toRecord(data['blueprint']);
               if (blueprintSource) {
                 setBlueprint({ midi: toBlueprintSection(blueprintSource['midi']), audio: toBlueprintSection(blueprintSource['audio']) });
@@ -1071,7 +1097,10 @@ Debug: ${message}` : `Debug: ${message}`));
               const payload: unknown = await res.json().catch(() => null);
               setRawResponse(payload);
               if (!res.ok) { setError(extractErrorMessage(payload) || `HTTP ${res.status}`); setIsRunning(false); return; }
-              const data = toRecord(payload); if (!data) { setError('Unexpected response structure'); setIsRunning(false); return; }
+                const data = toRecord(payload); if (!data) { setError('Unexpected response structure'); setIsRunning(false); return; }
+                // Keep aiMidiData fresh from backend's echo of midi
+                const midiObj = toRecord(data['midi']);
+                if (midiObj) setAiMidiData(midiObj);
               const blueprintSource = toRecord(data['blueprint']);
               if (blueprintSource) setBlueprint({ midi: toBlueprintSection(blueprintSource['midi']), audio: toBlueprintSection(blueprintSource['audio']) });
               const rid = toStringValue(data['run_id']); if (rid) { setRunId(rid); setPolling(true); }

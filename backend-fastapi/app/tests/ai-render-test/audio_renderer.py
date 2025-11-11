@@ -89,12 +89,45 @@ def render_audio(audio_params: Dict[str, Any], midi: Dict[str, Any], samples: Di
         run_dir = base_output
     run_dir.mkdir(parents=True, exist_ok=True)
     wav_path = run_dir / "audio.wav"
-    instruments: List[str] = midi.get("meta", {}).get("instruments", [])
+    meta = midi.get("meta", {}) or {}
+    instruments: List[str] = meta.get("instruments", [])
+    # Determine global song length in steps (bars * 8).
+    # Prefer explicit meta.bars, else infer from pattern/layers by max bar index.
+    bars = None
+    try:
+        if isinstance(meta.get("bars"), int) and meta.get("bars") > 0:
+            bars = int(meta.get("bars"))
+    except Exception:
+        bars = None
+    if not bars:
+        try:
+            max_bar = -1
+            for bar in (midi.get("pattern") or []):
+                try:
+                    b = int(bar.get("bar", 0)); max_bar = max(max_bar, b)
+                except Exception:
+                    pass
+            layers = midi.get("layers") or {}
+            if isinstance(layers, dict):
+                for _inst, layer in layers.items():
+                    try:
+                        for bar in (layer or []):
+                            b = int(bar.get("bar", 0)); max_bar = max(max_bar, b)
+                    except Exception:
+                        continue
+            bars = (max_bar + 1) if max_bar >= 0 else 1
+        except Exception:
+            bars = 1
+    total_steps = max(1, int(bars) * 8)
+    step_samples_global = max(1, int(frames / total_steps))
     sample_map: Dict[str, str] = {s.get("instrument"): s.get("file") for s in samples.get("samples", [])}
     log("audio", "render_start", {"instruments": instruments, "sample_count": len(sample_map)})
     tracks: List[List[float]] = []
     per_instrument_tracks: dict[str, List[float]] = {}
     missing: List[str] = []
+    # Instruments considered percussive (no pitch shift)
+    perc_set = set(["kick", "snare", "hihat", "clap", "808", "tom", "perc", "cymbal", "ride", "crash", "rim", "hh", "hat"])  # basic aliases
+
     for inst in instruments:
         file = sample_map.get(inst)
         if not file or not Path(file).exists():
@@ -107,18 +140,33 @@ def render_audio(audio_params: Dict[str, Any], midi: Dict[str, Any], samples: Di
             log("audio", "sample_load_failed", {"instrument": inst, "file": file})
             continue
         buf = [0.0]*frames
-        layer = midi.get("layers", {}).get(inst, [])
-        step_samples = int(sr * (seconds / max(1, len(layer) * 8)))
+        layers_map = midi.get("layers", {}) or {}
+        layer = layers_map.get(inst, []) if isinstance(layers_map, dict) else []
+        # Count events for diagnostics
+        ev_count = 0
+        for bar in (layer or []):
+            try:
+                ev_count += len(bar.get("events", []))
+            except Exception:
+                pass
+        log("audio", "instrument_layer", {"instrument": inst, "bars": len(layer or []), "events": ev_count, "bars_total": bars, "step_samples": step_samples_global})
         for bar in layer:
             b = bar.get("bar", 0)
             for ev in bar.get("events", []):
                 step = ev.get("step", 0)
                 note = ev.get("note")
                 vel = ev.get("vel", 100) / 127.0
-                start = (b*8 + step)*step_samples
+                start = (int(b)*8 + int(step))*step_samples_global
                 if start >= frames:
                     continue
-                pitched = _pitch_shift_resample(base_wave, BASE_FREQ, _note_freq(note)) if np is not None else base_wave
+                # For percussive instruments or missing/invalid note, skip pitch shifting
+                pitched = base_wave
+                try:
+                    key = str(inst).strip().lower()
+                    if (np is not None) and (key not in perc_set) and isinstance(note, int):
+                        pitched = _pitch_shift_resample(base_wave, BASE_FREQ, _note_freq(note))
+                except Exception:
+                    pitched = base_wave
                 nl = min(len(pitched), frames-start)
                 if nl <= 0:
                     continue

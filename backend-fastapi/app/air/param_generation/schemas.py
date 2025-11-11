@@ -1,0 +1,106 @@
+from __future__ import annotations
+from pydantic import BaseModel, Field, validator
+from typing import List, Optional, Dict, Any
+
+
+INSTRUMENT_OPTIONS = [
+    "piano","pad","strings","bass","guitar","lead","choir","flute","trumpet","saxophone",
+    "kick","snare","hihat","clap","rim","tom","808","perc","drumkit","fx"
+]
+
+
+class InstrumentConfig(BaseModel):
+    name: str
+    role: str = Field(default="accompaniment")
+    register: str = Field(default="mid")
+    volume: float = Field(ge=0, le=1, default=0.8)
+    pan: float = Field(ge=-1, le=1, default=0.0)
+    articulation: str = Field(default="sustain")
+    dynamic_range: str = Field(default="moderate")
+    effects: List[str] = Field(default_factory=lambda: ["reverb"])
+
+    @validator("effects", pre=True)
+    def validate_effects(cls, v):  # noqa: D401
+        if isinstance(v, str):
+            v = [x.strip() for x in v.split(",") if x.strip()]
+        if not isinstance(v, list):
+            return []
+        out: List[str] = []
+        seen: set[str] = set()
+        for item in v:
+            if not isinstance(item, str):
+                continue
+            key = item.lower().strip()
+            if key and key not in seen:
+                seen.add(key)
+                out.append(item.strip())
+        return out
+
+
+class MidiPlanIn(BaseModel):
+    style: str = Field(default="ambient")
+    mood: str = Field(default="calm")
+    tempo: int = Field(default=80, ge=20, le=300)
+    key: str = Field(default="C")
+    scale: str = Field(default="major")
+    meter: str = Field(default="4/4")
+    bars: int = Field(default=16, ge=1, le=512)
+    length_seconds: int = Field(default=180, ge=30, le=3600)
+    form: List[str] = Field(default_factory=lambda: ["intro","verse","chorus","verse","chorus","bridge","chorus","outro"])
+    dynamic_profile: str = Field(default="moderate")
+    arrangement_density: str = Field(default="balanced")
+    harmonic_color: str = Field(default="diatonic")
+    instruments: List[str] = Field(default_factory=lambda: ["piano","pad","strings"])
+    instrument_configs: List[InstrumentConfig] = Field(default_factory=list)
+    seed: Optional[int] = None
+
+    @validator("instruments", pre=True)
+    def normalize_instruments(cls, v):
+        if isinstance(v, str):
+            v = [x.strip() for x in v.split(",") if x.strip()]
+        if not isinstance(v, list):
+            return []
+        out: List[str] = []
+        seen: set[str] = set()
+        for item in v:
+            if not isinstance(item, str):
+                continue
+            name = item.strip()
+            if not name:
+                continue
+            if name not in INSTRUMENT_OPTIONS:
+                continue  # strict filtering
+            if name not in seen:
+                seen.add(name)
+                out.append(name)
+        return out or ["piano","pad","strings"]
+
+    @validator("instrument_configs", always=True)
+    def ensure_configs(cls, v, values):
+        instruments: List[str] = values.get("instruments", [])
+        mapped = {c.name: c for c in v} if v else {}
+        out: List[InstrumentConfig] = []
+        for idx, inst in enumerate(instruments):
+            existing = mapped.get(inst)
+            if existing:
+                out.append(existing)
+                continue
+            # create default
+            role = "lead" if idx == 0 else "accompaniment"
+            register = "low" if inst in ("bass","808") else "mid"
+            out.append(InstrumentConfig(name=inst, role=role, register=register))
+        return out
+
+    def to_payload(self) -> Dict[str, Any]:
+        return self.dict()
+
+
+class MidiPlanResult(BaseModel):
+    run_id: str
+    plan: Dict[str, Any]
+    raw: str
+    parsed: Dict[str, Any] | None = None
+    errors: List[str] | None = None
+    meta: Dict[str, Any] | None = None
+    saved_json_rel: str | None = None
+    saved_raw_rel: str | None = None
