@@ -8,6 +8,15 @@ INSTRUMENT_OPTIONS = [
     "kick","snare","hihat","clap","rim","tom","808","perc","drumkit","fx"
 ]
 
+# Dynamically extend instrument list from inventory if available (future-proof for new types)
+try:  # pragma: no cover runtime presence
+    from app.air.inventory.access import list_instruments as _inv_list
+    _extra = [i for i in _inv_list() if i not in INSTRUMENT_OPTIONS]
+    if _extra:
+        INSTRUMENT_OPTIONS.extend(_extra)
+except Exception:
+    pass
+
 
 class InstrumentConfig(BaseModel):
     name: str
@@ -49,8 +58,9 @@ class MidiPlanIn(BaseModel):
             name = item.strip()
             if not name:
                 continue
+            # Allow passthrough if present in dynamic inventory; otherwise require INSTRUMENT_OPTIONS
             if name not in INSTRUMENT_OPTIONS:
-                continue  # strict filtering
+                continue
             if name not in seen:
                 seen.add(name)
                 out.append(name)

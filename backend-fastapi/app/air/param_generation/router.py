@@ -7,6 +7,17 @@ import json
 import os
 
 from .schemas import MidiPlanIn, MidiPlanResult
+from urllib.parse import quote
+try:
+    from app.air.inventory.access import get_inventory_cached as _inv_get_cached
+    from app.air.inventory.access import list_instruments as _inv_list
+except Exception:  # pragma: no cover
+    _inv_get_cached = None  # type: ignore
+    _inv_list = None  # type: ignore
+try:  # optional inventory usage for hints
+    from app.air.inventory.access import list_instruments as _inventory_instruments
+except Exception:
+    _inventory_instruments = None  # type: ignore
 from .debug_store import DEBUG_STORE
 
 # Lazy import helpers to avoid hard dependency at import-time (main may synthesize packages)
@@ -57,15 +68,15 @@ def models(provider: str):
 
 
 def _allowed_instruments_hint() -> str:
+    # Prefer inventory (canonical list, may include future instruments)
     try:
-        from app.tests.ai_render_test.local_library import discover_samples, list_available_instruments  # type: ignore
-        lib = discover_samples()
-        allowed = list_available_instruments(lib)
-        if allowed:
-            return ", ".join(allowed)
+        if callable(_inventory_instruments):  # type: ignore
+            inv_list = _inventory_instruments() or []
+            if inv_list:
+                return ", ".join(inv_list)
     except Exception:
         pass
-    # Fallback reasonable defaults
+    # Final static fallback (no ai-render-test dependency)
     return "piano, pad, strings, lead, bass, drumkit, kick, snare, hihat, fx"
 
 
@@ -143,6 +154,129 @@ def _call_model(provider: str, model: Optional[str], system: str, user: str) -> 
         r = m.generate_content(user)
         return (getattr(r, "text", None) or str(r) or "").strip()
     raise HTTPException(status_code=400, detail={"error": "unknown_provider", "message": f"Unknown provider: {provider}"})
+
+
+# Inventory proxy endpoints (keep param-generation self-contained for UI)
+@router.get("/available-instruments")
+def available_instruments_proxy():
+    try:
+        if callable(_inv_list):  # type: ignore
+            lst = _inv_list() or []
+            return {"available": lst, "count": len(lst)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": "inventory_unavailable", "message": str(e)})
+    return {"available": [], "count": 0}
+
+
+def _resolve_target_instruments(inv: dict, name: str) -> list[str]:
+    names = list((inv.get("instruments") or {}).keys()) if isinstance(inv.get("instruments"), dict) else []
+    if not names:
+        return []
+    lower_map = {n.lower(): n for n in names}
+    drums_candidates = [x for x in ["Kick","Snare","Hats","Claps","808"] if x in names]
+    q = (name or "").strip()
+    ql = q.lower()
+    # synonyms / normalization
+    syn = {
+        "pad": "Pads",
+        "pads": "Pads",
+        "lead": "Leads",
+        "leads": "Leads",
+        "string": "Instruments",
+        "strings": "Instruments",
+        "piano": "Instruments",
+        "guitar": "Guitar",
+        "bass": "Bass",
+        "sax": "Sax",
+        "hihat": "Hats",
+        "hi-hat": "Hats",
+        "kick": "Kick",
+        "snare": "Snare",
+        "clap": "Claps",
+        "808": "808",
+        "fx": "FX",
+        "drums": "__DRUMS__",
+        "drumkit": "__DRUMS__",
+    }
+    # Exact
+    if q in names:
+        return [q]
+    # Case-insensitive
+    if ql in lower_map:
+        return [lower_map[ql]]
+    # Synonym
+    if ql in syn:
+        tgt = syn[ql]
+        if tgt == "__DRUMS__":
+            return drums_candidates or []
+        if tgt in names:
+            return [tgt]
+        # Try case-ins lookup for synonym target
+        if tgt.lower() in lower_map:
+            return [lower_map[tgt.lower()]]
+    # Pluralization tweaks
+    if ql.endswith("s") and ql[:-1] in lower_map:
+        return [lower_map[ql[:-1]]]
+    if (ql + "s") in lower_map:
+        return [lower_map[ql + "s"]]
+    # Prefix/contains fuzzy (last resort)
+    for n in names:
+        if ql and (n.lower().startswith(ql) or ql in n.lower()):
+            return [n]
+    return []
+
+
+@router.get("/samples/{instrument}")
+def list_samples_proxy(instrument: str, offset: int = 0, limit: int = 100):
+    if not callable(_inv_get_cached):
+        raise HTTPException(status_code=500, detail={"error": "inventory_unavailable"})
+    try:
+        inv = _inv_get_cached()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": "inventory_error", "message": str(e)})
+    targets = _resolve_target_instruments(inv, instrument)
+    if not targets:
+        # Include resolved targets info for easier debugging/UX on the client
+        return {"instrument": instrument, "resolved": [], "count": 0, "items": [], "default": None}
+    tset = set(targets)
+    rows = [r for r in (inv.get("samples") or []) if r.get("instrument") in tset]
+    if not rows:
+        return {"instrument": instrument, "resolved": targets, "count": 0, "items": [], "default": None}
+    start = max(0, int(offset)); end = start + max(1, min(500, int(limit)))
+    base = Path(inv.get("root") or ".").resolve()
+    items: list[dict[str, Any]] = []
+    for r in rows[start:end]:
+        url = None
+        try:
+            rel = r.get("file_rel")
+            if rel:
+                rel_posix = Path(rel).as_posix()
+                url = "/api/local-samples/" + quote(rel_posix, safe="/")
+            elif r.get("file_abs"):
+                rel2 = Path(r.get("file_abs")).resolve().relative_to(base).as_posix()
+                url = "/api/local-samples/" + quote(rel2, safe="/")
+        except Exception:
+            url = None
+        name = None
+        try:
+            if r.get("file_abs"):
+                name = Path(r.get("file_abs")).name
+            elif r.get("file_rel"):
+                name = Path(r.get("file_rel")).name
+        except Exception:
+            name = r.get("id")
+        items.append({
+            "id": r.get("id"),
+            "file": r.get("file_abs") or str((base / (r.get("file_rel") or "")).resolve()),
+            "name": name,
+            "url": url,
+            "subtype": r.get('subtype'),
+            "family": r.get('family'),
+            "category": r.get('category'),
+            "pitch": r.get('pitch'),
+        })
+    default_item = items[0] if items else None
+    return {"instrument": instrument, "resolved": targets, "count": len(rows), "offset": start, "limit": limit, "items": items, "default": default_item}
 
 
 class MidiPlanRequest(BaseModel):

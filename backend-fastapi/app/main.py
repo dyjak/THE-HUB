@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+# hot-reload touch: inventory integration verified
 from fastapi.middleware.cors import CORSMiddleware
 from .database.connection import Base, engine
 from .auth.router import router as auth_router
@@ -127,6 +128,13 @@ except Exception as e:
     param_generation_router = None  # type: ignore
     _PARAM_GEN_AVAILABLE = False
     _PARAM_GEN_IMPORT_ERROR = str(e)
+try:
+    from .air.inventory.router import router as air_inventory_router  # type: ignore
+    _AIR_INV_AVAILABLE = True
+except Exception as e:
+    air_inventory_router = None  # type: ignore
+    _AIR_INV_AVAILABLE = False
+    _AIR_INV_IMPORT_ERROR = str(e)
 
 
 app = FastAPI(
@@ -151,6 +159,17 @@ app.add_middleware(
     allow_headers=["*"],
     max_age=86400,  # cache preflight for a day in dev
 )
+
+# Mount local_samples for sample previews (global, independent of ai-render-test)
+try:
+    repo_root = Path(__file__).resolve().parents[2]
+    local_samples_dir = repo_root / "local_samples"
+    if local_samples_dir.exists():
+        app.mount("/api/local-samples", StaticFiles(directory=str(local_samples_dir)), name="local_samples")
+    else:
+        print("[WARN] local_samples directory not found:", local_samples_dir)
+except Exception as e:
+    print("[WARN] failed to mount local_samples:", e)
 
 # Upewnij się, że tabele są utworzone
 Base.metadata.create_all(bind=engine)
@@ -228,17 +247,6 @@ if _AI_RENDER_AVAILABLE and ai_render_router:
         app.mount("/api/ai-render-test/output", StaticFiles(directory=str(ai_render_output)), name="ai_render_output")
     except Exception as e:
         print("[WARN] failed to mount ai-render-test static output:", e)
-    # Mount local_samples for sample previews
-    try:
-        # backend-fastapi/app/main.py -> parents[2] is repo root
-        repo_root = Path(__file__).resolve().parents[2]
-        local_samples_dir = repo_root / "local_samples"
-        if local_samples_dir.exists():
-            app.mount("/api/local-samples", StaticFiles(directory=str(local_samples_dir)), name="local_samples")
-        else:
-            print("[WARN] local_samples directory not found:", local_samples_dir)
-    except Exception as e:
-        print("[WARN] failed to mount local_samples:", e)
     try:
         ar_routes = [getattr(r, "path", str(r)) for r in app.routes if "/ai-render-test" in getattr(r, "path", "")]
         print("[ai-render-test] registered routes:")
@@ -269,6 +277,19 @@ if _PARAM_GEN_AVAILABLE and param_generation_router:
         print("[WARN] failed to enumerate param-generation routes:", e)
 else:
     print("[WARN] param_generation_router not loaded:", globals().get('_PARAM_GEN_IMPORT_ERROR'))
+
+# Mount inventory router (sample catalog)
+if _AIR_INV_AVAILABLE and air_inventory_router:
+    app.include_router(air_inventory_router, prefix="/api")
+    try:
+        inv_routes = [getattr(r, "path", str(r)) for r in app.routes if "/air/inventory" in getattr(r, "path", "")]
+        print("[air-inventory] registered routes:")
+        for p in sorted(inv_routes):
+            print("   ", p)
+    except Exception as e:
+        print("[WARN] failed to enumerate air-inventory routes:", e)
+else:
+    print("[WARN] air_inventory_router not loaded:", globals().get('_AIR_INV_IMPORT_ERROR'))
 
 
 # MUSIC TEST ENDPOINTS - dodane bezpośrednio

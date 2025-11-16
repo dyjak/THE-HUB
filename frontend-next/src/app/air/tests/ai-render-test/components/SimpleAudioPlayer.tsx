@@ -6,11 +6,12 @@ interface SimpleAudioPlayerProps {
   className?: string;
   height?: number;
   preload?: 'auto' | 'metadata' | 'none';
+  variant?: 'default' | 'compact'; // compact -> węższy pasek głośności
 }
 
 // Lightweight custom audio player: play/pause, progress bar, current/total time, volume.
 // No external dependencies; SSR-safe via client directive.
-export const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({ src, className = '', height = 32, preload = 'metadata' }) => {
+export const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({ src, className = '', height = 32, preload = 'metadata', variant = 'default' }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const progressRef = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
@@ -61,6 +62,7 @@ export const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({ src, class
     el.volume = volume;
   }, [volume]);
 
+  const volWidthClass = variant === 'compact' ? 'w-16' : 'w-24';
   return (
     <div className={`flex items-center gap-2 ${className}`} style={{ height }}>
       <audio ref={audioRef} src={src} preload={preload} className="hidden" />
@@ -86,7 +88,7 @@ export const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({ src, class
           <span>{fmt(duration)}</span>
         </div>
       </div>
-      <div className="flex items-center gap-1 w-24">
+      <div className={`flex items-center gap-1 ${volWidthClass} shrink-0`}> {/* shrink-0 to avoid stretching poza kartę */}
         <span className="text-[10px] text-gray-500">vol</span>
         <input
           type="range"
@@ -95,7 +97,7 @@ export const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({ src, class
           step={0.01}
           value={volume}
           onChange={e => setVolume(Number(e.target.value))}
-          className="flex-1"
+          className="flex-1 min-w-0" // min-w-0 usuwa niechciane rozciąganie w grid'ach
         />
       </div>
     </div>

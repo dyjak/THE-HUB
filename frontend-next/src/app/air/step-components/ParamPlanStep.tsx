@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { MidiPanel } from "../tests/ai-render-test/components/MidiPanel";
 import type { MidiParameters, InstrumentConfig } from "../tests/ai-render-test/types";
-import { INSTRUMENT_CHOICES } from "../tests/ai-render-test/constants";
 import { ensureInstrumentConfigs, normalizeMidi, cloneMidi } from "../tests/ai-render-test/utils";
 
 type ChatProviderInfo = { id: string; name: string; default_model?: string };
@@ -28,6 +27,7 @@ export default function ParamPlanStep() {
   // Editing panel state
   const [midi, setMidi] = useState<MidiParameters | null>(null);
   const [available, setAvailable] = useState<string[]>([]);
+  const [selectable, setSelectable] = useState<string[]>([]);
   const [selectedSamples, setSelectedSamples] = useState<Record<string, string | undefined>>({});
 
   // Fetch providers
@@ -72,17 +72,19 @@ export default function ParamPlanStep() {
     return () => { mounted = false; };
   }, [provider]);
 
-  // Load available instruments (optional; editor still works if empty)
+  // Load available instruments (via param-generation proxy backed by inventory)
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/available-instruments`);
+        const res = await fetch(`${API_BASE}${API_PREFIX}/air/param-generation/available-instruments`);
         if (!res.ok) return;
         const data = await res.json().catch(() => null);
         const list = Array.isArray(data?.available) ? (data.available as string[]) : [];
         if (!mounted) return;
         setAvailable(list);
+        // In this view, show only real instruments (no placeholders)
+        setSelectable(list);
       } catch {}
     })();
     return () => { mounted = false; };
@@ -204,10 +206,11 @@ export default function ParamPlanStep() {
           <MidiPanel
             midi={midi}
             availableInstruments={available}
-            selectableInstruments={Array.from(INSTRUMENT_CHOICES)}
+            selectableInstruments={selectable}
             apiBase={API_BASE}
             apiPrefix={API_PREFIX}
-            modulePrefix={MODULE_PREFIX}
+            // Use param-generation proxy endpoints (internally backed by inventory)
+            modulePrefix={"/air/param-generation"}
             compact
             columns={4}
             hideFx
