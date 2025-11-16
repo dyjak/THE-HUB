@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from 'react';
+import { SimpleAudioPlayer } from './SimpleAudioPlayer';
 import type { SampleListItem, SampleListResponse } from '../types';
 
 type Props = {
@@ -27,9 +28,12 @@ export function SampleSelector({ apiBase, apiPrefix, modulePrefix, instrument, s
         if (!mounted) return;
         const list = Array.isArray(data.items) ? data.items : [];
         setItems(list);
-        // If no selection yet and default exists, notify parent with default id
-        if (!selectedId && data.default?.id) {
-          onChange(instrument, data.default.id);
+        // Auto-pick a random sample if none selected yet
+        if (!selectedId && list.length > 0) {
+          const rand = list[Math.floor(Math.random() * list.length)];
+          if (rand?.id) {
+            onChange(instrument, rand.id);
+          }
         }
       } catch (e) {
         if (!mounted) return;
@@ -66,8 +70,7 @@ export function SampleSelector({ apiBase, apiPrefix, modulePrefix, instrument, s
         </select>
         <div className="flex items-center gap-2">
           {current?.url ? (
-            // current.url is already an absolute API path (e.g., /api/local-samples/..)
-            <audio controls src={`${apiBase}${current.url}`} className="h-8" />
+            <SimpleAudioPlayer src={`${apiBase}${current.url}`} className="w-full" height={40} />
           ) : (
             <span className="text-[11px] text-gray-500">no preview</span>
           )}
