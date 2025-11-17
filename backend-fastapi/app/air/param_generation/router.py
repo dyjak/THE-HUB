@@ -173,52 +173,58 @@ def _resolve_target_instruments(inv: dict, name: str) -> list[str]:
     if not names:
         return []
     lower_map = {n.lower(): n for n in names}
-    drums_candidates = [x for x in ["Kick","Snare","Hats","Claps","808"] if x in names]
     q = (name or "").strip()
     ql = q.lower()
-    # synonyms / normalization
+
+    # Helpers to aggregate groups from available names
+    def _present(opts: list[str]) -> list[str]:
+        return [x for x in opts if x in names]
+
+    # synonyms / normalization -> singular instrument naming
     syn = {
-        "pad": "Pads",
-        "pads": "Pads",
-        "lead": "Leads",
-        "leads": "Leads",
-        "string": "Instruments",
-        "strings": "Instruments",
-        "piano": "Instruments",
-        "guitar": "Guitar",
-        "bass": "Bass",
-        "sax": "Sax",
-        "hihat": "Hats",
-        "hi-hat": "Hats",
-        "kick": "Kick",
-        "snare": "Snare",
-        "clap": "Claps",
+        "pad": "Pad", "pads": "Pad",
+        "bell": "Bell", "bells": "Bell",
+        "pluck": "Pluck", "plucks": "Pluck",
+        "lead": "Lead", "leads": "Lead",
+        "synth": "Synth", "reese": "Reese",
+        "bass": "Bass", "bass guitar": "Bass Guitar", "bass synth": "Bass Synth",
+        "flute": "Flute", "guitar": "Guitar", "sax": "Sax",
+        "piano": "Piano", "violin": "Violin", "brass": "Brass",
         "808": "808",
-        "fx": "FX",
-        "drums": "__DRUMS__",
-        "drumkit": "__DRUMS__",
+        # drum parts
+        "kick": "Kick", "snare": "Snare", "clap": "Clap",
+        "hihat": "Hat", "hi-hat": "Hat", "hats": "Hat", "hat": "Hat", "hh": "Hat",
     }
+
     # Exact
     if q in names:
         return [q]
-    # Case-insensitive
+    # Case-insensitive exact
     if ql in lower_map:
         return [lower_map[ql]]
-    # Synonym
+
+    # Group aggregators
+    if ql in ("drums", "drumkit"):
+        agg = _present(["Kick", "Snare", "Hat", "Clap"]) or _present(["Kick", "Snare", "Hats", "Claps"])  # tolerate legacy plural
+        return agg
+    if ql == "fx":
+        fx_opts = ["Texture", "Downfilter", "Impact", "Swell", "Riser", "Subdrop", "Upfilter"]
+        return _present(fx_opts)
+
+    # Synonym resolution to a single instrument
     if ql in syn:
         tgt = syn[ql]
-        if tgt == "__DRUMS__":
-            return drums_candidates or []
         if tgt in names:
             return [tgt]
-        # Try case-ins lookup for synonym target
         if tgt.lower() in lower_map:
             return [lower_map[tgt.lower()]]
+
     # Pluralization tweaks
     if ql.endswith("s") and ql[:-1] in lower_map:
         return [lower_map[ql[:-1]]]
     if (ql + "s") in lower_map:
         return [lower_map[ql + "s"]]
+
     # Prefix/contains fuzzy (last resort)
     for n in names:
         if ql and (n.lower().startswith(ql) or ql in n.lower()):
@@ -234,7 +240,25 @@ def list_samples_proxy(instrument: str, offset: int = 0, limit: int = 100):
         inv = _inv_get_cached()
     except Exception as e:
         raise HTTPException(status_code=500, detail={"error": "inventory_error", "message": str(e)})
-    targets = _resolve_target_instruments(inv, instrument)
+    ql = (instrument or "").strip().lower()
+    # Category aggregators based on sample rows for robustness
+    targets: list[str] = []
+    if ql in ("drums", "drumkit"):
+        try:
+            cat_rows = [r for r in (inv.get("samples") or []) if (r.get("category") == "Drums")]
+            parts = sorted({r.get("instrument") for r in cat_rows if r.get("instrument")})
+            targets = [t for t in parts if isinstance(t, str)]
+        except Exception:
+            targets = []
+    elif ql == "fx":
+        try:
+            fx_rows = [r for r in (inv.get("samples") or []) if (r.get("category") == "FX")]
+            parts = sorted({r.get("instrument") for r in fx_rows if r.get("instrument")})
+            targets = [t for t in parts if isinstance(t, str)]
+        except Exception:
+            targets = []
+    else:
+        targets = _resolve_target_instruments(inv, instrument)
     if not targets:
         # Include resolved targets info for easier debugging/UX on the client
         return {"instrument": instrument, "resolved": [], "count": 0, "items": [], "default": None}
