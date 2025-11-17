@@ -47,7 +47,24 @@ def providers() -> ProvidersOut:
 
 @router.get("/models/{provider}")
 def models(provider: str):
-    return {"provider": provider, "models": _models_list(provider)}
+    """List available models for a given provider.
+
+    We defensively de-duplicate and sanitize the list so that the
+    frontend can safely use model names as React keys without
+    encountering duplicates (e.g. Anthropic defaults).
+    """
+    raw = _models_list(provider) or []
+    seen: set[str] = set()
+    models: list[str] = []
+    for m in raw:
+        if not isinstance(m, str):
+            continue
+        name = m.strip()
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        models.append(name)
+    return {"provider": provider, "models": models}
 
 
 def _allowed_instruments_hint() -> str:

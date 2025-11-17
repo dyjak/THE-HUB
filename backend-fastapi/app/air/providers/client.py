@@ -218,12 +218,24 @@ def list_models(provider: str) -> list[str]:
         if override:
             return override
         # Curated list of models that are generally good for structured JSON
-        # and available on OpenRouter. You can tweak this in .env.
+        # and available on OpenRouter. This is intentionally diverse so the
+        # app can serve as a small playground for different model families.
+        # You can tweak or completely override this in .env.
         defaults = [
-            os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free"),
+            # Default / primary model (configure in .env; pick a strong general-purpose model)
+            os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct"),
+            # Strong general-purpose LLaMA
             "meta-llama/llama-3.3-70b-instruct",
+            # Gemini via OpenRouter (fast, good for structured output)
             "google/gemini-2.0-flash-001",
+            # Qwen family (good compromise quality/price)
             "qwen/qwen-2.5-7b-instruct",
+            # Qwen reasoning-flavoured, larger model
+            "qwen/qwen-2.5-72b-instruct",
+            # DeepSeek reasoning model
+            "deepseek/deepseek-r1:free",
+            # Mistral family
+            "mistralai/mistral-nemo",
         ]
         # De-duplicate while preserving order
         uniq: list[str] = []

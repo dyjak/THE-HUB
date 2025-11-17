@@ -9,3 +9,6 @@ backend-fastapi/.env
 frontend-next/.next/
 frontend-next/node_modules/
 venv
+
+
+*/output/*

@@ -66,9 +66,11 @@ export default function ParamPlanStep() {
         if (!res.ok) { if (mounted) setModels([]); return; }
         const data = await res.json();
         const list = Array.isArray(data?.models) ? data.models as string[] : [];
+        // De-duplicate and sanitize model names to avoid React key collisions
+        const uniq = Array.from(new Set(list.filter(m => typeof m === "string" && m.trim())));
         if (!mounted) return;
-        setModels(list);
-        if (list.length > 0) setModel(prev => (prev && list.includes(prev) ? prev : list[0]));
+        setModels(uniq);
+        if (uniq.length > 0) setModel(prev => (prev && uniq.includes(prev) ? prev : uniq[0]));
       } catch { if (mounted) setModels([]); }
     })();
     return () => { mounted = false; };
