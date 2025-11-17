@@ -1,15 +1,15 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { MidiPanel } from "../tests/ai-render-test/components/MidiPanel";
-import type { MidiParameters, InstrumentConfig } from "../tests/ai-render-test/types";
-import { ensureInstrumentConfigs, normalizeMidi, cloneMidi } from "../tests/ai-render-test/utils";
+import { MidiPanel } from "./MidiPanel";
+import type { MidiParameters, InstrumentConfig } from "../lib/midiTypes";
+import { ensureInstrumentConfigs, normalizeMidi, cloneMidi } from "../lib/midiUtils";
 
 type ChatProviderInfo = { id: string; name: string; default_model?: string };
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
 const API_PREFIX = "/api";
-// Re-use existing ai-render-test endpoints for structured parameter planning (paramify)
-const MODULE_PREFIX = "/ai-render-test"; // planning still via legacy paramify before new separation
+// Use new param-generation backend module
+const MODULE_PREFIX = "/air/param-generation";
 
 export default function ParamPlanStep() {
   const [prompt, setPrompt] = useState("");
@@ -22,6 +22,8 @@ export default function ParamPlanStep() {
   const [raw, setRaw] = useState<string | null>(null);
   const [parsed, setParsed] = useState<any | null>(null);
   const [normalized, setNormalized] = useState<any | null>(null);
+  const [systemPrompt, setSystemPrompt] = useState<string | null>(null);
+  const [userPrompt, setUserPrompt] = useState<string | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   // Editing panel state
@@ -35,7 +37,7 @@ export default function ParamPlanStep() {
     let mounted = true;
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/chat-smoke/providers`);
+  const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/providers`);
         if (!res.ok) return;
         const data = await res.json();
         const list = Array.isArray(data?.providers) ? data.providers as ChatProviderInfo[] : [];
@@ -60,7 +62,7 @@ export default function ParamPlanStep() {
     if (!provider) { setModels([]); return; }
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/chat-smoke/models/${provider}`);
+  const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/models/${provider}`);
         if (!res.ok) { if (mounted) setModels([]); return; }
         const data = await res.json();
         const list = Array.isArray(data?.models) ? data.models as string[] : [];
@@ -94,34 +96,61 @@ export default function ParamPlanStep() {
 
   const send = useCallback(async () => {
     if (!prompt.trim()) { setError("Wpisz opis utworu."); return; }
-    setLoading(true); setError(null); setRaw(null); setParsed(null); setNormalized(null); setRunId(null); setWarnings([]);
+  setLoading(true); setError(null); setRaw(null); setParsed(null); setNormalized(null); setRunId(null); setWarnings([]);
+  setSystemPrompt(null); setUserPrompt(null);
     try {
-      const body = { prompt, provider, model };
-      const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/chat-smoke/paramify`, {
+      const body = {
+        midi: {
+          prompt: prompt,
+          style: "ambient",
+          mood: "calm",
+          tempo: 80,
+          key: "C",
+          scale: "major",
+          meter: "4/4",
+          bars: 16,
+          length_seconds: 180,
+          dynamic_profile: "moderate",
+          arrangement_density: "balanced",
+          harmonic_color: "diatonic",
+          instruments: ["piano","pad","strings"],
+          instrument_configs: [],
+          seed: null,
+        },
+        provider,
+        model,
+      };
+      const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/midi-plan`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok) throw new Error(payload?.detail?.message || res.statusText || "Request failed");
       const runVal = typeof payload?.run_id === 'string' ? payload.run_id : null;
       setRunId(runVal);
+  const sysStr = typeof payload?.system === 'string' ? payload.system : null;
+  const userStr = typeof payload?.user === 'string' ? payload.user : null;
+  setSystemPrompt(sysStr);
+  setUserPrompt(userStr);
       const rawStr = typeof payload?.raw === 'string' ? payload.raw : null;
       setRaw(rawStr);
-      setParsed(payload?.parsed ?? null);
-      const norm = payload?.normalized ?? null;
-      setNormalized(norm);
-      // Initialize editor state if MIDI part present
+  const parsed = payload?.parsed ?? null;
+  setParsed(parsed);
+  const norm = parsed?.meta ? { midi: parsed.meta } : null;
+  setNormalized(norm);
+      // Initialize editor state if MIDI meta present
       const midiPart = norm?.midi ?? null;
       if (midiPart && typeof midiPart === 'object') {
-        const normalizedMidi = normalizeMidi(midiPart);
+        const normalizedMidi = normalizeMidi(midiPart as any);
         setMidi(cloneMidi(normalizedMidi));
       } else {
         setMidi(null);
       }
-      const errorsArr = Array.isArray(payload?.errors) ? payload.errors.filter((e: any) => typeof e === 'string') : [];
-      const warn: string[] = [];
-      if (!payload?.normalized?.midi && !payload?.normalized?.audio) warn.push("Brak pełnych danych z modelu.");
-  if (errorsArr.length) warn.push(...errorsArr.map((e: string) => `parse: ${e}`));
-      setWarnings(Array.from(new Set(warn)));
+  const errorsArr = Array.isArray(payload?.errors) ? payload.errors.filter((e: any) => typeof e === 'string') : [];
+  const warn: string[] = [];
+  const hasMeta = !!(parsed && parsed.meta && typeof parsed.meta === 'object');
+  if (!hasMeta) warn.push("Brak pełnych danych z modelu.");
+	  if (errorsArr.length) warn.push(...errorsArr.map((e: string) => `parse: ${e}`));
+  setWarnings(Array.from(new Set(warn)));
     } catch (e:any) {
       setError(e?.message || String(e));
     } finally {
@@ -132,7 +161,7 @@ export default function ParamPlanStep() {
   return (
     <section className="bg-gray-900/30 border border-blue-700/30 rounded-2xl shadow-lg shadow-blue-900/10 px-6 pt-6 pb-4 space-y-5">
       <h2 className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-indigo-500 animate-pulse">Krok 1 • Generowanie parametrów</h2>
-      <p className="text-xs text-gray-400 max-w-2xl">Model generuje strukturę <span className="text-sky-300">midi/audio</span> w formacie JSON. Wynik będzie podstawą do późniejszego tworzenia planu MIDI i renderu audio.</p>
+      <p className="text-xs text-gray-400 max-w-2xl">Model generuje <span className="text-sky-300">parametry muzyczne</span> w formacie JSON. Wynik będzie podstawą do późniejszego tworzenia planu MIDI i renderu audio.</p>
       {/* Layout: lewa kolumna 1/4 (provider, model), prawa 3/4 (prompt) */}
       <div className="grid md:grid-cols-4 gap-4 items-start">
         <div className="md:col-span-1 space-y-3">
@@ -213,7 +242,6 @@ export default function ParamPlanStep() {
             modulePrefix={"/air/param-generation"}
             compact
             columns={4}
-            hideFx
             onUpdate={(patch: Partial<MidiParameters>) => setMidi((prev: MidiParameters | null) => prev ? { ...prev, ...patch } : prev)}
             onToggleInstrument={(inst: string) => {
               setMidi((prev: MidiParameters | null) => {
@@ -243,11 +271,34 @@ export default function ParamPlanStep() {
           />
         </div>
       )}
-      {/* Normalizowana odpowiedź modelu (jedyny podgląd) */}
-      {normalized && (
-        <div className="bg-gray-900/30 rounded-xl px-3 py-2 border border-blue-800/30">
-          <div className="text-sky-300 text-xs mb-1">Normalizowana odpowiedź modelu</div>
-          <pre className="mt-1 whitespace-pre-wrap break-words text-[11px]">{pretty(normalized)}</pre>
+      {/* Podgląd promptu i odpowiedzi modelu */}
+      {(systemPrompt || userPrompt || normalized || raw) && (
+        <div className="bg-gray-900/30 rounded-xl px-3 py-2 border border-blue-800/30 space-y-2">
+          <div className="text-sky-300 text-xs mb-1">Pełny kontekst wymiany z modelem</div>
+          {systemPrompt && (
+            <div>
+              <div className="text-[10px] text-gray-400">System prompt</div>
+              <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-blue-900/40">{systemPrompt}</pre>
+            </div>
+          )}
+          {userPrompt && (
+            <div>
+              <div className="text-[10px] text-gray-400">User payload (JSON)</div>
+              <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-blue-900/40">{userPrompt}</pre>
+            </div>
+          )}
+          {normalized && (
+            <div>
+              <div className="text-[10px] text-gray-400">Normalizowana odpowiedź modelu</div>
+              <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-blue-900/40">{pretty(normalized)}</pre>
+            </div>
+          )}
+          {raw && (
+            <details className="mt-1">
+              <summary className="cursor-pointer text-[10px] text-gray-500 hover:text-gray-300">Pokaż surową odpowiedź modelu</summary>
+              <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-blue-900/40">{raw}</pre>
+            </details>
+          )}
         </div>
       )}
     </section>

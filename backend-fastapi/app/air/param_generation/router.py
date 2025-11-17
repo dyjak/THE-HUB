@@ -19,29 +19,14 @@ try:  # optional inventory usage for hints
 except Exception:
     _inventory_instruments = None  # type: ignore
 from .debug_store import DEBUG_STORE
-
-# Lazy import helpers to avoid hard dependency at import-time (main may synthesize packages)
-def _get_clients():
-    """Late import of provider client helpers.
-
-    We look for the ai-render-test module first (newer), then ai-param-test as fallback.
-    This avoids hard import errors if one variant isn't present.
-    """
-    errors = []
-    for pkg in ("ai_render_test", "ai_param_test"):
-        try:
-            base = f"app.tests.{pkg}.chat_smoke.client"
-            mod = __import__(base, fromlist=["get_openai_client"])
-            get_openai_client = getattr(mod, "get_openai_client")
-            get_anthropic_client = getattr(mod, "get_anthropic_client")
-            get_gemini_client = getattr(mod, "get_gemini_client")
-            _list_providers = getattr(mod, "list_providers")
-            _list_models = getattr(mod, "list_models")
-            return get_openai_client, get_anthropic_client, get_gemini_client, _list_providers, _list_models
-        except Exception as e:  # pragma: no cover
-            errors.append(f"{pkg}: {e}")
-            continue
-    raise RuntimeError("param-generation: provider clients unavailable; attempted: " + "; ".join(errors))
+from app.air.providers.client import (
+    get_openai_client as _get_openai_client,
+    get_anthropic_client as _get_anthropic_client,
+    get_gemini_client as _get_gemini_client,
+    get_openrouter_client as _get_openrouter_client,
+    list_providers as _providers_list,
+    list_models as _models_list,
+)
 
 
 router = APIRouter(prefix="/air/param-generation", tags=["air:param-generation"])
@@ -56,15 +41,13 @@ class ProvidersOut(BaseModel):
 
 @router.get("/providers", response_model=ProvidersOut)
 def providers() -> ProvidersOut:
-    _get_openai, _get_anthropic, _get_gemini, _list_providers, _list_models = _get_clients()
-    items = _list_providers()
+    items = _providers_list()
     return ProvidersOut(providers=items)
 
 
 @router.get("/models/{provider}")
 def models(provider: str):
-    _get_openai, _get_anthropic, _get_gemini, _list_providers, _list_models = _get_clients()
-    return {"provider": provider, "models": _list_models(provider)}
+    return {"provider": provider, "models": _models_list(provider)}
 
 
 def _allowed_instruments_hint() -> str:
@@ -81,45 +64,50 @@ def _allowed_instruments_hint() -> str:
 
 
 def _midi_plan_system(midi: MidiPlanIn) -> tuple[str, str]:
+    """Build system and user prompts for the *parameter planner*.
+
+    This agent is responsible ONLY for high-level musical parameters, not
+    for concrete MIDI note sequences. It should return a JSON object with
+    a single key `meta` that mirrors MidiPlanIn/MidiParameters-like fields.
+    """
     allowed = _allowed_instruments_hint()
     system = (
-        "You are a precise MIDI planner. Respond ONLY with valid minified JSON in the exact schema:"
-        " {\"pattern\":[{\"bar\":number,\"events\":[{\"step\":number,\"note\":number,\"vel\":number,\"len\":number}]}],"
-        " \"layers\":{\"<instrument>\":[{\"bar\":number,\"events\":[{\"step\":number,\"note\":number,\"vel\":number,\"len\":number}]}]},"
-        " \"meta\":{\"tempo\":number,\"instruments\":[string],\"seed\":number|null}}."
-        f" Use exactly {midi.bars} bars; each bar index starts at 0; steps are integers in [0..7]; len >= 1; vel in [1..127]."
-        f" Instruments must be exactly these (order preserved): {midi.instruments}. Do not invent others."
-        f" meta.tempo must be {midi.tempo}. meta.seed may be null or a number."
-        " The combined pattern must reflect the union of all layers (merge per-bar events)."
-        " Musicality: respect style/mood; bass lower register; lead higher; pads sustained (len 2-4)."
-        " IMPORTANT: Allowed instrument names are strictly: [" + allowed + "]."
+        "You are a precise music parameter planner, NOT a MIDI composer. "
+        "Respond ONLY with valid minified JSON in the exact schema:"
+    " {\"meta\":{"
+    "\"style\":string,\"mood\":string,\"tempo\":number,\"key\":string,\"scale\":string,"
+    "\"meter\":string,\"bars\":number,\"length_seconds\":number,"
+    "\"dynamic_profile\":string,\"arrangement_density\":string,\"harmonic_color\":string,"
+    "\"instruments\":[string]}}."
+        " Choose all values based on the natural-language description from the user."
+        " You are free to change tempo, bar count, form and instrument choices to best match the request."
+        " This module plans parameters only. Do NOT output any MIDI notes,"
+        " patterns, bars with steps, or note/velocity/length grids."
         " No markdown, no comments."
+        " IMPORTANT: Allowed instrument names are strictly: [" + allowed + "]."
+        " Always use only these names in meta.instruments (case preserved as listed)."
     )
+    # For generative behavior we only send the high-level natural language
+    # description from the user. All concrete parameter values are chosen by
+    # the model within the schema constraints described in the system prompt.
     user = json.dumps({
-        "task": "compose_midi_layers",
-        "context": {
-            "style": midi.style,
-            "mood": midi.mood,
-            "key": midi.key,
-            "scale": midi.scale,
-            "meter": midi.meter,
-            "dynamic_profile": midi.dynamic_profile,
-            "arrangement_density": midi.arrangement_density,
-            "harmonic_color": midi.harmonic_color,
-        },
-        "tempo": midi.tempo,
-        "bars": midi.bars,
-        "instruments": midi.instruments,
-        "seed": midi.seed,
+        "task": "plan_midi_parameters",
+        "user_prompt": getattr(midi, "prompt", None),
     }, separators=(",", ":"))
     return system, user
 
 
 def _call_model(provider: str, model: Optional[str], system: str, user: str) -> str:
+    """Call underlying LLM provider and return raw text response.
+
+    This wrapper tries to be defensive about provider SDK response shapes,
+    especially for Gemini where `.text` may not be populated.
+    """
     provider = (provider or "gemini").lower()
-    _get_openai, _get_anthropic, _get_gemini, _list_providers, _list_models = _get_clients()
+
+    # OpenAI
     if provider == "openai":
-        client = _get_openai()
+        client = _get_openai_client()
         use_model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
         resp = client.chat.completions.create(
             model=use_model,
@@ -130,8 +118,10 @@ def _call_model(provider: str, model: Optional[str], system: str, user: str) -> 
             temperature=0.0,
         )
         return (resp.choices[0].message.content or "").strip()
+
+    # Anthropic
     if provider == "anthropic":
-        client = _get_anthropic()
+        client = _get_anthropic_client()
         use_model = model or os.getenv("ANTHROPIC_MODEL", "claude-3-5-haiku-latest")
         resp = client.messages.create(
             model=use_model,
@@ -147,12 +137,58 @@ def _call_model(provider: str, model: Optional[str], system: str, user: str) -> 
             if t:
                 out.append(t)
         return "\n".join(out).strip()
+
+    # Gemini / Google Generative AI
     if provider == "gemini":
-        g = _get_gemini()
+        g = _get_gemini_client()
         use_model = model or os.getenv("GOOGLE_MODEL", "gemini-2.5-flash")
-        m = g.GenerativeModel(use_model, system_instruction=system)
+
+        # Newer SDKs expect system instruction as list of parts; fall back to old style.
+        try:
+            m = g.GenerativeModel(use_model, system_instruction=system)
+        except TypeError:
+            # In some SDK versions `system_instruction` expects list[dict]
+            m = g.GenerativeModel(
+                use_model,
+                system_instruction=[{"role": "system", "parts": [system]}],
+            )
+
         r = m.generate_content(user)
+
+        # Preferred path: candidates -> content.parts[].text
+        try:
+            text_parts = []
+            candidates = getattr(r, "candidates", None) or []
+            for cand in candidates:
+                content = getattr(cand, "content", None)
+                parts = getattr(content, "parts", None) or []
+                for part in parts:
+                    t = getattr(part, "text", None)
+                    if t:
+                        text_parts.append(t)
+            if text_parts:
+                return "\n".join(text_parts).strip()
+        except Exception:
+            # fall back to simpler shapes below
+            pass
+
+        # Fallback: r.text or stringified object
         return (getattr(r, "text", None) or str(r) or "").strip()
+
+    # OpenRouter (OpenAI-compatible)
+    if provider == "openrouter":
+        client = _get_openrouter_client()
+        # Curated default chosen for structured output and free tier
+        use_model = model or os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")
+        resp = client.chat.completions.create(
+            model=use_model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            temperature=0.0,
+        )
+        return (resp.choices[0].message.content or "").strip()
     raise HTTPException(status_code=400, detail={"error": "unknown_provider", "message": f"Unknown provider: {provider}"})
 
 
@@ -309,6 +345,56 @@ class MidiPlanRequest(BaseModel):
     model: Optional[str] = None
 
 
+def _safe_parse_json(raw: str) -> tuple[Optional[Dict[str, Any]], list[str]]:
+    """Try to parse JSON from model output, with a couple of safety nets.
+
+    - Strips potential ```json fences.
+    - On first failure, tries truncating to the last closing brace to
+      recover from outputs that were cut off mid-stream.
+    """
+    errors: list[str] = []
+    text = (raw or "").strip()
+
+    # Strip markdown code fences if the model decided to add them anyway.
+    if text.startswith("```"):
+        try:
+            # find first closing ``` after the opening fence
+            fence_end = text.index("```", 3) + 3
+            # take everything after that until the final fence (if present)
+            tail = text[fence_end:]
+            if "```" in tail:
+                inner_end = tail.rindex("```")
+                text = tail[:inner_end].strip()
+            else:
+                text = tail.strip()
+        except ValueError:
+            errors.append("parse: unable to strip markdown fences")
+
+    last_error: Optional[Exception] = None
+    for attempt in range(2):
+        try:
+            candidate = json.loads(text)
+            if isinstance(candidate, dict):
+                return candidate, errors
+            errors.append("parse: top-level JSON must be an object")
+            return None, errors
+        except Exception as e:  # noqa: PERF203
+            last_error = e
+            if attempt == 0:
+                # Try truncating to the last closing brace in case
+                # the response was cut off in the middle of streaming.
+                last_brace = text.rfind("}")
+                if last_brace > 0:
+                    text = text[: last_brace + 1]
+                    errors.append(f"parse: truncated to last brace due to {e}")
+                    continue
+            errors.append(f"parse: {e}")
+            break
+
+    # Failed to recover
+    return None, errors
+
+
 @router.post("/midi-plan")
 def midi_plan(body: MidiPlanRequest):
     run = DEBUG_STORE.start()
@@ -320,25 +406,23 @@ def midi_plan(body: MidiPlanRequest):
 
     system, user = _midi_plan_system(midi)
     try:
-        run.log("provider_call", "request", {"provider": (body.provider or "gemini"), "model": (body.model or None)})
+        run.log("provider_call", "request", {
+            "provider": (body.provider or "gemini"),
+            "model": (body.model or None),
+            "system": system,
+            "user": user,
+        })
         raw = _call_model(body.provider or "gemini", body.model, system, user)
         run.log("provider_call", "raw_received", {"chars": len(raw)})
     except Exception as e:
         run.log("provider_call", "failed", {"error": str(e)})
         raise HTTPException(status_code=400, detail={"error": "provider_error", "message": str(e)})
 
-    parsed = None
-    errors: list[str] = []
-    try:
-        candidate = json.loads(raw)
-        if isinstance(candidate, dict):
-            parsed = candidate
-        else:
-            errors.append("parse: top-level JSON must be an object")
-            run.log("parse", "json_error", {"error": "top_level_not_object"})
-    except Exception as e:
-        errors.append(f"parse: {e}")
-        run.log("parse", "json_error", {"error": str(e)})
+    # Parse JSON with a few guard rails so that slightly malformed outputs
+    # do not completely break the UX.
+    parsed, errors = _safe_parse_json(raw)
+    if errors:
+        run.log("parse", "json_error", {"error": errors[0]})
 
     # Persist outputs
     run_dir = OUTPUT_DIR / f"{json.dumps(None) or ''}"
@@ -374,6 +458,8 @@ def midi_plan(body: MidiPlanRequest):
 
     result: Dict[str, Any] = {
         "run_id": run.run_id,
+        "system": system,
+        "user": user,
         "raw": raw,
         "parsed": parsed,
         "errors": errors or None,

@@ -19,7 +19,7 @@ export default function Nav() {
                 <Link href="/air" className="text-xl hover:text-gray-300"> <FaHome />  </Link>
                 <Link href="/air" className="text-xl hover:text-gray-300"><FaGithub/> </Link>
                 <Link href="/air" className="text-xl hover:text-gray-300"> <FaBrain /></Link>
-                <Link href="/air/inventory" className="text-xl hover:text-gray-300"> Inventory </Link>
+                <Link href="/air/inventory" className="text-s hover:text-gray-300"> Inventory </Link>
 
             </div>
             <div>

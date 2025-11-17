@@ -29,6 +29,9 @@ class InstrumentConfig(BaseModel):
 
 
 class MidiPlanIn(BaseModel):
+    # Natural-language description from the user, e.g. "cinematic soundtrack with bass guitar".
+    # This is the primary driver for the AI parameter planner.
+    prompt: str = Field(default="")
     style: str = Field(default="ambient")
     mood: str = Field(default="calm")
     tempo: int = Field(default=80, ge=20, le=300)
@@ -42,7 +45,6 @@ class MidiPlanIn(BaseModel):
     harmonic_color: str = Field(default="diatonic")
     instruments: List[str] = Field(default_factory=lambda: ["piano","pad","strings"])
     instrument_configs: List[InstrumentConfig] = Field(default_factory=list)
-    seed: Optional[int] = None
 
     @validator("instruments", pre=True)
     def normalize_instruments(cls, v):
