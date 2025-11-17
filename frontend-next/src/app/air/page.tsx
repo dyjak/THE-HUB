@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import AnimatedCard from "../../components/ui/AnimatedCard";
 import ParamPlanStep from "./step-components/ParamPlanStep";
+import CosmicOrb from "@/components/ui/CosmicOrb";
 
 type StepId = "param-plan" | "midi-plan" | "midi-export" | "render";
 
@@ -19,12 +20,22 @@ export default function AirPanel() {
 
 	return (
 		<div className="min-h-screen w-full bg-transparent from-black via-gray-950 to-black text-white px-6 py-10 space-y-6">
-			<div className="flex items-center justify-between">
-				<h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-500">AIR • Modular Pipeline</h1>
-				<button
+			<div className="flex items-center justify-between gap-6">
+				<div className="flex-1" />
+				<div className="flex flex-col items-center gap-2 select-none">
+					<div className="font-[system-ui] text-4xl md:text-5xl font-semibold tracking-tight text-white">
+						AIR 4.2
+					</div>
+					<div className="hidden sm:block w-[360px] h-[360px]">
+						<CosmicOrb />
+					</div>
+				</div>
+				<div className="flex-1 flex justify-end">
+					<button
 					onClick={() => setShowTests(v => !v)}
 					className="px-3 py-1.5 rounded border border-gray-700 text-xs text-gray-300 hover:bg-black/40"
-				>{showTests ? "Ukryj testy" : "Pokaż testy"}</button>
+					>{showTests ? "Ukryj testy" : "Pokaż testy"}</button>
+				</div>
 			</div>
 
 			{showTests && (
