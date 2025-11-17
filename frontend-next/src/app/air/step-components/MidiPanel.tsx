@@ -94,6 +94,12 @@ const MidiPanelComponent = ({
   const FX = ["Impact", "Riser", "Subdrop", "Swell", "Texture"];
   const genericInstruments = selectableInstruments.filter(inst => !DRUMS.includes(inst) && !FX.includes(inst));
 
+  // Derive instruments that are present in the MIDI meta but not available in the inventory.
+  const missingInstruments = useMemo(
+    () => midi.instruments.filter(inst => !availableInstruments.includes(inst)),
+    [midi.instruments, availableInstruments],
+  );
+
   // Helper to ensure the current value is always present in the select options
   const withCurrent = useCallback(<T extends string>(options: readonly T[], current: string | undefined | null): string[] => {
     const base = Array.from(options) as string[];
@@ -118,6 +124,21 @@ const MidiPanelComponent = ({
   return (
     <div className="bg-gray-900/60 p-4 rounded-lg border border-gray-700 space-y-4 col-span-2">
       <h2 className="font-semibold text-emerald-300">MIDI Parameters</h2>
+      {missingInstruments.length > 0 && (
+        <div className="flex items-start gap-2 text-xs bg-amber-900/40 border border-amber-600/70 text-amber-100 px-3 py-2 rounded-lg">
+          <span className="mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-black text-[10px] font-bold">!</span>
+          <div>
+            <div className="font-semibold uppercase tracking-widest text-[10px] text-amber-200">Instrumenty poza lokalną bazą sampli</div>
+            <div className="mt-0.5 text-[11px]">
+              Model AI zwrócił instrumenty, dla których nie znaleziono lokalnych sampli:&nbsp;
+              <span className="font-mono">
+                {missingInstruments.join(", ")}
+              </span>
+              . Możesz zmienić wybór instrumentów lub ręcznie dobrać najbliższy odpowiednik.
+            </div>
+          </div>
+        </div>
+      )}
       <div className={`grid ${gridCols} gap-4 ${sizeClass}`}>
         <div>
           <label className="block mb-1">Style</label>
@@ -262,9 +283,18 @@ const MidiPanelComponent = ({
           <div className="text-xs text-gray-400 uppercase tracking-widest">Instrument configs</div>
           {midi.instrument_configs.filter(cfg => cfg.name !== "drums").map(config => (
             <div key={config.name} className="bg-black/40 border border-gray-800 rounded-lg p-4 space-y-3">
-              <div className="flex flex-wrap gap-3 items-center">
-                <div className="font-semibold text-emerald-200">{config.name}</div>
-                <div className="text-[11px] text-gray-500">{config.role} • {config.register}</div>
+              <div className="flex flex-wrap gap-3 items-center justify-between">
+                <div className="flex flex-wrap gap-3 items-center">
+                  <div className="font-semibold text-emerald-200">{config.name}</div>
+                  <div className="text-[11px] text-gray-500">{config.role} • {config.register}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onToggleInstrument(config.name)}
+                  className="ml-auto text-[11px] px-2 py-1 rounded border border-red-600/70 text-red-300 hover:bg-red-900/40"
+                >
+                  Usuń instrument
+                </button>
               </div>
               <SampleSelector
                 apiBase={apiBase}

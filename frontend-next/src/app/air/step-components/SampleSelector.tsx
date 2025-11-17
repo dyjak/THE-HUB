@@ -47,8 +47,10 @@ export function SampleSelector({ apiBase, apiPrefix, modulePrefix, instrument, s
 
   const current = useMemo(() => (items || []).find(x => x.id === selectedId) || null, [items, selectedId]);
 
+  const hasNoLocalSamples = !items || items.length === 0;
+
   return (
-    <div className="space-y-2">
+    <div className={`space-y-2 ${hasNoLocalSamples ? "border border-red-500/60 rounded-md p-2 bg-red-950/20" : ""}`}>
       <div className="flex items-center gap-2">
         <label className="text-[11px] text-gray-400">Sample</label>
         {loading && <span className="text-[11px] text-gray-500">loading…</span>}
@@ -56,11 +58,13 @@ export function SampleSelector({ apiBase, apiPrefix, modulePrefix, instrument, s
       </div>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <select
-          className="bg-black/60 p-2 rounded border border-gray-700 text-xs min-w-[200px]"
+          className={`bg-black/60 p-2 rounded border text-xs min-w-[200px] ${hasNoLocalSamples ? "border-red-500 text-red-300" : "border-gray-700"}`}
           value={selectedId ?? ""}
           onChange={e => onChange(instrument, e.target.value || null)}
         >
-          {(!items || items.length === 0) && <option value="">(no local samples)</option>}
+          {hasNoLocalSamples && (
+            <option value="" className="text-red-400">(no local samples)</option>
+          )}
           {(items || []).map(item => (
             <option key={item.id} value={item.id}>
               {item.name} {item.pitch ? `• ${item.pitch}` : ""} {item.subtype ? `• ${item.subtype}` : ""}

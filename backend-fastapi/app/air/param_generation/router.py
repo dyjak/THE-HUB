@@ -241,19 +241,46 @@ def _resolve_target_instruments(inv: dict, name: str) -> list[str]:
         return [x for x in opts if x in names]
 
     # synonyms / normalization -> singular instrument naming
+    # Canonical inventory instruments (for reference):
+    # 808, Bass, Bass Guitar, Bass Synth, Bell, Brass, Clap, Flute, Guitar,
+    # Hat, Impact, Kick, Lead, Pad, Piano, Pluck, Reese, Riser, Snare,
+    # Subdrop, Swell, Synth, Texture, Violin
     syn = {
+        # Core tonal families
         "pad": "Pad", "pads": "Pad",
         "bell": "Bell", "bells": "Bell",
         "pluck": "Pluck", "plucks": "Pluck",
         "lead": "Lead", "leads": "Lead",
         "synth": "Synth", "reese": "Reese",
         "bass": "Bass", "bass guitar": "Bass Guitar", "bass synth": "Bass Synth",
-        "flute": "Flute", "guitar": "Guitar", "sax": "Sax",
-        "piano": "Piano", "violin": "Violin", "brass": "Brass",
+        "flute": "Flute", "guitar": "Guitar",
+        "piano": "Piano",
+        # String family / orchestral synonyms
+        "violin": "Violin", "violins": "Violin",
+        "cello": "Violin", "cellos": "Violin",
+        "viola": "Violin", "violas": "Violin",
+        "strings": "Violin", "string section": "Violin",
+        "orchestra": "Brass",  # rough fallback if only brass/strings are available
+        "brass": "Brass",
+        # FX textures
+        "fx": "Texture", "textures": "Texture",
+        # 808 / low percussion
         "808": "808",
+        # high-level rhythm labels -> treat as drumkit / percussive set
+        "drum": "Kick", "drums": "Kick", "drumkit": "Kick",
+        "percussion": "Clap", "percussions": "Clap",
+        # melodic plucked instrument not in inventory -> map to Pluck as a generic
+        "harp": "Pluck", "harps": "Pluck",
         # drum parts
-        "kick": "Kick", "snare": "Snare", "clap": "Clap",
+        "kick": "Kick", "kicks": "Kick",
+        "snare": "Snare", "snares": "Snare",
+        "clap": "Clap", "claps": "Clap",
         "hihat": "Hat", "hi-hat": "Hat", "hats": "Hat", "hat": "Hat", "hh": "Hat",
+        # impacts / risers / swells
+        "impact": "Impact", "impacts": "Impact",
+        "riser": "Riser", "risers": "Riser",
+        "subdrop": "Subdrop", "sub drop": "Subdrop",
+        "swell": "Swell", "swells": "Swell",
     }
 
     # Exact
