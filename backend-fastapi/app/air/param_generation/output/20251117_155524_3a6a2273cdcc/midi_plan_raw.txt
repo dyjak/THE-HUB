@@ -1,1 +1,0 @@
-{"meta":{"style":"Orchestral","mood":"Epic","tempo":90,"key":"C minor","scale":"Natural minor","meter":"4/4","bars":64,"length_seconds":286,"dynamic_profile":"Crescendo","arrangement_density":"High","harmonic_color":"Rich","instruments":["Bass Guitar","Piano","Violin","Brass"]}}

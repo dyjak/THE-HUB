@@ -5,7 +5,7 @@ type ProviderInfo = { id: string; name: string; default_model?: string };
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
 
-const DEFAULT_MIDI = {
+const DEFAULT_PLAN = {
   style: "ambient",
   mood: "calm",
   tempo: 80,
@@ -23,12 +23,12 @@ const DEFAULT_MIDI = {
   seed: null,
 };
 
-export default function MidiPlanPage() {
+export default function ParameterPlanPage() {
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [provider, setProvider] = useState<string>("");
   const [models, setModels] = useState<string[]>([]);
   const [model, setModel] = useState<string>("");
-  const [midiText, setMidiText] = useState<string>(() => JSON.stringify(DEFAULT_MIDI, null, 2));
+  const [planText, setPlanText] = useState<string>(() => JSON.stringify(DEFAULT_PLAN, null, 2));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [raw, setRaw] = useState<string | null>(null);
@@ -39,7 +39,7 @@ export default function MidiPlanPage() {
 
   const PROVIDERS_URL = `${API_BASE}/api/air/param-generation/providers`;
   const MODELS_URL = (p: string) => `${API_BASE}/api/air/param-generation/models/${encodeURIComponent(p)}`;
-  const PLAN_URL = `${API_BASE}/api/air/param-generation/midi-plan`;
+  const PLAN_URL = `${API_BASE}/api/air/param-generation/plan`;
   const OUTPUT_PREFIX = `${API_BASE}/api/param-generation/output`;
 
   useEffect(() => {
@@ -87,17 +87,17 @@ export default function MidiPlanPage() {
 
   const onGenerate = useCallback(async () => {
     setLoading(true); setError(null); setRaw(null); setParsed(null); setRunId(null); setSavedJson(null); setSavedRaw(null);
-    let midi: any = null;
+    let parameters: any = null;
     try {
-      midi = JSON.parse(midiText);
+      parameters = JSON.parse(planText);
     } catch (e) {
-      setError("Błąd JSON w polu MIDI"); setLoading(false); return;
+      setError("Błąd JSON w polu parametrów"); setLoading(false); return;
     }
     try {
       const res = await fetch(PLAN_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ midi, provider, model }),
+  body: JSON.stringify({ parameters, provider, model }),
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok) throw new Error(payload?.detail?.message || res.statusText || "Request failed");
@@ -111,12 +111,12 @@ export default function MidiPlanPage() {
     } finally {
       setLoading(false);
     }
-  }, [PLAN_URL, midiText, provider, model]);
+  }, [PLAN_URL, planText, provider, model]);
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-black via-gray-950 to-black text-white px-6 py-10 space-y-8">
-      <h1 className="text-3xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-cyan-400 to-emerald-400">AI MIDI Plan • Step 2</h1>
-      <p className="text-sm text-gray-400 max-w-3xl">Ten panel generuje <span className="text-emerald-300">plan MIDI</span> (pattern + layers + meta) na podstawie parametrów. Wynik zapisywany jest do pliku, aby kolejne moduły mogły z niego skorzystać niezależnie od sesji.</p>
+  <h1 className="text-3xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-cyan-400 to-emerald-400">AI Parameter Plan • Step 2</h1>
+  <p className="text-sm text-gray-400 max-w-3xl">Ten panel generuje <span className="text-emerald-300">plan parametrów muzycznych</span> (meta + instrumenty + konfiguracje) na podstawie prompta. Wynik zapisywany jest do pliku, aby kolejne moduły mogły z niego skorzystać niezależnie od sesji.</p>
 
       <section className="bg-gray-900/70 border border-blue-800/40 rounded-2xl p-6 space-y-4">
         <div className="grid md:grid-cols-3 gap-4">
@@ -138,12 +138,12 @@ export default function MidiPlanPage() {
           </div>
         </div>
         <div>
-          <label className="block text-xs uppercase tracking-widest text-blue-300 mb-1">MIDI parameters (JSON)</label>
-          <textarea value={midiText} onChange={e=>setMidiText(e.target.value)} rows={14} className="w-full bg-black/60 border border-gray-800 rounded-xl px-4 py-3 text-sm font-mono" />
+          <label className="block text-xs uppercase tracking-widest text-blue-300 mb-1">Music parameters (JSON)</label>
+          <textarea value={planText} onChange={e=>setPlanText(e.target.value)} rows={14} className="w-full bg-black/60 border border-gray-800 rounded-xl px-4 py-3 text-sm font-mono" />
           <div className="text-[10px] text-gray-500 mt-1">Wprowadź parametry wymagane przez model (tempo, bars, instruments, itd.).</div>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={onGenerate} disabled={loading} className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-sm font-semibold disabled:opacity-60">{loading ? 'Generuję…' : 'Generuj plan MIDI'}</button>
+          <button onClick={onGenerate} disabled={loading} className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-sm font-semibold disabled:opacity-60">{loading ? 'Generuję…' : 'Generuj plan parametrów'}</button>
           {runId && <span className="text-xs text-blue-200">run: {runId}</span>}
         </div>
         {error && <div className="bg-red-900/30 border border-red-800/70 text-red-200 text-sm rounded-xl px-4 py-3">{error}</div>}
@@ -178,7 +178,7 @@ export default function MidiPlanPage() {
         )}
       </section>
 
-      <div className="mt-8 text-center text-xs text-gray-600">Step 2 • AI MIDI Plan • outputs persisted for the next modules</div>
+  <div className="mt-8 text-center text-xs text-gray-600">Step 2 • AI Parameter Plan • outputs persisted for the next modules</div>
     </div>
   );
 }

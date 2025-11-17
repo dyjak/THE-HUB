@@ -22,13 +22,11 @@ class InstrumentConfig(BaseModel):
     name: str
     role: str = Field(default="accompaniment")
     register: str = Field(default="mid")
-    volume: float = Field(ge=0, le=1, default=0.8)
-    pan: float = Field(ge=-1, le=1, default=0.0)
     articulation: str = Field(default="sustain")
     dynamic_range: str = Field(default="moderate")
 
 
-class MidiPlanIn(BaseModel):
+class ParameterPlanIn(BaseModel):
     # Natural-language description from the user, e.g. "cinematic soundtrack with bass guitar".
     # This is the primary driver for the AI parameter planner.
     prompt: str = Field(default="")
@@ -88,7 +86,7 @@ class MidiPlanIn(BaseModel):
         return self.dict()
 
 
-class MidiPlanResult(BaseModel):
+class ParameterPlanResult(BaseModel):
     run_id: str
     plan: Dict[str, Any]
     raw: str

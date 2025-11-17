@@ -37,6 +37,25 @@ export const pickFrom = <T extends StringOptions>(value: unknown, options: T, fa
   return fallback;
 };
 
+// For creative/string parameters coming from the model, we want to keep
+// custom values while still snapping to our suggested options when they match.
+// If the value is empty/undefined we fall back, otherwise we return either the
+// canonical option (case-insensitive match) or the raw trimmed string.
+export const normalizeWithSuggestions = <T extends StringOptions>(
+  value: unknown,
+  options: T,
+  fallback: T[number],
+): string => {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return fallback;
+    const lower = trimmed.toLowerCase();
+    const match = (options as readonly string[]).find(opt => opt.toLowerCase() === lower);
+    return match ?? trimmed;
+  }
+  return fallback;
+};
+
 export const uniqueStrings = (items: string[]): string[] => {
   const seen = new Set<string>();
   const result: string[] = [];
@@ -52,45 +71,35 @@ export const uniqueStrings = (items: string[]): string[] => {
 
 export const createDefaultInstrumentConfig = (name: string, index = 0): InstrumentConfig => {
   const lower = name.toLowerCase();
-  let register: (typeof REGISTER_OPTIONS)[number] = "mid";
-  let role: (typeof ROLE_OPTIONS)[number] = index === 0 ? "lead" : "accompaniment";
-  let articulation: (typeof ARTICULATION_OPTIONS)[number] = "sustain";
-  let dynamic_range: (typeof DYNAMIC_RANGE_OPTIONS)[number] = "moderate";
-  let volume = 0.8;
-  let pan = clamp(-0.2 + index * 0.3, -0.6, 0.6);
+  let register: string = "Mid";
+  let role: string = index === 0 ? "Lead" : "Accompaniment";
+  let articulation: string = "Sustain";
+  let dynamic_range: string = "Moderate";
 
   if (["bass","bass_synth","bass_guitar","808","reese"].includes(lower)) {
-    register = "low";
-    role = "bass";
-    dynamic_range = "intense";
-    articulation = "legato";
-    volume = 0.9;
-    pan = 0;
+    register = "Low";
+    role = "Bass";
+    dynamic_range = "Intense";
+    articulation = "Legato";
   } else if (["kick","snare","hihat","clap","rim","tom","perc","drumkit"].includes(lower)) {
-    register = "low";
-    role = "percussion";
-    dynamic_range = "intense";
-    articulation = "percussive";
-    volume = 0.95;
-    pan = 0;
+    register = "Low";
+    role = "Percussion";
+    dynamic_range = "Intense";
+    articulation = "Percussive";
   } else if (["pad","strings","choir"].includes(lower)) {
-    register = "full";
-    role = "pad";
-    articulation = "sustain";
-    volume = 0.85;
+    register = "Full";
+    role = "Pad";
+    articulation = "Sustain";
   } else if (["lead","synth","guitar","piano","flute","trumpet","saxophone"].includes(lower)) {
-    role = index === 0 ? "lead" : "accompaniment";
-    register = lower === "flute" ? "high" : "mid";
-    articulation = ["synth","flute"].includes(lower) ? "legato" : "sustain";
-    volume = role === "lead" ? 0.9 : 0.8;
+    role = index === 0 ? "Lead" : "Accompaniment";
+    register = lower === "flute" ? "High" : "Mid";
+    articulation = ["synth","flute"].includes(lower) ? "Legato" : "Sustain";
   }
 
   return {
     name,
     register,
     role,
-    volume: clamp(volume, 0, 1),
-    pan: clamp(pan, -1, 1),
     articulation,
     dynamic_range,
   };
@@ -101,36 +110,42 @@ export const toInstrumentConfig = (raw: unknown): InstrumentConfig | null => {
   const source = raw as Record<string, unknown>;
   const name = String(source.name ?? "").trim();
   if (!name) return null;
-  const register = pickFrom(source.register, REGISTER_OPTIONS, "mid");
-  const role = pickFrom(source.role, ROLE_OPTIONS, "accompaniment");
-  const articulation = pickFrom(source.articulation, ARTICULATION_OPTIONS, "sustain");
-  const dynamic_range = pickFrom(source.dynamic_range, DYNAMIC_RANGE_OPTIONS, "moderate");
-  const volume = clamp(toNumber(source.volume, 0.8), 0, 1);
-  const pan = clamp(toNumber(source.pan, 0), -1, 1);
-  return { name, register, role, articulation, dynamic_range, volume, pan };
+  const register = normalizeWithSuggestions(source.register, REGISTER_OPTIONS, REGISTER_OPTIONS[1] ?? "Mid");
+  const role = normalizeWithSuggestions(source.role, ROLE_OPTIONS, ROLE_OPTIONS[1] ?? "Accompaniment");
+  const articulation = normalizeWithSuggestions(source.articulation, ARTICULATION_OPTIONS, ARTICULATION_OPTIONS[0] ?? "Sustain");
+  const dynamic_range = normalizeWithSuggestions(source.dynamic_range, DYNAMIC_RANGE_OPTIONS, DYNAMIC_RANGE_OPTIONS[1] ?? "Moderate");
+  return { name, register, role, articulation, dynamic_range };
 };
 
 export const ensureInstrumentConfigs = (instruments: string[], existing: InstrumentConfig[]): InstrumentConfig[] => {
-  const byName = new Map(existing.map(cfg => [cfg.name, cfg] as const));
+  // Build lookup maps by exact name and by lowercase name to tolerate
+  // casing differences or minor naming mismatches from the model.
+  const byExact = new Map(existing.map(cfg => [cfg.name, cfg] as const));
+  const byLower = new Map(existing.map(cfg => [cfg.name.toLowerCase(), cfg] as const));
+
   return instruments.map((inst, index) => {
-    const prev = byName.get(inst);
-    if (!prev) return createDefaultInstrumentConfig(inst, index);
-    return {
-      ...prev,
-      name: inst,
-    };
+    const exact = byExact.get(inst);
+    if (exact) {
+      return { ...exact, name: inst };
+    }
+    const lower = byLower.get(inst.toLowerCase());
+    if (lower) {
+      return { ...lower, name: inst };
+    }
+    // No config provided by the model – fall back to heuristic defaults.
+    return createDefaultInstrumentConfig(inst, index);
   });
 };
 
 export const normalizeMidi = (input: Partial<MidiParameters> | Record<string, unknown>): MidiParameters => {
-  const style = pickFrom(input.style ?? (input as any).genre, STYLE_OPTIONS, "ambient");
-  const mood = pickFrom(input.mood, MOOD_OPTIONS, "calm");
-  const key = pickFrom(input.key, KEY_OPTIONS, "C");
-  const scale = pickFrom(input.scale, SCALE_OPTIONS, "major");
-  const meter = pickFrom(input.meter, METER_OPTIONS, "4/4");
-  const dynamic_profile = pickFrom(input.dynamic_profile, DYNAMIC_PROFILE_OPTIONS, "moderate");
-  const arrangement_density = pickFrom(input.arrangement_density, ARRANGEMENT_DENSITY_OPTIONS, "balanced");
-  const harmonic_color = pickFrom(input.harmonic_color, HARMONIC_COLOR_OPTIONS, "diatonic");
+  const style = normalizeWithSuggestions(input.style ?? (input as any).genre, STYLE_OPTIONS, STYLE_OPTIONS[0] ?? "Ambient");
+  const mood = normalizeWithSuggestions(input.mood, MOOD_OPTIONS, MOOD_OPTIONS[0] ?? "Calm");
+  const key = normalizeWithSuggestions(input.key, KEY_OPTIONS, "C");
+  const scale = normalizeWithSuggestions(input.scale, SCALE_OPTIONS, SCALE_OPTIONS[0] ?? "Major");
+  const meter = normalizeWithSuggestions(input.meter, METER_OPTIONS, "4/4");
+  const dynamic_profile = normalizeWithSuggestions(input.dynamic_profile, DYNAMIC_PROFILE_OPTIONS, DYNAMIC_PROFILE_OPTIONS[1] ?? "Moderate");
+  const arrangement_density = normalizeWithSuggestions(input.arrangement_density, ARRANGEMENT_DENSITY_OPTIONS, ARRANGEMENT_DENSITY_OPTIONS[1] ?? "Balanced");
+  const harmonic_color = normalizeWithSuggestions(input.harmonic_color, HARMONIC_COLOR_OPTIONS, HARMONIC_COLOR_OPTIONS[0] ?? "Diatonic");
   const tempo = clamp(Math.round(toNumber(input.tempo, 80)), 20, 300);
   const bars = clamp(Math.round(toNumber(input.bars, 16)), 1, 512);
   const length_seconds = clamp(toNumber(input.length_seconds, 180), 30, 3600);

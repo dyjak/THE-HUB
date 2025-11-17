@@ -96,31 +96,32 @@ export default function ParamPlanStep() {
 
   const send = useCallback(async () => {
     if (!prompt.trim()) { setError("Wpisz opis utworu."); return; }
-  setLoading(true); setError(null); setRaw(null); setParsed(null); setNormalized(null); setRunId(null); setWarnings([]);
-  setSystemPrompt(null); setUserPrompt(null);
+	setLoading(true); setError(null); setRaw(null); setParsed(null); setNormalized(null); setRunId(null); setWarnings([]);
+	setSystemPrompt(null); setUserPrompt(null);
     try {
+      const parameters = {
+        prompt: prompt,
+        style: "ambient",
+        mood: "calm",
+        tempo: 80,
+        key: "C",
+        scale: "major",
+        meter: "4/4",
+        bars: 16,
+        length_seconds: 180,
+        dynamic_profile: "moderate",
+        arrangement_density: "balanced",
+        harmonic_color: "diatonic",
+        instruments: ["piano","pad","strings"],
+        instrument_configs: [],
+        seed: null,
+      };
       const body = {
-        midi: {
-          prompt: prompt,
-          style: "ambient",
-          mood: "calm",
-          tempo: 80,
-          key: "C",
-          scale: "major",
-          meter: "4/4",
-          bars: 16,
-          length_seconds: 180,
-          dynamic_profile: "moderate",
-          arrangement_density: "balanced",
-          harmonic_color: "diatonic",
-          instruments: ["piano","pad","strings"],
-          instrument_configs: [],
-          seed: null,
-        },
+        parameters,
         provider,
         model,
       };
-      const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/midi-plan`, {
+      const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/plan`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
       });
       const payload = await res.json().catch(() => null);

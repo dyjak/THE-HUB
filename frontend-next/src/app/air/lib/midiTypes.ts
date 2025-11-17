@@ -1,43 +1,32 @@
-import type {
-  RegisterOption,
-  RoleOption,
-  ArticulationOption,
-  DynamicRangeOption,
-  StyleOption,
-  MoodOption,
-  KeyOption,
-  ScaleOption,
-  MeterOption,
-  DynamicProfileOption,
-  ArrangementDensityOption,
-  HarmonicColorOption,
-} from "./constants";
+// We treat option lists in ./constants as *suggested* presets only.
+// To allow fully generative values from the model, all meta fields and
+// instrument config fields are typed as plain strings here.
 
 export interface InstrumentConfig {
   name: string;
-  register: RegisterOption;
-  role: RoleOption;
-  volume: number;
-  pan: number;
-  articulation: ArticulationOption;
-  dynamic_range: DynamicRangeOption;
+  register: string;
+  role: string;
+  articulation: string;
+  dynamic_range: string;
 }
 
 export interface MidiParameters {
-  style: StyleOption;
+  style: string;
   genre: string;
-  mood: MoodOption;
+  mood: string;
   tempo: number;
-  key: KeyOption;
-  scale: ScaleOption;
-  meter: MeterOption;
+  key: string;
+  scale: string;
+  meter: string;
   bars: number;
   length_seconds: number;
-  dynamic_profile: DynamicProfileOption;
-  arrangement_density: ArrangementDensityOption;
-  harmonic_color: HarmonicColorOption;
+  dynamic_profile: string;
+  arrangement_density: string;
+  harmonic_color: string;
   instruments: string[];
   instrument_configs: InstrumentConfig[];
+  // Optional seed used only on the frontend to pass through generative runs
+  seed?: number | null;
 }
 
 export interface SampleListItem {

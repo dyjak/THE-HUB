@@ -6,7 +6,7 @@ from pathlib import Path
 import json
 import os
 
-from .schemas import MidiPlanIn, MidiPlanResult
+from .schemas import ParameterPlanIn, ParameterPlanResult
 from urllib.parse import quote
 try:
     from app.air.inventory.access import get_inventory_cached as _inv_get_cached
@@ -63,7 +63,7 @@ def _allowed_instruments_hint() -> str:
     return "piano, pad, strings, lead, bass, drumkit, kick, snare, hihat, fx"
 
 
-def _midi_plan_system(midi: MidiPlanIn) -> tuple[str, str]:
+def _parameter_plan_system(plan: ParameterPlanIn) -> tuple[str, str]:
     """Build system and user prompts for the *parameter planner*.
 
     This agent is responsible ONLY for high-level musical parameters, not
@@ -74,12 +74,19 @@ def _midi_plan_system(midi: MidiPlanIn) -> tuple[str, str]:
     system = (
         "You are a precise music parameter planner, NOT a MIDI composer. "
         "Respond ONLY with valid minified JSON in the exact schema:"
-    " {\"meta\":{"
-    "\"style\":string,\"mood\":string,\"tempo\":number,\"key\":string,\"scale\":string,"
-    "\"meter\":string,\"bars\":number,\"length_seconds\":number,"
-    "\"dynamic_profile\":string,\"arrangement_density\":string,\"harmonic_color\":string,"
-    "\"instruments\":[string]}}."
+        " {\"meta\":{"
+        "\"style\":string,\"mood\":string,\"tempo\":number,\"key\":string,\"scale\":string,"
+        "\"meter\":string,\"bars\":number,\"length_seconds\":number,"
+        "\"dynamic_profile\":string,\"arrangement_density\":string,\"harmonic_color\":string,"
+        "\"instruments\":[string],"
+        "\"instrument_configs\":[{"
+        "\"name\":string,\"role\":string,\"register\":string,\"articulation\":string,\"dynamic_range\":string"
+        "}]}}."
         " Choose all values based on the natural-language description from the user."
+        " For every instrument listed in meta.instruments you MUST include exactly one matching entry in meta.instrument_configs"
+        " with the same name and your best guess for its role (Lead, Accompaniment, Bass, Percussion, Pad, FX, etc.),"
+        " register (Low, Mid, High, Full or similar), articulation (e.g. Sustain, Legato, Staccato, Percussive, etc.)"
+        " and dynamic_range (e.g. Delicate, Moderate, Intense or similar)."
         " You are free to change tempo, bar count, form and instrument choices to best match the request."
         " This module plans parameters only. Do NOT output any MIDI notes,"
         " patterns, bars with steps, or note/velocity/length grids."
@@ -91,8 +98,8 @@ def _midi_plan_system(midi: MidiPlanIn) -> tuple[str, str]:
     # description from the user. All concrete parameter values are chosen by
     # the model within the schema constraints described in the system prompt.
     user = json.dumps({
-        "task": "plan_midi_parameters",
-        "user_prompt": getattr(midi, "prompt", None),
+        "task": "plan_music_parameters",
+        "user_prompt": getattr(plan, "prompt", None),
     }, separators=(",", ":"))
     return system, user
 
@@ -339,8 +346,8 @@ def list_samples_proxy(instrument: str, offset: int = 0, limit: int = 100):
     return {"instrument": instrument, "resolved": targets, "count": len(rows), "offset": start, "limit": limit, "items": items, "default": default_item}
 
 
-class MidiPlanRequest(BaseModel):
-    midi: Dict[str, Any]
+class ParameterPlanRequest(BaseModel):
+    parameters: Dict[str, Any]
     provider: Optional[str] = None
     model: Optional[str] = None
 
@@ -395,16 +402,16 @@ def _safe_parse_json(raw: str) -> tuple[Optional[Dict[str, Any]], list[str]]:
     return None, errors
 
 
-@router.post("/midi-plan")
-def midi_plan(body: MidiPlanRequest):
+@router.post("/plan")
+def generate_parameter_plan(body: ParameterPlanRequest):
     run = DEBUG_STORE.start()
     run.log("plan", "start", {"provider": body.provider or "gemini", "model": body.model or None})
     try:
-        midi = MidiPlanIn(**(body.midi or {}))
+        plan = ParameterPlanIn(**(body.parameters or {}))
     except Exception as e:
         raise HTTPException(status_code=422, detail={"error": "validation", "message": str(e)})
 
-    system, user = _midi_plan_system(midi)
+    system, user = _parameter_plan_system(plan)
     try:
         run.log("provider_call", "request", {
             "provider": (body.provider or "gemini"),
@@ -431,8 +438,8 @@ def midi_plan(body: MidiPlanRequest):
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     run_dir = OUTPUT_DIR / f"{ts}_{run.run_id}"
     run_dir.mkdir(parents=True, exist_ok=True)
-    raw_path = run_dir / "midi_plan_raw.txt"
-    json_path = run_dir / "midi_plan.json"
+    raw_path = run_dir / "parameter_plan_raw.txt"
+    json_path = run_dir / "parameter_plan.json"
     try:
         with raw_path.open("w", encoding="utf-8") as f:
             f.write(raw)
