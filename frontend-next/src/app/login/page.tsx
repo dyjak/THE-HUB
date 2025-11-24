@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import CosmicOrb from "@/components/ui/CosmicOrb";
 
 export default function LoginPage() {
     const [pin, setPin] = useState<string[]>(Array(6).fill(''));
@@ -124,9 +125,11 @@ export default function LoginPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
             >
-                <div className="text-center mb-8">
-                    <h1 className="text-5xl font-bold mb-2">🚀</h1>
+                <div className="text-center mb-1">
                     <h2 className="text-2xl font-semibold">Panel logowania</h2>
+                    <div className="hidden sm:block w-[360px] h-[260px]">
+                        <CosmicOrb />
+                    </div>
                 </div>
 
                 <div className="mb-8">
