@@ -1,8 +1,8 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { MidiPanel } from "./MidiPanel";
-import type { MidiParameters, InstrumentConfig } from "../lib/midiTypes";
-import { ensureInstrumentConfigs, normalizeMidi, cloneMidi } from "../lib/midiUtils";
+import { ParamPanel } from "./ParamPanel";
+import type { ParamPlan, InstrumentConfig } from "../lib/paramTypes";
+import { ensureInstrumentConfigs, normalizeParamPlan, cloneParamPlan } from "../lib/paramUtils";
 
 type ChatProviderInfo = { id: string; name: string; default_model?: string };
 
@@ -27,7 +27,7 @@ export default function ParamPlanStep() {
   const [runId, setRunId] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   // Editing panel state
-  const [midi, setMidi] = useState<MidiParameters | null>(null);
+  const [midi, setMidi] = useState<ParamPlan | null>(null);
   const [available, setAvailable] = useState<string[]>([]);
   const [selectable, setSelectable] = useState<string[]>([]);
   const [selectedSamples, setSelectedSamples] = useState<Record<string, string | undefined>>({});
@@ -143,8 +143,8 @@ export default function ParamPlanStep() {
       // Initialize editor state if MIDI meta present
       const midiPart = norm?.midi ?? null;
       if (midiPart && typeof midiPart === 'object') {
-        const normalizedMidi = normalizeMidi(midiPart as any);
-        setMidi(cloneMidi(normalizedMidi));
+        const normalizedMidi = normalizeParamPlan(midiPart as any);
+        setMidi(cloneParamPlan(normalizedMidi));
       } else {
         setMidi(null);
       }
@@ -235,7 +235,7 @@ export default function ParamPlanStep() {
       {midi && (
         <div className="bg-black/30 border border-blue-800/40 rounded-2xl p-4 space-y-3 text-xs">
           <div className="text-sky-300 text-xs uppercase tracking-widest">Panel dostosowania parametrów</div>
-          <MidiPanel
+          <ParamPanel
             midi={midi}
             availableInstruments={available}
             selectableInstruments={selectable}
@@ -245,9 +245,9 @@ export default function ParamPlanStep() {
             modulePrefix={"/air/param-generation"}
             compact
             columns={4}
-            onUpdate={(patch: Partial<MidiParameters>) => setMidi((prev: MidiParameters | null) => prev ? { ...prev, ...patch } : prev)}
+            onUpdate={(patch: Partial<ParamPlan>) => setMidi((prev: ParamPlan | null) => prev ? { ...prev, ...patch } : prev)}
             onToggleInstrument={(inst: string) => {
-              setMidi((prev: MidiParameters | null) => {
+              setMidi((prev: ParamPlan | null) => {
                 if (!prev) return prev;
                 const exists = prev.instruments.includes(inst);
                 const nextInstruments = exists ? prev.instruments.filter((i: string) => i !== inst) : [...prev.instruments, inst];
@@ -264,7 +264,7 @@ export default function ParamPlanStep() {
                 };
               });
             }}
-            onUpdateInstrumentConfig={(name: string, patch: Partial<InstrumentConfig>) => setMidi((prev: MidiParameters | null) => {
+            onUpdateInstrumentConfig={(name: string, patch: Partial<InstrumentConfig>) => setMidi((prev: ParamPlan | null) => {
               if (!prev) return prev;
               const next = prev.instrument_configs.map((cfg: InstrumentConfig) => cfg.name === name ? { ...cfg, ...patch } as InstrumentConfig : cfg);
               return { ...prev, instrument_configs: ensureInstrumentConfigs(prev.instruments, next) };

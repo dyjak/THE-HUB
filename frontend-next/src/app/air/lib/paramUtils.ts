@@ -13,7 +13,7 @@ import {
   SCALE_OPTIONS,
   STYLE_OPTIONS,
 } from "./constants";
-import type { InstrumentConfig, MidiParameters } from "./midiTypes";
+import type { InstrumentConfig, ParamPlan } from "./paramTypes";
 
 type StringOptions = readonly string[];
 
@@ -137,7 +137,7 @@ export const ensureInstrumentConfigs = (instruments: string[], existing: Instrum
   });
 };
 
-export const normalizeMidi = (input: Partial<MidiParameters> | Record<string, unknown>): MidiParameters => {
+export const normalizeParamPlan = (input: Partial<ParamPlan> | Record<string, unknown>): ParamPlan => {
   const style = normalizeWithSuggestions(input.style ?? (input as any).genre, STYLE_OPTIONS, STYLE_OPTIONS[0] ?? "Ambient");
   const mood = normalizeWithSuggestions(input.mood, MOOD_OPTIONS, MOOD_OPTIONS[0] ?? "Calm");
   const key = normalizeWithSuggestions(input.key, KEY_OPTIONS, "C");
@@ -187,7 +187,7 @@ export const normalizeMidi = (input: Partial<MidiParameters> | Record<string, un
   };
 };
 
-export const cloneMidi = (params: MidiParameters): MidiParameters => ({
+export const cloneParamPlan = (params: ParamPlan): ParamPlan => ({
   ...params,
   instruments: [...params.instruments],
   instrument_configs: params.instrument_configs.map(cfg => ({ ...cfg })),

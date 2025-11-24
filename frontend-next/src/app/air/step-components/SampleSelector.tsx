@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { SimpleAudioPlayer } from "./SimpleAudioPlayer";
-import type { SampleListItem, SampleListResponse } from "../lib/midiTypes";
+import type { SampleListItem, SampleListResponse } from "../lib/paramTypes";
 
 type Props = {
   apiBase: string;

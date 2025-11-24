@@ -10,7 +10,7 @@ export interface InstrumentConfig {
   dynamic_range: string;
 }
 
-export interface MidiParameters {
+export interface ParamPlan {
   style: string;
   genre: string;
   mood: string;

@@ -12,18 +12,18 @@ import {
   SCALE_OPTIONS,
   STYLE_OPTIONS,
 } from "../lib/constants";
-import type { InstrumentConfig, MidiParameters } from "../lib/midiTypes";
+import type { InstrumentConfig, ParamPlan } from "../lib/paramTypes";
 import { SampleSelector } from "./SampleSelector";
 
-interface MidiPanelProps {
-  midi: MidiParameters;
+interface ParamPanelProps {
+  midi: ParamPlan;
   availableInstruments: string[];
   selectableInstruments: string[];
   fxSubtypes?: string[];
   apiBase: string;
   apiPrefix: string;
   modulePrefix: string;
-  onUpdate: (patch: Partial<MidiParameters>) => void;
+  onUpdate: (patch: Partial<ParamPlan>) => void;
   onToggleInstrument: (instrument: string) => void;
   onUpdateInstrumentConfig: (name: string, patch: Partial<InstrumentConfig>) => void;
   selectedSamples: Record<string, string | undefined>;
@@ -33,7 +33,7 @@ interface MidiPanelProps {
   hideFx?: boolean;
 }
 
-const MidiPanelComponent = ({
+const ParamPanelComponent = ({
   midi,
   availableInstruments,
   selectableInstruments,
@@ -49,24 +49,24 @@ const MidiPanelComponent = ({
   compact = false,
   columns = 2,
   hideFx = false,
-}: MidiPanelProps) => {
+}: ParamPanelProps) => {
   const handleStyleChange = useCallback<React.ChangeEventHandler<HTMLSelectElement>>(
     event => {
-      const value = event.target.value as MidiParameters["style"];
+      const value = event.target.value as ParamPlan["style"];
       onUpdate({ style: value, genre: value });
     },
     [onUpdate],
   );
 
   const handleNumberChange = useCallback(
-    (field: keyof Pick<MidiParameters, "tempo" | "bars" | "length_seconds">, min: number, fallback: number) =>
+    (field: keyof Pick<ParamPlan, "tempo" | "bars" | "length_seconds">, min: number, fallback: number) =>
       (event: React.ChangeEvent<HTMLInputElement>) => {
         const parsed = Number(event.target.value);
         if (Number.isNaN(parsed)) {
-          onUpdate({ [field]: fallback } as Partial<MidiParameters>);
+          onUpdate({ [field]: fallback } as Partial<ParamPlan>);
           return;
         }
-        onUpdate({ [field]: Math.max(min, parsed) } as Partial<MidiParameters>);
+        onUpdate({ [field]: Math.max(min, parsed) } as Partial<ParamPlan>);
       },
     [onUpdate],
   );
@@ -123,7 +123,7 @@ const MidiPanelComponent = ({
 
   return (
     <div className="bg-gray-900/60 p-4 rounded-lg border border-gray-700 space-y-4 col-span-2">
-      <h2 className="font-semibold text-emerald-300">MIDI Parameters</h2>
+      <h2 className="font-semibold text-emerald-300">Parametry Muzyczne</h2>
       {missingInstruments.length > 0 && (
         <div className="flex items-start gap-2 text-xs bg-amber-900/40 border border-amber-600/70 text-amber-100 px-3 py-2 rounded-lg">
           <span className="mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-black text-[10px] font-bold">!</span>
@@ -150,7 +150,7 @@ const MidiPanelComponent = ({
         </div>
         <div>
           <label className="block mb-1">Mood</label>
-          <select value={midi.mood} onChange={event => onUpdate({ mood: event.target.value as MidiParameters["mood"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
+          <select value={midi.mood} onChange={event => onUpdate({ mood: event.target.value as ParamPlan["mood"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
             {moodOptions.map(option => (
               <option key={option} value={option}>{option}</option>
             ))}
@@ -158,7 +158,7 @@ const MidiPanelComponent = ({
         </div>
         <div>
           <label className="block mb-1">Key</label>
-          <select value={midi.key} onChange={event => onUpdate({ key: event.target.value as MidiParameters["key"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
+          <select value={midi.key} onChange={event => onUpdate({ key: event.target.value as ParamPlan["key"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
             {keyOptions.map(option => (
               <option key={option} value={option}>{option}</option>
             ))}
@@ -166,7 +166,7 @@ const MidiPanelComponent = ({
         </div>
         <div>
           <label className="block mb-1">Scale</label>
-          <select value={midi.scale} onChange={event => onUpdate({ scale: event.target.value as MidiParameters["scale"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
+          <select value={midi.scale} onChange={event => onUpdate({ scale: event.target.value as ParamPlan["scale"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
             {scaleOptions.map(option => (
               <option key={option} value={option}>{option}</option>
             ))}
@@ -174,7 +174,7 @@ const MidiPanelComponent = ({
         </div>
         <div>
           <label className="block mb-1">Meter</label>
-          <select value={midi.meter} onChange={event => onUpdate({ meter: event.target.value as MidiParameters["meter"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
+          <select value={midi.meter} onChange={event => onUpdate({ meter: event.target.value as ParamPlan["meter"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
             {meterOptions.map(option => (
               <option key={option} value={option}>{option}</option>
             ))}
@@ -194,7 +194,7 @@ const MidiPanelComponent = ({
         </div>
         <div>
           <label className="block mb-1">Dynamic Profile</label>
-          <select value={midi.dynamic_profile} onChange={event => onUpdate({ dynamic_profile: event.target.value as MidiParameters["dynamic_profile"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
+          <select value={midi.dynamic_profile} onChange={event => onUpdate({ dynamic_profile: event.target.value as ParamPlan["dynamic_profile"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
             {dynamicProfileOptions.map(option => (
               <option key={option} value={option}>{option}</option>
             ))}
@@ -202,7 +202,7 @@ const MidiPanelComponent = ({
         </div>
         <div>
           <label className="block mb-1">Arrangement Density</label>
-          <select value={midi.arrangement_density} onChange={event => onUpdate({ arrangement_density: event.target.value as MidiParameters["arrangement_density"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
+          <select value={midi.arrangement_density} onChange={event => onUpdate({ arrangement_density: event.target.value as ParamPlan["arrangement_density"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
             {arrangementDensityOptions.map(option => (
               <option key={option} value={option}>{option}</option>
             ))}
@@ -210,7 +210,7 @@ const MidiPanelComponent = ({
         </div>
         <div>
           <label className="block mb-1">Harmonic Color</label>
-          <select value={midi.harmonic_color} onChange={event => onUpdate({ harmonic_color: event.target.value as MidiParameters["harmonic_color"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
+          <select value={midi.harmonic_color} onChange={event => onUpdate({ harmonic_color: event.target.value as ParamPlan["harmonic_color"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
             {harmonicColorOptions.map(option => (
               <option key={option} value={option}>{option}</option>
             ))}
@@ -358,4 +358,4 @@ const MidiPanelComponent = ({
   );
 };
 
-export const MidiPanel = memo(MidiPanelComponent);
+export const ParamPanel = memo(ParamPanelComponent);
