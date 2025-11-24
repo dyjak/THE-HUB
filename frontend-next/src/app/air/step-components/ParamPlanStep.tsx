@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { ParamPanel } from "./ParamPanel";
-import type { ParamPlan, InstrumentConfig } from "../lib/paramTypes";
+import type { ParamPlan, InstrumentConfig, ParamPlanMeta } from "../lib/paramTypes";
 import { ensureInstrumentConfigs, normalizeParamPlan, cloneParamPlan } from "../lib/paramUtils";
 
 type ChatProviderInfo = { id: string; name: string; default_model?: string };
@@ -11,7 +11,12 @@ const API_PREFIX = "/api";
 // Use new param-generation backend module
 const MODULE_PREFIX = "/air/param-generation";
 
-export default function ParamPlanStep() {
+type Props = {
+  onMetaReady?: (meta: ParamPlanMeta | null) => void;
+  onNavigateNext?: () => void;
+};
+
+export default function ParamPlanStep({ onMetaReady, onNavigateNext }: Props) {
   const [prompt, setPrompt] = useState("");
   const [providers, setProviders] = useState<ChatProviderInfo[]>([]);
   const [provider, setProvider] = useState<string>("gemini");
@@ -31,6 +36,7 @@ export default function ParamPlanStep() {
   const [available, setAvailable] = useState<string[]>([]);
   const [selectable, setSelectable] = useState<string[]>([]);
   const [selectedSamples, setSelectedSamples] = useState<Record<string, string | undefined>>({});
+  const [showResetWarning, setShowResetWarning] = useState(false);
 
   // Fetch providers
   useEffect(() => {
@@ -99,7 +105,8 @@ export default function ParamPlanStep() {
   const send = useCallback(async () => {
     if (!prompt.trim()) { setError("Wpisz opis utworu."); return; }
 	setLoading(true); setError(null); setRaw(null); setParsed(null); setNormalized(null); setRunId(null); setWarnings([]);
-	setSystemPrompt(null); setUserPrompt(null);
+    setSystemPrompt(null); setUserPrompt(null);
+    if (onMetaReady) onMetaReady(null);
     try {
       const parameters = {
         prompt: prompt,
@@ -138,15 +145,18 @@ export default function ParamPlanStep() {
       setRaw(rawStr);
   const parsed = payload?.parsed ?? null;
   setParsed(parsed);
-  const norm = parsed?.meta ? { midi: parsed.meta } : null;
+    const norm = parsed?.meta ? { midi: parsed.meta } : null;
   setNormalized(norm);
       // Initialize editor state if MIDI meta present
       const midiPart = norm?.midi ?? null;
       if (midiPart && typeof midiPart === 'object') {
         const normalizedMidi = normalizeParamPlan(midiPart as any);
-        setMidi(cloneParamPlan(normalizedMidi));
+        const cloned = cloneParamPlan(normalizedMidi);
+        setMidi(cloned);
+        if (onMetaReady) onMetaReady(cloned);
       } else {
         setMidi(null);
+        if (onMetaReady) onMetaReady(null);
       }
   const errorsArr = Array.isArray(payload?.errors) ? payload.errors.filter((e: any) => typeof e === 'string') : [];
   const warn: string[] = [];
@@ -225,6 +235,17 @@ export default function ParamPlanStep() {
         </button>
         {runId && <div className="mt-2 text-[11px] text-gray-500">run: {runId}</div>}
       </div>
+      {midi && !loading && (
+        <div className="flex justify-end mt-1">
+          <button
+            type="button"
+            onClick={() => onNavigateNext && onNavigateNext()}
+            className="px-3 py-1.5 w-full rounded-lg border border-emerald-600 text-[11px] text-emerald-200 bg-emerald-900/30 hover:bg-emerald-800/40"
+          >
+            Przejdź do kroku 2 (Plan MIDI)
+          </button>
+        </div>
+      )}
       {error && <div className="bg-red-900/30 border border-red-800/70 text-red-200 text-sm rounded-xl px-4 py-3">{error}</div>}
       {warnings.length>0 && (
         <div className="bg-amber-900/20 border border-amber-700/60 text-amber-200 text-xs rounded-xl px-4 py-3 space-y-1">
@@ -272,6 +293,46 @@ export default function ParamPlanStep() {
             selectedSamples={selectedSamples}
             onSelectSample={(instrument: string, sampleId: string | null) => setSelectedSamples((prev: Record<string, string | undefined>) => ({ ...prev, [instrument]: sampleId || undefined }))}
           />
+        </div>
+      )}
+      {showResetWarning && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
+          <div className="bg-gray-900 border border-red-700 rounded-2xl p-5 max-w-sm w-full space-y-3 shadow-xl">
+            <div className="text-sm font-semibold text-red-300">Uwaga: zresetować aktualne ustawienia?</div>
+            <p className="text-xs text-gray-300">
+              Powrót do kroku 1 i ponowne generowanie parametrów wyzeruje bieżący plan MIDI oraz wybór sampli.
+            </p>
+            <div className="flex justify-end gap-2 mt-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setShowResetWarning(false)}
+                className="px-3 py-1.5 rounded-lg border border-gray-600 text-gray-200 hover:bg-gray-800/60"
+              >
+                Anuluj
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowResetWarning(false);
+                  // pełny reset lokalnego stanu kroku 1
+                  setMidi(null);
+                  setSelectedSamples({});
+                  setRaw(null);
+                  setParsed(null);
+                  setNormalized(null);
+                  setRunId(null);
+                  setWarnings([]);
+                  setSystemPrompt(null);
+                  setUserPrompt(null);
+                  setError(null);
+                  if (onMetaReady) onMetaReady(null);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-red-700 text-white hover:bg-red-600"
+              >
+                Wyzeruj ustawienia
+              </button>
+            </div>
+          </div>
         </div>
       )}
       {/* Podgląd promptu i odpowiedzi modelu */}

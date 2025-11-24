@@ -135,6 +135,13 @@ except Exception as e:
     air_inventory_router = None  # type: ignore
     _AIR_INV_AVAILABLE = False
     _AIR_INV_IMPORT_ERROR = str(e)
+try:
+    from .air.midi_generation.router import router as midi_generation_router  # type: ignore
+    _MIDI_GEN_AVAILABLE = True
+except Exception as e:
+    midi_generation_router = None  # type: ignore
+    _MIDI_GEN_AVAILABLE = False
+    _MIDI_GEN_IMPORT_ERROR = str(e)
 
 
 app = FastAPI(
@@ -290,6 +297,25 @@ if _AIR_INV_AVAILABLE and air_inventory_router:
         print("[WARN] failed to enumerate air-inventory routes:", e)
 else:
     print("[WARN] air_inventory_router not loaded:", globals().get('_AIR_INV_IMPORT_ERROR'))
+
+# Mount midi-generation router and its static outputs
+if _MIDI_GEN_AVAILABLE and midi_generation_router:
+    app.include_router(midi_generation_router, prefix="/api")
+    try:
+        midi_gen_output = Path(__file__).parent / "air" / "midi_generation" / "output"
+        midi_gen_output.mkdir(parents=True, exist_ok=True)
+        app.mount("/api/midi-generation/output", StaticFiles(directory=str(midi_gen_output)), name="midi_generation_output")
+    except Exception as e:
+        print("[WARN] failed to mount midi-generation static output:", e)
+    try:
+        mg_routes = [getattr(r, "path", str(r)) for r in app.routes if "/midi-generation" in getattr(r, "path", "")]
+        print("[midi-generation] registered routes:")
+        for p in sorted(mg_routes):
+            print("   ", p)
+    except Exception as e:
+        print("[WARN] failed to enumerate midi-generation routes:", e)
+else:
+    print("[WARN] midi_generation_router not loaded:", globals().get('_MIDI_GEN_IMPORT_ERROR'))
 
 
 # MUSIC TEST ENDPOINTS - dodane bezpośrednio

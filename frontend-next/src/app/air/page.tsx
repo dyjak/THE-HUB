@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import AnimatedCard from "../../components/ui/AnimatedCard";
 import ParamPlanStep from "./step-components/ParamPlanStep";
+import MidiPlanStep, { type MidiPlanResult } from "./step-components/MidiPlanStep";
+import type { ParamPlanMeta } from "./lib/paramTypes";
 import CosmicOrb from "@/components/ui/CosmicOrb";
 
 type StepId = "param-plan" | "midi-plan" | "midi-export" | "render";
@@ -10,13 +12,15 @@ type StepId = "param-plan" | "midi-plan" | "midi-export" | "render";
 export default function AirPanel() {
 	const [step, setStep] = useState<StepId>("param-plan");
 	const [showTests, setShowTests] = useState<boolean>(false);
+	const [paramMeta, setParamMeta] = useState<ParamPlanMeta | null>(null);
+	const [midiResult, setMidiResult] = useState<MidiPlanResult | null>(null);
 
 	const steps: { id: StepId; name: string; ready: boolean }[] = useMemo(() => ([
 		{ id: "param-plan", name: "Krok 1 • Parametry (AI)", ready: true },
-		{ id: "midi-plan", name: "Krok 2 • Plan MIDI (AI)", ready: false },
-		{ id: "midi-export", name: "Krok 3 • Eksport MIDI", ready: false },
+		{ id: "midi-plan", name: "Krok 2 • Plan MIDI (AI)", ready: !!paramMeta },
+		{ id: "midi-export", name: "Krok 3 • Eksport MIDI", ready: !!midiResult },
 		{ id: "render", name: "Krok 4 • Render Audio", ready: false },
-	]), []);
+	]), [paramMeta, midiResult]);
 
 	return (
 		<div className="min-h-screen w-full bg-transparent from-black via-gray-950 to-black text-white px-6 py-10 space-y-6">
@@ -58,7 +62,12 @@ export default function AirPanel() {
 				{steps.map(s => (
 					<button
 						key={s.id}
-						onClick={() => s.ready && setStep(s.id)}
+						onClick={() => {
+							if (!s.ready) return;
+							// jeśli wracamy do kroku 1 mając już wygenerowane MIDI,
+							// nie resetujemy tu nic automatycznie – ostrzeżenie i reset są w samym kroku 1
+							setStep(s.id);
+						}}
 						disabled={!s.ready}
 						className={`px-3 py-1.5 rounded-full border text-xs ${step===s.id? 'border-emerald-500 bg-emerald-800/40' : 'border-gray-700 bg-black/40'} ${s.ready? 'cursor-pointer' : 'opacity-40 cursor-not-allowed'}`}
 					>{s.name}</button>
@@ -67,8 +76,21 @@ export default function AirPanel() {
 
 			{/* Active step panel */}
 			<div>
-				{step === "param-plan" && <ParamPlanStep />}
-				{step !== "param-plan" && (
+				{step === "param-plan" && (
+					<ParamPlanStep
+						onMetaReady={(meta) => {
+							setParamMeta(meta);
+						}}
+						onNavigateNext={() => {
+							// przejście do kroku 2 tylko jeśli mamy meta
+							if (paramMeta) setStep("midi-plan");
+						}}
+					/>
+				)}
+				{step === "midi-plan" && (
+					<MidiPlanStep meta={paramMeta} onReady={setMidiResult} />
+				)}
+				{step !== "param-plan" && step !== "midi-plan" && (
 					<div className="text-sm text-gray-500 border border-gray-800 rounded-xl p-6">
 						Ten krok będzie dostępny po ukończeniu wcześniejszego etapu.
 					</div>

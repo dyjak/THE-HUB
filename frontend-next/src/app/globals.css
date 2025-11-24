@@ -30,6 +30,21 @@ body {
     background: linear-gradient(180deg,#6366f1,#a855f7);
 }
 
+/* Zielony wariant scrolla w tej samej konwencji */
+.scroll-container-green::-webkit-scrollbar {
+    width: 8px;
+}
+.scroll-container-green::-webkit-scrollbar-track {
+    background: transparent;
+}
+.scroll-container-green::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg,#16a34a,#22c55e);
+    border-radius: 4px;
+}
+.scroll-container-green::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg,#22c55e,#4ade80);
+}
+
 
 .shade {
     background-color: #00254f;

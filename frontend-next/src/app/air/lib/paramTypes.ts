@@ -29,6 +29,9 @@ export interface ParamPlan {
   seed?: number | null;
 }
 
+// Minimalne meta przekazywane z param_generation do midi_generation
+export type ParamPlanMeta = ParamPlan;
+
 export interface SampleListItem {
   id: string;
   name: string;
