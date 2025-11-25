@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ParamPlanMeta } from "../lib/paramTypes";
-import MidiPianoroll from "../components/MidiPianoroll";
+import MidiPianoroll from "./MidiPianoroll";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
 const API_PREFIX = "/api";
@@ -273,27 +273,9 @@ export default function MidiPlanStep({ meta, onReady }: Props) {
           {/* Pianoroll frontendowy na bazie JSON-a z backendu */}
           <div className="relative">
             <MidiPianoroll ref={pianorollScrollRef} midi={result.midi as any} />
-            {/* Globalny h-scroll dostępny z każdej wysokości sekcji */}
-            <div className="mt-2 border border-emerald-800/80 rounded-md bg-gradient-to-r from-black/90 via-slate-900/90 to-black/90 px-3 py-1 flex items-center gap-2 text-[10px] text-emerald-200 sticky bottom-0 z-10 backdrop-blur-sm">
-              <span className="hidden sm:inline">Scroll</span>
-              <div
-                className="relative flex-1 h-3 overflow-x-auto overflow-y-hidden rounded-full bg-gray-900/80 custom-scroll-h"
-                onScroll={e => {
-                  const ghost = e.currentTarget;
-                  const host = pianorollScrollRef.current;
-                  if (host && host.scrollWidth > host.clientWidth) {
-                    const ratio = ghost.scrollLeft / (ghost.scrollWidth - ghost.clientWidth || 1);
-                    host.scrollLeft = ratio * (host.scrollWidth - host.clientWidth);
-                  }
-                }}
-              >
-                <div
-                  style={{
-                    width: (pianorollScrollRef.current?.scrollWidth || 0) + 32,
-                    height: 1,
-                  }}
-                />
-              </div>
+            {/* Info o przewijaniu zostawiamy, ale używamy natywnego scrolla kontenera */}
+            <div className="mt-2 text-[10px] text-emerald-200 flex items-center gap-2 opacity-70">
+              <span className="hidden sm:inline">Użyj strzałek na, aby przesuwać pianoroll</span>
             </div>
           </div>
         </div>

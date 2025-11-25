@@ -5,7 +5,7 @@ import AnimatedCard from "../../components/ui/AnimatedCard";
 import ParamPlanStep from "./step-components/ParamPlanStep";
 import MidiPlanStep, { type MidiPlanResult } from "./step-components/MidiPlanStep";
 import type { ParamPlanMeta } from "./lib/paramTypes";
-import CosmicOrb from "@/components/ui/CosmicOrb";
+import ParticleText from "@/components/ui/ParticleText";
 
 type StepId = "param-plan" | "midi-plan" | "midi-export" | "render";
 
@@ -27,11 +27,14 @@ export default function AirPanel() {
 			<div className="flex items-center justify-between gap-6">
 				<div className="flex-1" />
 				<div className="flex flex-col items-center gap-2 select-none">
-					<div className="font-[system-ui] text-4xl md:text-5xl font-semibold tracking-tight text-white">
-						AIR 4.2
-					</div>
-					<div className="hidden sm:block w-[360px] h-[360px]">
-						<CosmicOrb />
+					<div className="w-[300px] h-[100px] md:w-[400px] md:h-[120px]">
+						<ParticleText 
+							text="A I R   4 . 2"
+							font="bold 60px sans-serif"
+							colors={["#ab51e3", "#bd68ee", "#dc97ff", "#d283ff"]}
+							mouseRadius={20}
+							particleSize={1.2}
+						/>
 					</div>
 				</div>
 				<div className="flex-1 flex justify-end">

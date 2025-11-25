@@ -201,8 +201,8 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
             <input
               type="range"
               min={0.5}
-              max={2}
-              step={0.25}
+              max={5}
+              step={0.1}
               value={zoomX}
               onChange={e => setZoomX(parseFloat(e.target.value) || 1)}
               className="w-16 accent-emerald-400 cursor-pointer"
@@ -211,9 +211,9 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
             <span className="hidden sm:inline ml-2">V</span>
             <input
               type="range"
-              min={0.75}
-              max={2}
-              step={0.25}
+              min={0.5}
+              max={5}
+              step={0.1}
               value={zoomY}
               onChange={e => setZoomY(parseFloat(e.target.value) || 1)}
               className="w-16 accent-emerald-400 cursor-pointer"
@@ -222,7 +222,7 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
           </div>
         </div>
       </div>
-      <div ref={ref} className="relative w-full flex-1 bg-black overflow-x-auto custom-scroll-h">
+      <div ref={ref} className="relative w-full flex-1 bg-black overflow-x-auto scroll-container-green overflow-y-hidden">
         <div className="relative" style={{ minWidth: "100%" }}>
             {mergedLane && (
             <div className="border-t border-gray-800/60 first:border-t-0">
