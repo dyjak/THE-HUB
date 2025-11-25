@@ -14,9 +14,11 @@ const MODULE_PREFIX = "/air/param-generation";
 type Props = {
   onMetaReady?: (meta: ParamPlanMeta | null) => void;
   onNavigateNext?: () => void;
+  // pełny plan + wybrane sample (instrument -> sampleId) przekazywane do AirPanel
+  onPlanChange?: (plan: ParamPlan | null, selectedSamples: Record<string, string | undefined>) => void;
 };
 
-export default function ParamPlanStep({ onMetaReady, onNavigateNext }: Props) {
+export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChange }: Props) {
   const [prompt, setPrompt] = useState("");
   const [providers, setProviders] = useState<ChatProviderInfo[]>([]);
   const [provider, setProvider] = useState<string>("gemini");
@@ -154,9 +156,11 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext }: Props) {
         const cloned = cloneParamPlan(normalizedMidi);
         setMidi(cloned);
         if (onMetaReady) onMetaReady(cloned);
+        if (onPlanChange) onPlanChange(cloned, selectedSamples);
       } else {
         setMidi(null);
         if (onMetaReady) onMetaReady(null);
+        if (onPlanChange) onPlanChange(null, selectedSamples);
       }
   const errorsArr = Array.isArray(payload?.errors) ? payload.errors.filter((e: any) => typeof e === 'string') : [];
   const warn: string[] = [];
@@ -266,7 +270,12 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext }: Props) {
             modulePrefix={"/air/param-generation"}
             compact
             columns={4}
-            onUpdate={(patch: Partial<ParamPlan>) => setMidi((prev: ParamPlan | null) => prev ? { ...prev, ...patch } : prev)}
+            onUpdate={(patch: Partial<ParamPlan>) => setMidi((prev: ParamPlan | null) => {
+              if (!prev) return prev;
+              const next = { ...prev, ...patch };
+              if (onPlanChange) onPlanChange(next, selectedSamples);
+              return next;
+            })}
             onToggleInstrument={(inst: string) => {
               setMidi((prev: ParamPlan | null) => {
                 if (!prev) return prev;
@@ -284,14 +293,24 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext }: Props) {
                   instrument_configs: ensureInstrumentConfigs(nextInstruments, prev.instrument_configs),
                 };
               });
+              if (onPlanChange) {
+                // stan zostanie zaktualizowany asynchronicznie; użyj bieżącej mapy sampli
+                onPlanChange(midi, selectedSamples);
+              }
             }}
             onUpdateInstrumentConfig={(name: string, patch: Partial<InstrumentConfig>) => setMidi((prev: ParamPlan | null) => {
               if (!prev) return prev;
-              const next = prev.instrument_configs.map((cfg: InstrumentConfig) => cfg.name === name ? { ...cfg, ...patch } as InstrumentConfig : cfg);
-              return { ...prev, instrument_configs: ensureInstrumentConfigs(prev.instruments, next) };
+              const nextConfigs = prev.instrument_configs.map((cfg: InstrumentConfig) => cfg.name === name ? { ...cfg, ...patch } as InstrumentConfig : cfg);
+              const nextPlan = { ...prev, instrument_configs: ensureInstrumentConfigs(prev.instruments, nextConfigs) };
+              if (onPlanChange) onPlanChange(nextPlan, selectedSamples);
+              return nextPlan;
             })}
             selectedSamples={selectedSamples}
-            onSelectSample={(instrument: string, sampleId: string | null) => setSelectedSamples((prev: Record<string, string | undefined>) => ({ ...prev, [instrument]: sampleId || undefined }))}
+            onSelectSample={(instrument: string, sampleId: string | null) => setSelectedSamples((prev: Record<string, string | undefined>) => {
+              const next = { ...prev, [instrument]: sampleId || undefined };
+              if (onPlanChange) onPlanChange(midi, next);
+              return next;
+            })}
           />
         </div>
       )}

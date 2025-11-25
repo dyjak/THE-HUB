@@ -13,7 +13,7 @@ export default class Starfield extends Component {
                     width: '100%',
                     height: '100%',
                     zIndex: 0,
-                    background: 'linear-gradient(to bottom right, #00172D, #00498D)',
+                    background: 'linear-gradient(to bottom right, #3c0663, #310055)',
                     overflow: 'hidden',
                     pointerEvents: 'none'
                 }}

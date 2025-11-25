@@ -142,6 +142,13 @@ except Exception as e:
     midi_generation_router = None  # type: ignore
     _MIDI_GEN_AVAILABLE = False
     _MIDI_GEN_IMPORT_ERROR = str(e)
+try:
+    from .air.render.router import router as render_router  # type: ignore
+    _RENDER_AVAILABLE = True
+except Exception as e:
+    render_router = None  # type: ignore
+    _RENDER_AVAILABLE = False
+    _RENDER_IMPORT_ERROR = str(e)
 
 
 app = FastAPI(
@@ -316,6 +323,19 @@ if _MIDI_GEN_AVAILABLE and midi_generation_router:
         print("[WARN] failed to enumerate midi-generation routes:", e)
 else:
     print("[WARN] midi_generation_router not loaded:", globals().get('_MIDI_GEN_IMPORT_ERROR'))
+
+# Mount render router (audio export)
+if _RENDER_AVAILABLE and render_router:
+    app.include_router(render_router, prefix="/api")
+    try:
+        render_output = Path(__file__).parent / "air" / "render" / "output"
+        render_output.mkdir(parents=True, exist_ok=True)
+        # Expose audio files under /api/audio/{run_id}/...
+        app.mount("/api/audio", StaticFiles(directory=str(render_output)), name="air_audio_output")
+    except Exception as e:
+        print("[WARN] failed to mount render static output:", e)
+else:
+    print("[WARN] render_router not loaded:", globals().get('_RENDER_IMPORT_ERROR'))
 
 
 # MUSIC TEST ENDPOINTS - dodane bezpośrednio

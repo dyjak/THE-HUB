@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import AnimatedCard from "../../components/ui/AnimatedCard";
 import ParamPlanStep from "./step-components/ParamPlanStep";
 import MidiPlanStep, { type MidiPlanResult } from "./step-components/MidiPlanStep";
+import RenderStep from "./step-components/RenderStep";
+import type { ParamPlan } from "./lib/paramTypes";
 import type { ParamPlanMeta } from "./lib/paramTypes";
 import ParticleText from "@/components/ui/ParticleText";
 
@@ -14,12 +16,13 @@ export default function AirPanel() {
 	const [showTests, setShowTests] = useState<boolean>(false);
 	const [paramMeta, setParamMeta] = useState<ParamPlanMeta | null>(null);
 	const [midiResult, setMidiResult] = useState<MidiPlanResult | null>(null);
+	const [paramPlan, setParamPlan] = useState<ParamPlan | null>(null);
+	const [selectedSamples, setSelectedSamples] = useState<Record<string, string | undefined>>({});
 
 	const steps: { id: StepId; name: string; ready: boolean }[] = useMemo(() => ([
 		{ id: "param-plan", name: "Krok 1 • Parametry (AI)", ready: true },
 		{ id: "midi-plan", name: "Krok 2 • Plan MIDI (AI)", ready: !!paramMeta },
-		{ id: "midi-export", name: "Krok 3 • Eksport MIDI", ready: !!midiResult },
-		{ id: "render", name: "Krok 4 • Render Audio", ready: false },
+		{ id: "midi-export", name: "Krok 3 • Export + Render", ready: !!midiResult },
 	]), [paramMeta, midiResult]);
 
 	return (
@@ -79,23 +82,31 @@ export default function AirPanel() {
 
 			{/* Active step panel */}
 			<div>
-				{step === "param-plan" && (
-					<ParamPlanStep
-						onMetaReady={(meta) => {
-							setParamMeta(meta);
-						}}
-						onNavigateNext={() => {
-							// przejście do kroku 2 tylko jeśli mamy meta
-							if (paramMeta) setStep("midi-plan");
-						}}
-					/>
-				)}
+					{step === "param-plan" && (
+						<ParamPlanStep
+							onMetaReady={(meta) => {
+								setParamMeta(meta);
+								// meta zawiera tylko wybrane pola; pełny plan trzymamy osobno
+							}}
+							onNavigateNext={() => {
+								if (paramMeta) setStep("midi-plan");
+							}}
+							// przechwyt pełnego planu + wybranych sampli z kroku 1
+							onPlanChange={(plan: ParamPlan | null, samples: Record<string, string | undefined>) => {
+								setParamPlan(plan);
+								setSelectedSamples(samples);
+							}}
+						/>
+					)}
 				{step === "midi-plan" && (
 					<MidiPlanStep meta={paramMeta} onReady={setMidiResult} />
 				)}
-				{step !== "param-plan" && step !== "midi-plan" && (
+				{step === "midi-export" && (
+					<RenderStep meta={paramMeta} midi={midiResult} selectedSamples={selectedSamples} />
+				)}
+				{step === "render" && (
 					<div className="text-sm text-gray-500 border border-gray-800 rounded-xl p-6">
-						Ten krok będzie dostępny po ukończeniu wcześniejszego etapu.
+						Dodatkowe funkcje renderu będą dostępne w przyszłej wersji.
 					</div>
 				)}
 			</div>
