@@ -51,6 +51,9 @@ class MidiGenerationOut(BaseModel):
     run_id: str
     midi: Dict[str, Any]
     artifacts: MidiArtifactPaths
+    # Nowe pola: per-instrument MIDI oraz ich artefakty.
+    midi_per_instrument: Optional[Dict[str, Dict[str, Any]]] = None
+    artifacts_per_instrument: Optional[Dict[str, MidiArtifactPaths]] = None
     provider: Optional[str] = None
     model: Optional[str] = None
     errors: Optional[List[str]] = None

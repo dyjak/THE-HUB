@@ -527,3 +527,74 @@ def get_debug(run_id: str):
     if not data:
         raise HTTPException(status_code=404, detail={"error": "not_found", "message": "run not found"})
     return data
+
+
+class SelectedSamplesUpdate(BaseModel):
+    """Payload do aktualizacji wyboru sampli dla gotowego parameter planu.
+
+    expected format:
+    {
+      "selected_samples": {"Piano": "piano_001", "Bass": "bass_013"}
+    }
+    """
+
+    selected_samples: Dict[str, str]
+
+
+@router.patch("/plan/{run_id}/selected-samples")
+def update_selected_samples(run_id: str, body: SelectedSamplesUpdate):
+    """Zapisz/aktualizuj pole meta.selected_samples w istniejącym parameter_plan.json.
+
+    Ten endpoint nie dotyka logiki LLM – służy wyłącznie do tego, aby frontend
+    po wyborze sampli z inventory mógł powiązać instrumenty z konkrentymi
+    ID sampli (z inventory.json).
+    """
+
+    # Odnajdź katalog runu po saved_json_rel w istniejących plikach OUTPUT_DIR
+    # (prosty wariant: pattern *_<run_id>/parameter_plan.json)
+    try:
+        run_dir: Path | None = None
+        for p in OUTPUT_DIR.iterdir():
+            if not p.is_dir():
+                continue
+            if p.name.endswith(run_id) and (p / "parameter_plan.json").exists():
+                run_dir = p
+                break
+        if run_dir is None:
+            raise HTTPException(status_code=404, detail={"error": "plan_not_found", "message": "parameter_plan.json not found for run_id"})
+        json_path = run_dir / "parameter_plan.json"
+        try:
+            doc = json.loads(json_path.read_text(encoding="utf-8"))
+        except Exception as e:  # noqa: PERF203
+            raise HTTPException(status_code=500, detail={"error": "plan_read_failed", "message": str(e)})
+
+        if not isinstance(doc, dict):
+            doc = {}
+        meta = doc.get("meta")
+        if not isinstance(meta, dict):
+            meta = {}
+            doc["meta"] = meta
+
+        # Prosta walidacja: tylko string->string, bez pustych wartości
+        cleaned: Dict[str, str] = {}
+        for k, v in (body.selected_samples or {}).items():
+            if not isinstance(k, str) or not isinstance(v, str):
+                continue
+            ik = k.strip()
+            iv = v.strip()
+            if not ik or not iv:
+                continue
+            cleaned[ik] = iv
+
+        meta["selected_samples"] = cleaned
+
+        try:
+            json_path.write_text(json.dumps(doc), encoding="utf-8")
+        except Exception as e:  # noqa: PERF203
+            raise HTTPException(status_code=500, detail={"error": "plan_write_failed", "message": str(e)})
+
+        return {"run_id": run_id, "updated": True, "selected_samples": cleaned}
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: PERF203
+        raise HTTPException(status_code=500, detail={"error": "selected_samples_update_failed", "message": str(e)})

@@ -30,7 +30,7 @@ export default function ParticleText({
   colors = ["#0096c7", "#023e8a", "#0077b6", "#ffffff"],
   particleSize = 2,
   mouseRadius = 60,
-  mouseStrength = 30,
+  mouseStrength = 20,
   font = "bold 120px system-ui",
 }: ParticleTextProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);

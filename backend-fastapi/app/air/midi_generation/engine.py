@@ -81,25 +81,33 @@ def _ensure_midi_structure(meta: Dict[str, Any], midi_data: Dict[str, Any]) -> D
         midi_data["layers"] = layers
     pattern = midi_data.get("pattern")
     if not isinstance(pattern, list):
-        # Spróbuj zbudować pattern z warstw: agregacja po bar index
-        combined: Dict[int, Dict[str, Any]] = {}
-        for _, pat in layers.items():
-            if not isinstance(pat, list):
-                continue
-            for bar in pat:
-                try:
-                    b = int(bar.get("bar", 0))
-                except Exception:
-                    b = 0
-                dst = combined.setdefault(b, {"bar": b, "events": []})
-                dst.setdefault("events", [])
-                dst["events"].extend(bar.get("events", []) or [])
-        if combined:
-            pattern = [combined[i] for i in sorted(combined.keys())]
-        else:
-            pattern = []
+        pattern = _build_pattern_from_layers(layers)
         midi_data["pattern"] = pattern
     return midi_data
+
+
+def _build_pattern_from_layers(layers: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Buduje pattern jako sumę wszystkich warstw.
+
+    Wspólna funkcja, której użyjemy również do generowania patternów
+    per-instrument.
+    """
+
+    combined: Dict[int, Dict[str, Any]] = {}
+    for _, pat in (layers or {}).items():
+        if not isinstance(pat, list):
+            continue
+        for bar in pat:
+            try:
+                b = int(bar.get("bar", 0))
+            except Exception:
+                b = 0
+            dst = combined.setdefault(b, {"bar": b, "events": []})
+            dst.setdefault("events", [])
+            dst["events"].extend(bar.get("events", []) or [])
+    if not combined:
+        return []
+    return [combined[i] for i in sorted(combined.keys())]
 
 
 def _export_pattern_to_mid(pattern: List[Dict[str, Any]], tempo_bpm: int, out_path: Path) -> Optional[Path]:
@@ -211,10 +219,23 @@ def _render_pianoroll_svg(midi_data: Dict[str, Any], out_path: Path) -> Optional
     return out_path
 
 
-def generate_midi_and_artifacts(meta: Dict[str, Any], midi_data: Dict[str, Any]) -> Tuple[str, Dict[str, Any], Dict[str, Optional[str]]]:
+def generate_midi_and_artifacts(
+    meta: Dict[str, Any], midi_data: Dict[str, Any]
+) -> Tuple[
+    str,
+    Dict[str, Any],
+    Dict[str, Optional[str]],
+    Dict[str, Dict[str, Any]],
+    Dict[str, Dict[str, Optional[str]]],
+]:
     """Główna funkcja silnika: porządkuje strukturę MIDI i generuje artefakty.
 
-    Zwraca: (run_id, midi_data, {midi_json_rel, midi_mid_rel, midi_image_rel})
+    Zwraca:
+    - run_id,
+    - midi_data (globalny plan),
+    - artifacts (globalne artefakty),
+    - midi_per_instrument (strukturya MIDI per instrument),
+    - artifacts_per_instrument (artefakty per instrument).
     """
 
     run = DEBUG_STORE.start()
@@ -263,5 +284,66 @@ def generate_midi_and_artifacts(meta: Dict[str, Any], midi_data: Dict[str, Any])
         "midi_image_rel": _rel(midi_svg_path) if midi_svg_path else None,
     }
 
+    # --- Nowość: podział MIDI per instrument ---
+    midi_per_instrument: Dict[str, Dict[str, Any]] = {}
+    artifacts_per_instrument: Dict[str, Dict[str, Optional[str]]] = {}
+
+    layers = midi_data.get("layers") or {}
+    if isinstance(layers, dict):
+        for inst, inst_layer in layers.items():
+            # Zbuduj strukturę MIDI tylko dla danego instrumentu.
+            inst_layers = {inst: inst_layer} if isinstance(inst_layer, list) else {}
+            inst_pattern = _build_pattern_from_layers(inst_layers)
+
+            inst_meta = dict(midi_data.get("meta") or {})
+            inst_meta["instrument"] = inst
+
+            inst_midi: Dict[str, Any] = {
+                "meta": inst_meta,
+                "layers": inst_layers,
+                "pattern": inst_pattern,
+            }
+            midi_per_instrument[inst] = inst_midi
+
+            # Artefakty na dysku
+            safe_inst = str(inst).replace("/", "_").replace("\\", "_")
+            inst_json_path = run_dir / f"midi_{safe_inst}.json"
+            with inst_json_path.open("w", encoding="utf-8") as f:
+                json.dump(inst_midi, f)
+            run.log("midi", "saved_json_instrument", {"instrument": inst, "file": str(inst_json_path)})
+
+            inst_mid_path: Optional[Path] = None
+            try:
+                if mido is not None:
+                    inst_mid_path = _export_pattern_to_mid(inst_pattern, tempo, run_dir / f"midi_{safe_inst}.mid")
+                    if inst_mid_path:
+                        run.log("midi", "export_mid_instrument", {"instrument": inst, "file": str(inst_mid_path)})
+            except Exception as e:
+                run.log("midi", "export_mid_instrument_failed", {"instrument": inst, "error": str(e)})
+
+            inst_svg_path: Optional[Path] = None
+            try:
+                inst_svg_path = _render_pianoroll_svg(inst_midi, run_dir / f"pianoroll_{safe_inst}.svg")
+                if inst_svg_path:
+                    run.log("viz", "pianoroll_svg_instrument", {"instrument": inst, "file": str(inst_svg_path)})
+            except Exception as e:
+                run.log("viz", "pianoroll_svg_instrument_failed", {"instrument": inst, "error": str(e)})
+
+            artifacts_per_instrument[inst] = {
+                "midi_json_rel": _rel(inst_json_path),
+                "midi_mid_rel": _rel(inst_mid_path) if inst_mid_path else None,
+                "midi_image_rel": _rel(inst_svg_path) if inst_svg_path else None,
+            }
+
+    # Zapisujemy zbiorczy opis podziału per instrument w jednym JSON-ie ułatwiającym
+    # późniejsze testowe pipeline'y (np. mini_pipeline_test).
+    try:
+        per_inst_path = run_dir / "midi_per_instrument.json"
+        with per_inst_path.open("w", encoding="utf-8") as f:
+            json.dump(midi_per_instrument, f)
+        run.log("midi", "saved_midi_per_instrument_index", {"file": str(per_inst_path)})
+    except Exception as e:
+        run.log("midi", "save_midi_per_instrument_index_failed", {"error": str(e)})
+
     run.log("run", "completed", {"midi_json_rel": artifacts["midi_json_rel"]})
-    return run.run_id, midi_data, artifacts
+    return run.run_id, midi_data, artifacts, midi_per_instrument, artifacts_per_instrument

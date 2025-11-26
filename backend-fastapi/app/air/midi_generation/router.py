@@ -152,12 +152,20 @@ def compose(req: MidiGenerationIn) -> MidiGenerationOut:
 
     from .engine import generate_midi_and_artifacts
 
-    run_id, midi_data, artifacts = generate_midi_and_artifacts(meta, raw_midi_json)
+    (
+        run_id,
+        midi_data,
+        artifacts,
+        midi_per_instrument,
+        artifacts_per_instrument,
+    ) = generate_midi_and_artifacts(meta, raw_midi_json)
 
     return MidiGenerationOut(
         run_id=run_id,
         midi=midi_data,
         artifacts=MidiArtifactPaths(**artifacts),
+        midi_per_instrument=midi_per_instrument or None,
+        artifacts_per_instrument={k: MidiArtifactPaths(**v) for k, v in (artifacts_per_instrument or {}).items()} or None,
         provider=provider,
         model=model,
         errors=errors or None,

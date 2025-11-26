@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 import logging
 import math
 import wave
@@ -15,6 +15,14 @@ OUTPUT_ROOT = Path(__file__).parent / "output"
 OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 
 log = logging.getLogger("air.render")
+
+# Base reference frequency for pitch-shifting (assume C4 for raw samples),
+# kept in sync conceptually with the experimental audio_renderer.
+_BASE_FREQ = 261.63
+
+
+def _note_freq(midi_note: int) -> float:
+    return 440.0 * (2 ** ((midi_note - 69) / 12.0))
 
 
 def _db_to_gain(db: float) -> float:
@@ -71,6 +79,30 @@ def _read_wav_mono(path: Path) -> List[float] | None:
                 return [v / 32768.0 for v in mono]
         except Exception:
             return None
+
+
+def _pitch_shift_resample(samples: List[float], base_freq: float, target_freq: float) -> List[float]:
+    """Simple resampling pitch-shift using numpy if available.
+
+    If numpy is missing or base_freq invalid, returns the original samples.
+    """
+
+    try:
+        import numpy as np  # type: ignore
+    except Exception:  # pragma: no cover - environments without numpy
+        return samples
+
+    if base_freq <= 0.0:
+        return samples
+
+    ratio = target_freq / base_freq
+    safe_ratio = max(ratio, 1e-6)
+    new_len = max(1, int(len(samples) / safe_ratio))
+    if new_len <= 1 or len(samples) <= 1:
+        return samples
+
+    indices = np.linspace(0, len(samples) - 1, new_len)
+    return np.interp(indices, np.arange(len(samples)), np.array(samples, dtype="float32")).tolist()
 
 
 def _write_wav_stereo(path: Path, left: List[float], right: List[float], sr: int = 44100) -> None:
@@ -146,6 +178,8 @@ def render_audio(req: RenderRequest) -> RenderResponse:
     sr = 44100
 
     # Determine global song length (bars * 8 steps), inferred from MIDI if possible.
+    # Jeśli dostępne jest per-instrument MIDI, bierzemy meta z globalnego MIDI,
+    # który jest spójny dla wszystkich instrumentów (tempo, bars, length_seconds).
     meta = req.midi.get("meta") or {}
     bars = None
     try:
@@ -202,9 +236,31 @@ def render_audio(req: RenderRequest) -> RenderResponse:
     all_stems_l: List[List[float]] = []
     all_stems_r: List[List[float]] = []
 
-    layers_map = req.midi.get("layers") or {}
-    if not isinstance(layers_map, dict):
-        layers_map = {}
+    # Basic set of percussive instrument names for which we skip pitch-shifting
+    # and always play the raw sample (as in the experimental renderer).
+    perc_set = {
+        "kick",
+        "snare",
+        "hihat",
+        "clap",
+        "808",
+        "tom",
+        "perc",
+        "cymbal",
+        "ride",
+        "crash",
+        "rim",
+        "hh",
+        "hat",
+    }
+
+    # Mapowanie warstw per instrument:
+    # - jeśli dostępne jest midi_per_instrument, bierzemy warstwę z odpowiedniego
+    #   instancji MIDI,
+    # - w przeciwnym razie używamy dotychczasowego rozwiązania: globalne midi.layers.
+    global_layers = req.midi.get("layers") or {}
+    if not isinstance(global_layers, dict):
+        global_layers = {}
 
     for track in req.tracks:
         if not track.enabled:
@@ -223,7 +279,12 @@ def render_audio(req: RenderRequest) -> RenderResponse:
 
         # Build mono buffer for this instrument
         buf = [0.0] * frames
-        layer = layers_map.get(instrument, [])
+        # Wybór warstwy MIDI: preferujemy midi_per_instrument, fallback na globalne layers.
+        if req.midi_per_instrument and instrument in req.midi_per_instrument:
+            inst_midi = req.midi_per_instrument[instrument] or {}
+            layer = (inst_midi.get("layers") or {}).get(instrument, [])
+        else:
+            layer = global_layers.get(instrument, [])
         total_events = sum(len((b.get("events") or [])) for b in (layer or []))
         log.info(
             "[render] instrument=%s bars=%d events=%d duration=%.2fs",
@@ -237,10 +298,21 @@ def render_audio(req: RenderRequest) -> RenderResponse:
             for ev in bar.get("events", []):
                 step = ev.get("step", 0)
                 vel = float(ev.get("vel", 100)) / 127.0
+                note = ev.get("note")
                 start = (int(b) * 8 + int(step)) * step_samples_global
                 if start >= frames:
                     continue
-                nl = min(len(base_wave), frames - start)
+
+                # For percussive instruments or missing/invalid note, skip pitch shifting.
+                pitched = base_wave
+                try:
+                    key = str(instrument).strip().lower()
+                    if isinstance(note, int) and key not in perc_set:
+                        pitched = _pitch_shift_resample(base_wave, _BASE_FREQ, _note_freq(int(note)))
+                except Exception:
+                    pitched = base_wave
+
+                nl = min(len(pitched), frames - start)
                 if nl <= 0:
                     continue
                 # simple attack/release envelope
@@ -252,7 +324,7 @@ def render_audio(req: RenderRequest) -> RenderResponse:
                         amp = i / a
                     elif i > nl - r:
                         amp = max(0.0, (nl - i) / r)
-                    buf[start + i] += base_wave[i] * vel * amp
+                    buf[start + i] += pitched[i] * vel * amp
 
         # Apply volume + pan and write stereo stem
         gain = _db_to_gain(track.volume_db)
