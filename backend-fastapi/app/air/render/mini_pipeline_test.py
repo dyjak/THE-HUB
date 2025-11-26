@@ -161,6 +161,7 @@ if __name__ == "__main__":
 
 
 """
+UWAGA a propos WavFileWarning podczas czytania plików WAV:
 Plik WAV ma dodatkowe „chunk-i” (np. metadane, LIST/INFO, ADTL, itp.), których wavfile.read nie rozpoznaje jako audio.
 Biblioteka wtedy wypisuje:
 WavFileWarning: Chunk (non-data) not understood, skipping it.
