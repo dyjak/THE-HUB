@@ -3,6 +3,8 @@
 ### panel ładowania 
 ### zapisywanie info o aktualnym runid aby w każdym kroku można było przywrócić bieżące komponenty na froncie
 
+### baza danych logowanie sesja itd
+
 
 
 

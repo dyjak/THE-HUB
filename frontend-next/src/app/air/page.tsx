@@ -26,12 +26,12 @@ export default function AirPanel() {
 	]), [paramMeta, midiResult]);
 
 	return (
-		<div className="min-h-screen w-full bg-transparent from-black via-gray-950 to-black text-white px-6 py-10 space-y-6">
+		<div className="min-h-[500px] w-full bg-transparent from-black via-gray-950 to-black text-white px-6 py-6 pb-4 space-y-6">
 			<div className="flex items-center justify-between gap-6">
 				<div className="flex-1" />
 				<div className="flex flex-col items-center gap-2 select-none">
 					<div className="w-[300px] h-[100px] md:w-[400px] md:h-[120px]">
-						<ParticleText 
+						<ParticleText
 							text="A I R   4 . 2"
 							font="bold 60px sans-serif"
 							colors={["#ab51e3", "#bd68ee", "#dc97ff", "#d283ff"]}
@@ -75,29 +75,29 @@ export default function AirPanel() {
 							setStep(s.id);
 						}}
 						disabled={!s.ready}
-						className={`px-3 py-1.5 rounded-full border text-xs ${step===s.id? 'border-emerald-500 bg-emerald-800/40' : 'border-gray-700 bg-black/40'} ${s.ready? 'cursor-pointer' : 'opacity-40 cursor-not-allowed'}`}
+						className={`px-3 py-1.5 rounded-full border text-xs ${step === s.id ? 'border-emerald-500 bg-emerald-800/40' : 'border-gray-700 bg-black/40'} ${s.ready ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed'}`}
 					>{s.name}</button>
 				))}
 			</div>
 
 			{/* Active step panel */}
 			<div>
-					{step === "param-plan" && (
-						<ParamPlanStep
-							onMetaReady={(meta) => {
-								setParamMeta(meta);
-								// meta zawiera tylko wybrane pola; pełny plan trzymamy osobno
-							}}
-							onNavigateNext={() => {
-								if (paramMeta) setStep("midi-plan");
-							}}
-							// przechwyt pełnego planu + wybranych sampli z kroku 1
-							onPlanChange={(plan: ParamPlan | null, samples: Record<string, string | undefined>) => {
-								setParamPlan(plan);
-								setSelectedSamples(samples);
-							}}
-						/>
-					)}
+				{step === "param-plan" && (
+					<ParamPlanStep
+						onMetaReady={(meta) => {
+							setParamMeta(meta);
+							// meta zawiera tylko wybrane pola; pełny plan trzymamy osobno
+						}}
+						onNavigateNext={() => {
+							if (paramMeta) setStep("midi-plan");
+						}}
+						// przechwyt pełnego planu + wybranych sampli z kroku 1
+						onPlanChange={(plan: ParamPlan | null, samples: Record<string, string | undefined>) => {
+							setParamPlan(plan);
+							setSelectedSamples(samples);
+						}}
+					/>
+				)}
 				{step === "midi-plan" && (
 					<MidiPlanStep meta={paramMeta} onReady={setMidiResult} />
 				)}

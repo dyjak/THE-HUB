@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ParamPanel } from "./ParamPanel";
 import type { ParamPlan, InstrumentConfig, ParamPlanMeta } from "../lib/paramTypes";
 import { ensureInstrumentConfigs, normalizeParamPlan, cloneParamPlan } from "../lib/paramUtils";
+import CosmicButton from "@/components/ui/CosmicButton";
 
 type ChatProviderInfo = { id: string; name: string; default_model?: string };
 
@@ -45,7 +46,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
     let mounted = true;
     (async () => {
       try {
-  const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/providers`);
+        const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/providers`);
         if (!res.ok) return;
         const data = await res.json();
         const list = Array.isArray(data?.providers) ? data.providers as ChatProviderInfo[] : [];
@@ -59,7 +60,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
           setProvider((prev) => prev || chosen.id);
           setModel((prev) => prev || (chosen.default_model || ""));
         }
-      } catch {}
+      } catch { }
     })();
     return () => { mounted = false; };
   }, []);
@@ -70,7 +71,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
     if (!provider) { setModels([]); return; }
     (async () => {
       try {
-  const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/models/${provider}`);
+        const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/models/${provider}`);
         if (!res.ok) { if (mounted) setModels([]); return; }
         const data = await res.json();
         const list = Array.isArray(data?.models) ? data.models as string[] : [];
@@ -97,7 +98,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
         setAvailable(list);
         // In this view, show only real instruments (no placeholders)
         setSelectable(list);
-      } catch {}
+      } catch { }
     })();
     return () => { mounted = false; };
   }, []);
@@ -132,7 +133,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
 
   const send = useCallback(async () => {
     if (!prompt.trim()) { setError("Wpisz opis utworu."); return; }
-	setLoading(true); setError(null); setRaw(null); setParsed(null); setNormalized(null); setRunId(null); setWarnings([]);
+    setLoading(true); setError(null); setRaw(null); setParsed(null); setNormalized(null); setRunId(null); setWarnings([]);
     setSystemPrompt(null); setUserPrompt(null);
     if (onMetaReady) onMetaReady(null);
     try {
@@ -149,7 +150,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
         dynamic_profile: "moderate",
         arrangement_density: "balanced",
         harmonic_color: "diatonic",
-        instruments: ["piano","pad","strings"],
+        instruments: ["piano", "pad", "strings"],
         instrument_configs: [],
         seed: null,
       };
@@ -165,16 +166,16 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
       if (!res.ok) throw new Error(payload?.detail?.message || res.statusText || "Request failed");
       const runVal = typeof payload?.run_id === 'string' ? payload.run_id : null;
       setRunId(runVal);
-  const sysStr = typeof payload?.system === 'string' ? payload.system : null;
-  const userStr = typeof payload?.user === 'string' ? payload.user : null;
-  setSystemPrompt(sysStr);
-  setUserPrompt(userStr);
+      const sysStr = typeof payload?.system === 'string' ? payload.system : null;
+      const userStr = typeof payload?.user === 'string' ? payload.user : null;
+      setSystemPrompt(sysStr);
+      setUserPrompt(userStr);
       const rawStr = typeof payload?.raw === 'string' ? payload.raw : null;
       setRaw(rawStr);
-  const parsed = payload?.parsed ?? null;
-  setParsed(parsed);
-    const norm = parsed?.meta ? { midi: parsed.meta } : null;
-  setNormalized(norm);
+      const parsed = payload?.parsed ?? null;
+      setParsed(parsed);
+      const norm = parsed?.meta ? { midi: parsed.meta } : null;
+      setNormalized(norm);
       // Initialize editor state if MIDI meta present
       const midiPart = norm?.midi ?? null;
       if (midiPart && typeof midiPart === 'object') {
@@ -189,13 +190,13 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
         if (onMetaReady) onMetaReady(null);
         if (onPlanChange) onPlanChange(null, {});
       }
-  const errorsArr = Array.isArray(payload?.errors) ? payload.errors.filter((e: any) => typeof e === 'string') : [];
-  const warn: string[] = [];
-  const hasMeta = !!(parsed && parsed.meta && typeof parsed.meta === 'object');
-  if (!hasMeta) warn.push("Brak pełnych danych z modelu.");
-	  if (errorsArr.length) warn.push(...errorsArr.map((e: string) => `parse: ${e}`));
-  setWarnings(Array.from(new Set(warn)));
-    } catch (e:any) {
+      const errorsArr = Array.isArray(payload?.errors) ? payload.errors.filter((e: any) => typeof e === 'string') : [];
+      const warn: string[] = [];
+      const hasMeta = !!(parsed && parsed.meta && typeof parsed.meta === 'object');
+      if (!hasMeta) warn.push("Brak pełnych danych z modelu.");
+      if (errorsArr.length) warn.push(...errorsArr.map((e: string) => `parse: ${e}`));
+      setWarnings(Array.from(new Set(warn)));
+    } catch (e: any) {
       setError(e?.message || String(e));
     } finally {
       setLoading(false);
@@ -203,90 +204,108 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
   }, [prompt, provider, model, updateSelectedSamples]);
 
   return (
-    <section className="bg-gray-900/30 border border-blue-700/30 rounded-2xl shadow-lg shadow-blue-900/10 px-6 pt-6 pb-4 space-y-5">
-      <h2 className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-indigo-500 animate-pulse">Krok 1 • Generowanie parametrów</h2>
-      <p className="text-xs text-gray-400 max-w-2xl">Model generuje <span className="text-sky-300">parametry muzyczne</span> w formacie JSON. Wynik będzie podstawą do późniejszego tworzenia planu MIDI i renderu audio.</p>
+    <section className="bg-gray-900/30 border border-pink-700/30 rounded-2xl shadow-lg shadow-pink-900/10 px-6 pt-6 pb-4 space-y-5">
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-3xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-pink-100 to-fuchsia-500 animate-pulse">Krok 1 • Generowanie parametrów</h2>
+        {midi && !loading && (
+          <CosmicButton
+            type="button"
+            onClick={() => onNavigateNext && onNavigateNext()}
+            className="px-12 py-3 rounded-lg bg-gradient-to-r from-purple-500/70 via-fuchsia-500/70 to-pink-300/70 text-sm font-bold text-white whitespace-nowrap hover:from-purple-500/80 hover:via-fuchsia-500/80 hover:to-pink-300/80 hover:shadow-xl hover:shadow-purple-400/10 transition-all duration-300"
+            starCount={0}
+            particleCount={15}
+            particleSize={0.6}
+            colors={["#d2b2f0ff", "#efb4f8ff", "#ec4899", "#f0abfc"]}
+          >
+            Przejdź do kroku 2  →
+          </CosmicButton>
+        )}
+      </div>
+      <p className="text-xs text-gray-400 max-w-2xl">Model generuje <span className="text-pink-300">parametry muzyczne</span> w formacie JSON. Wynik będzie podstawą do późniejszego tworzenia planu MIDI i renderu audio.</p>
       {/* Layout: lewa kolumna 1/4 (provider, model), prawa 3/4 (prompt) */}
       <div className="grid md:grid-cols-4 gap-4 items-start">
         <div className="md:col-span-1 space-y-3">
           <div>
-            <label className="block text-xs uppercase tracking-widest text-sky-300 mb-1">Provider</label>
+            <label className="block text-xs uppercase tracking-widest text-pink-300 mb-1">Provider</label>
             <div className="relative">
               <select
                 value={provider}
-                onChange={e=>setProvider(e.target.value)}
-                className="appearance-none w-full bg-black/50 border border-blue-800/40 rounded-lg pr-9 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onChange={e => setProvider(e.target.value)}
+                className="appearance-none w-full bg-black/50 border border-pink-800/40 rounded-lg pr-9 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
               >
                 {providers.map(p => (
-                  <option key={p.id} value={p.id} disabled={(p.id||'').toLowerCase()==='openai'}>
-                    {p.name}{(p.id||'').toLowerCase()==='openai' ? ' (disabled)' : ''}
+                  <option key={p.id} value={p.id} disabled={(p.id || '').toLowerCase() === 'openai'}>
+                    {p.name}{(p.id || '').toLowerCase() === 'openai' ? ' (disabled)' : ''}
                   </option>
                 ))}
               </select>
-              <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-300 opacity-70" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-pink-300 opacity-70" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.08 1.04l-4.25 4.25a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clipRule="evenodd" />
               </svg>
             </div>
           </div>
           <div>
-            <label className="block text-xs uppercase tracking-widest text-sky-300 mb-1">Model</label>
-            {models.length>0 ? (
+            <label className="block text-xs uppercase tracking-widest text-pink-300 mb-1">Model</label>
+            {models.length > 0 ? (
               <div className="relative">
-                <select value={model} onChange={e=>setModel(e.target.value)} className="appearance-none w-full bg-black/50 border border-blue-800/40 rounded-lg pr-9 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <select value={model} onChange={e => setModel(e.target.value)} className="appearance-none w-full bg-black/50 border border-pink-800/40 rounded-lg pr-9 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500">
                   {models.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
-                <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-300 opacity-70" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-pink-300 opacity-70" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                   <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.08 1.04l-4.25 4.25a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clipRule="evenodd" />
                 </svg>
               </div>
             ) : (
-              <input value={model} onChange={e=>setModel(e.target.value)} placeholder="gemini-2.5-flash" className="w-full bg-black/50 border border-blue-800/40 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+              <input value={model} onChange={e => setModel(e.target.value)} placeholder="gemini-2.5-flash" className="w-full bg-black/50 border border-pink-800/40 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500" />
             )}
           </div>
         </div>
         <div className="md:col-span-3">
-          <label className="block text-xs uppercase tracking-widest text-sky-300 mb-1">Opis utworu (prompt)</label>
+          <label className="block text-xs uppercase tracking-widest text-pink-300 mb-1">Opis utworu (prompt)</label>
           <textarea
             value={prompt}
-            onChange={e=>setPrompt(e.target.value)}
+            onChange={e => setPrompt(e.target.value)}
             rows={4}
             placeholder="np. 'epicki, kinowy motyw 90 BPM z chórem i perkusją'"
-            className="w-full bg-black/50 border border-blue-800/40 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full bg-black/50 border border-pink-800/40 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none"
           />
         </div>
       </div>
       {/* Action button full width */}
       <div>
-        <button
+        <CosmicButton
           onClick={send}
-          disabled={loading}
-          className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-sky-500 via-indigo-500 to-blue-600 text-sm font-semibold disabled:opacity-60 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/30 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={loading || prompt.trim().length <= 3}
+          className={`w-full px-4 py-4 rounded-xl bg-gradient-to-r from-pink-500/40 via-fuchsia-500/40 to-purple-600/40 text-lg font-semibold text-white focus:outline-none focus:ring-2 focus:ring-pink-500 transition-all duration-500 ${loading || prompt.trim().length <= 3 ? '' : 'hover:from-pink-500/50 hover:via-fuchsia-500/50 hover:to-purple-600/50 hover:shadow-lg hover:shadow-pink-400/20'
+            }`}
+          starCount={25}
+          particleCount={35}
+          colors={["#a855f7", "#d946ef", "#ec4899", "#f0abfc"]}
         >
-          {loading? 'Generuję…' : 'Generuj parametry'}
-        </button>
+          {loading ? (
+            'Generuję…'
+          ) : (
+            <span className="flex items-center justify-center gap-2">
+              Generuj parametry
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm4.28 10.28a.75.75 0 000-1.06l-3-3a.75.75 0 10-1.06 1.06l1.72 1.72H8.25a.75.75 0 000 1.5h5.69l-1.72 1.72a.75.75 0 101.06 1.06l3-3z" clipRule="evenodd" />
+              </svg>
+            </span>
+          )}
+        </CosmicButton>
         {runId && <div className="mt-2 text-[11px] text-gray-500">run: {runId}</div>}
       </div>
-      {midi && !loading && (
-        <div className="flex justify-end mt-1">
-          <button
-            type="button"
-            onClick={() => onNavigateNext && onNavigateNext()}
-            className="px-3 py-1.5 w-full rounded-lg border border-emerald-600 text-[11px] text-emerald-200 bg-emerald-900/30 hover:bg-emerald-800/40"
-          >
-            Przejdź do kroku 2 (Plan MIDI)
-          </button>
-        </div>
-      )}
+
       {error && <div className="bg-red-900/30 border border-red-800/70 text-red-200 text-sm rounded-xl px-4 py-3">{error}</div>}
-      {warnings.length>0 && (
+      {warnings.length > 0 && (
         <div className="bg-amber-900/20 border border-amber-700/60 text-amber-200 text-xs rounded-xl px-4 py-3 space-y-1">
-          {warnings.map((w,i)=><div key={i}>• {w}</div>)}
+          {warnings.map((w, i) => <div key={i}>• {w}</div>)}
         </div>
       )}
       {/* Panel dostosowania parametrów - widoczny po wygenerowaniu */}
       {midi && (
-        <div className="bg-black/30 border border-blue-800/40 rounded-2xl p-4 space-y-3 text-xs">
-          <div className="text-sky-300 text-xs uppercase tracking-widest">Panel dostosowania parametrów</div>
+        <div className="bg-black/30 border border-pink-800/40 rounded-2xl p-4 space-y-3 text-xs">
+          <div className="text-pink-300 text-xs uppercase tracking-widest">Panel dostosowania parametrów</div>
           <ParamPanel
             midi={midi}
             availableInstruments={available}
@@ -387,33 +406,35 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
       )}
       {/* Podgląd promptu i odpowiedzi modelu */}
       {(systemPrompt || userPrompt || normalized || raw) && (
-        <div className="bg-gray-900/30 rounded-xl px-3 py-2 border border-blue-800/30 space-y-2">
-          <div className="text-sky-300 text-xs mb-1">Pełny kontekst wymiany z modelem</div>
-          {systemPrompt && (
-            <div>
-              <div className="text-[10px] text-gray-400">System prompt</div>
-              <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-blue-900/40">{systemPrompt}</pre>
-            </div>
-          )}
-          {userPrompt && (
-            <div>
-              <div className="text-[10px] text-gray-400">User payload (JSON)</div>
-              <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-blue-900/40">{userPrompt}</pre>
-            </div>
-          )}
-          {normalized && (
-            <div>
-              <div className="text-[10px] text-gray-400">Normalizowana odpowiedź modelu</div>
-              <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-blue-900/40">{pretty(normalized)}</pre>
-            </div>
-          )}
-          {raw && (
-            <details className="mt-1">
-              <summary className="cursor-pointer text-[10px] text-gray-500 hover:text-gray-300">Pokaż surową odpowiedź modelu</summary>
-              <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-blue-900/40">{raw}</pre>
-            </details>
-          )}
-        </div>
+        <details className="bg-gray-900/30 rounded-xl px-3 py-2 border border-pink-800/30">
+          <summary className="cursor-pointer text-pink-300 text-xs mb-1 hover:text-pink-200 transition-colors">Pełny kontekst wymiany z modelem</summary>
+          <div className="space-y-2 mt-2">
+            {systemPrompt && (
+              <div>
+                <div className="text-[10px] text-gray-400">System prompt</div>
+                <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-pink-900/40">{systemPrompt}</pre>
+              </div>
+            )}
+            {userPrompt && (
+              <div>
+                <div className="text-[10px] text-gray-400">User payload (JSON)</div>
+                <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-pink-900/40">{userPrompt}</pre>
+              </div>
+            )}
+            {normalized && (
+              <div>
+                <div className="text-[10px] text-gray-400">Normalizowana odpowiedź modelu</div>
+                <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-pink-900/40">{pretty(normalized)}</pre>
+              </div>
+            )}
+            {raw && (
+              <details className="mt-1">
+                <summary className="cursor-pointer text-[10px] text-gray-500 hover:text-gray-300">Pokaż surową odpowiedź modelu</summary>
+                <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-pink-900/40">{raw}</pre>
+              </details>
+            )}
+          </div>
+        </details>
       )}
     </section>
   );

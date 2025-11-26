@@ -3,46 +3,55 @@
 @tailwind utilities;
 
 body {
-    background: radial-gradient(circle, rgba(10,10,25,1) 0%, rgb(161, 66, 224) 100%);
+    background: radial-gradient(circle, rgba(10, 10, 25, 1) 0%, rgb(161, 66, 224) 100%);
     color: white;
 }
 
-html, body, #__next {
+html,
+body,
+#__next {
     height: 100%;
 }
 
 body {
-    overflow: hidden; /* blokuje globalny scroll */
+    overflow: hidden;
+    /* blokuje globalny scroll */
 }
 
 /* Estetyczny scrollbar tylko tam gdzie nadamy klasę scroll-container */
 .scroll-container::-webkit-scrollbar {
     width: 8px;
 }
+
 .scroll-container::-webkit-scrollbar-track {
     background: transparent;
 }
+
 .scroll-container::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg,#4f46e5,#9333ea);
+    background: linear-gradient(180deg, #4f46e5, #9333ea);
     border-radius: 4px;
 }
+
 .scroll-container::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg,#6366f1,#a855f7);
+    background: linear-gradient(180deg, #6366f1, #a855f7);
 }
 
 /* Zielony wariant scrolla w tej samej konwencji */
 .scroll-container-green::-webkit-scrollbar {
     width: 8px;
 }
+
 .scroll-container-green::-webkit-scrollbar-track {
     background: transparent;
 }
+
 .scroll-container-green::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg,#16a34a,#22c55e);
+    background: linear-gradient(180deg, #16a34a, #22c55e);
     border-radius: 4px;
 }
+
 .scroll-container-green::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg,#22c55e,#4ade80);
+    background: linear-gradient(180deg, #22c55e, #4ade80);
 }
 
 
@@ -50,6 +59,7 @@ body {
     background-color: #24003d;
     position: relative;
 }
+
 
 .shade::after {
     content: '';
@@ -59,5 +69,142 @@ body {
     right: 0;
     bottom: 0;
     box-shadow: 0px 0px 30px 20px #24003d;
-    z-index: -1; /* Places shadow behind the element */
+    z-index: -1;
+    /* Places shadow behind the element */
+}
+
+.animate-gradient-x {
+    background-size: 200% 200%;
+    animation: gradient-x 2s ease infinite;
+}
+
+@keyframes gradient-x {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+@keyframes pulse-scale {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+/* Purple variant scrollbar */
+.scroll-container-purple::-webkit-scrollbar {
+    width: 8px;
+}
+
+.scroll-container-purple::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.scroll-container-purple::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #a855f7, #d946ef);
+    border-radius: 4px;
+}
+
+.scroll-container-purple::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #c084fc, #e879f9);
+}
+
+/* Style range inputs with purple/violet */
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    height: 0.5rem;
+    background: linear-gradient(to right, #7c3aed, #a855f7, #d946ef);
+    border-radius: 0.25rem;
+}
+
+input[type="range"]::-webkit-slider-track {
+    background: linear-gradient(to right, #7c3aed, #a855f7, #d946ef);
+    height: 0.5rem;
+    border-radius: 0.25rem;
+}
+
+input[type="range"]::-moz-range-track {
+    background: linear-gradient(to right, #7c3aed, #a855f7, #d946ef);
+    height: 0.5rem;
+    border-radius: 0.25rem;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    background: #e879f9;
+    border: 2px solid #c084fc;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    background: #f0abfc;
+    border-color: #e879f9;
+    transform: scale(1.1);
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    background: #e879f9;
+    border: 2px solid #c084fc;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+    background: #f0abfc;
+    border-color: #e879f9;
+    transform: scale(1.1);
+}
+
+/* Global scrollbar styling for all overflow elements */
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #a855f7, #d946ef);
+    border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #c084fc, #e879f9);
+}
+
+/* Global styling for select option elements */
+select option {
+    background: #1a0b2e;
+    color: #f0abfc;
+}
+
+select option:checked,
+select option:hover {
+    background: #2d1b4e;
+    color: #fae8ff;
 }

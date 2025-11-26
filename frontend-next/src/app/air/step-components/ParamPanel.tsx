@@ -122,8 +122,8 @@ const ParamPanelComponent = ({
   const harmonicColorOptions = useMemo(() => withCurrent(HARMONIC_COLOR_OPTIONS, midi.harmonic_color), [withCurrent, midi.harmonic_color]);
 
   return (
-    <div className="bg-gray-900/60 p-4 rounded-lg border border-gray-700 space-y-4 col-span-2">
-      <h2 className="font-semibold text-emerald-300">Parametry Muzyczne</h2>
+    <div className="bg-gray-900/80 p-4 rounded-lg border border-purple-800/40 space-y-4 col-span-2">
+      <h2 className="font-semibold text-purple-300">Parametry Muzyczne</h2>
       {missingInstruments.length > 0 && (
         <div className="flex items-start gap-2 text-xs bg-amber-900/40 border border-amber-600/70 text-amber-100 px-3 py-2 rounded-lg">
           <span className="mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-black text-[10px] font-bold">!</span>
@@ -142,7 +142,7 @@ const ParamPanelComponent = ({
       <div className={`grid ${gridCols} gap-4 ${sizeClass}`}>
         <div>
           <label className="block mb-1">Style</label>
-          <select value={midi.style} onChange={handleStyleChange} className="w-full bg-black/60 p-2 rounded border border-gray-700">
+          <select value={midi.style} onChange={handleStyleChange} className="w-full bg-black/60 p-2 rounded border border-purple-800/30 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-colors">
             {styleOptions.map(option => (
               <option key={option} value={option}>{option}</option>
             ))}
@@ -150,7 +150,7 @@ const ParamPanelComponent = ({
         </div>
         <div>
           <label className="block mb-1">Mood</label>
-          <select value={midi.mood} onChange={event => onUpdate({ mood: event.target.value as ParamPlan["mood"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
+          <select value={midi.mood} onChange={event => onUpdate({ mood: event.target.value as ParamPlan["mood"] })} className="w-full bg-black/60 p-2 rounded border border-purple-800/30 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-colors">
             {moodOptions.map(option => (
               <option key={option} value={option}>{option}</option>
             ))}
@@ -158,7 +158,7 @@ const ParamPanelComponent = ({
         </div>
         <div>
           <label className="block mb-1">Key</label>
-          <select value={midi.key} onChange={event => onUpdate({ key: event.target.value as ParamPlan["key"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
+          <select value={midi.key} onChange={event => onUpdate({ key: event.target.value as ParamPlan["key"] })} className="w-full bg-black/60 p-2 rounded border border-purple-800/30 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-colors">
             {keyOptions.map(option => (
               <option key={option} value={option}>{option}</option>
             ))}
@@ -166,7 +166,7 @@ const ParamPanelComponent = ({
         </div>
         <div>
           <label className="block mb-1">Scale</label>
-          <select value={midi.scale} onChange={event => onUpdate({ scale: event.target.value as ParamPlan["scale"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
+          <select value={midi.scale} onChange={event => onUpdate({ scale: event.target.value as ParamPlan["scale"] })} className="w-full bg-black/60 p-2 rounded border border-purple-800/30 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-colors">
             {scaleOptions.map(option => (
               <option key={option} value={option}>{option}</option>
             ))}
@@ -174,7 +174,7 @@ const ParamPanelComponent = ({
         </div>
         <div>
           <label className="block mb-1">Meter</label>
-          <select value={midi.meter} onChange={event => onUpdate({ meter: event.target.value as ParamPlan["meter"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
+          <select value={midi.meter} onChange={event => onUpdate({ meter: event.target.value as ParamPlan["meter"] })} className="w-full bg-black/60 p-2 rounded border border-purple-800/30 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-colors">
             {meterOptions.map(option => (
               <option key={option} value={option}>{option}</option>
             ))}
@@ -186,15 +186,15 @@ const ParamPanelComponent = ({
         </div>
         <div>
           <label className="block mb-1">Bars</label>
-          <input type="number" min={1} max={512} value={midi.bars} onChange={handleNumberChange("bars", 1, 1)} className="w-full bg-black/60 p-2 rounded border border-gray-700" />
+          <input type="number" min={1} max={512} value={midi.bars} onChange={handleNumberChange("bars", 1, 1)} className="w-full bg-black/60 p-2 rounded border border-purple-800/30 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-colors" />
         </div>
         <div>
           <label className="block mb-1">Length (seconds)</label>
-          <input type="number" min={30} max={3600} step={5} value={midi.length_seconds} onChange={handleNumberChange("length_seconds", 30, 30)} className="w-full bg-black/60 p-2 rounded border border-gray-700" />
+          <input type="number" min={30} max={3600} step={5} value={midi.length_seconds} onChange={handleNumberChange("length_seconds", 30, 30)} className="w-full bg-black/60 p-2 rounded border border-purple-800/30 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-colors" />
         </div>
         <div>
           <label className="block mb-1">Dynamic Profile</label>
-          <select value={midi.dynamic_profile} onChange={event => onUpdate({ dynamic_profile: event.target.value as ParamPlan["dynamic_profile"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
+          <select value={midi.dynamic_profile} onChange={event => onUpdate({ dynamic_profile: event.target.value as ParamPlan["dynamic_profile"] })} className="w-full bg-black/60 p-2 rounded border border-purple-800/30 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-colors">
             {dynamicProfileOptions.map(option => (
               <option key={option} value={option}>{option}</option>
             ))}
@@ -202,7 +202,7 @@ const ParamPanelComponent = ({
         </div>
         <div>
           <label className="block mb-1">Arrangement Density</label>
-          <select value={midi.arrangement_density} onChange={event => onUpdate({ arrangement_density: event.target.value as ParamPlan["arrangement_density"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
+          <select value={midi.arrangement_density} onChange={event => onUpdate({ arrangement_density: event.target.value as ParamPlan["arrangement_density"] })} className="w-full bg-black/60 p-2 rounded border border-purple-800/30 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-colors">
             {arrangementDensityOptions.map(option => (
               <option key={option} value={option}>{option}</option>
             ))}
@@ -210,7 +210,7 @@ const ParamPanelComponent = ({
         </div>
         <div>
           <label className="block mb-1">Harmonic Color</label>
-          <select value={midi.harmonic_color} onChange={event => onUpdate({ harmonic_color: event.target.value as ParamPlan["harmonic_color"] })} className="w-full bg-black/60 p-2 rounded border border-gray-700">
+          <select value={midi.harmonic_color} onChange={event => onUpdate({ harmonic_color: event.target.value as ParamPlan["harmonic_color"] })} className="w-full bg-black/60 p-2 rounded border border-purple-800/30 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-colors">
             {harmonicColorOptions.map(option => (
               <option key={option} value={option}>{option}</option>
             ))}
@@ -224,14 +224,14 @@ const ParamPanelComponent = ({
           const present = DRUMS.filter(d => availableInstruments.includes(d));
           if (present.length === 0) return null;
           return (
-            <div className="mb-2 p-2 border border-gray-800 rounded bg-black/30">
+            <div className="mb-2 p-2 border border-purple-800/30 rounded bg-black/30">
               <div className="text-xs text-gray-400 mb-1">Drums</div>
               <div className="flex flex-wrap gap-2">
                 {present.map(inst => (
                   <button
                     key={inst}
                     onClick={handleInstrumentToggle(inst)}
-                    className={`px-3 py-1 rounded-full border text-xs ${midi.instruments.includes(inst) ? "bg-emerald-700 border-emerald-500" : "bg-black/50 border-gray-700 hover:bg-black/60"}`}
+                    className={`px-3 py-1 rounded-full border text-xs ${midi.instruments.includes(inst) ? "bg-purple-700 border-purple-500" : "bg-black/50 border-purple-800/20 hover:bg-black/60"}`}
                   >{inst}</button>
                 ))}
               </div>
@@ -242,14 +242,14 @@ const ParamPanelComponent = ({
           const presentFx = FX.filter(f => availableInstruments.includes(f) || midi.instruments.includes(f));
           if (presentFx.length === 0) return null;
           return (
-            <div className="mb-2 p-2 border border-gray-800 rounded bg-black/30">
+            <div className="mb-2 p-2 border border-purple-800/30 rounded bg-black/30">
               <div className="text-xs text-gray-400 mb-1">FX</div>
               <div className="flex flex-wrap gap-2">
                 {presentFx.map(inst => (
                   <button
                     key={inst}
                     onClick={handleInstrumentToggle(inst)}
-                    className={`px-3 py-1 rounded-full border text-xs ${midi.instruments.includes(inst) ? "bg-emerald-700 border-emerald-500" : "bg-black/50 border-gray-700 hover:bg-black/60"}`}
+                    className={`px-3 py-1 rounded-full border text-xs ${midi.instruments.includes(inst) ? "bg-purple-700 border-purple-500" : "bg-black/50 border-purple-800/20 hover:bg-black/60"}`}
                   >{inst}</button>
                 ))}
               </div>
@@ -261,7 +261,7 @@ const ParamPanelComponent = ({
           {genericInstruments.map(instrument => {
             const active = midi.instruments.includes(instrument);
             const disabled = isInstrumentDisabled(instrument) && !active;
-            const baseClasses = active ? "bg-emerald-700 border-emerald-500 text-white" : "bg-black/50 border-gray-700";
+            const baseClasses = active ? "bg-purple-700 border-purple-500 text-white" : "bg-black/50 border-purple-800/20";
             const disabledClasses = disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:bg-black/60";
             return (
               <button
@@ -282,18 +282,21 @@ const ParamPanelComponent = ({
         <div className="space-y-3">
           <div className="text-xs text-gray-400 uppercase tracking-widest">Instrument configs</div>
           {midi.instrument_configs.filter(cfg => cfg.name !== "drums").map(config => (
-            <div key={config.name} className="bg-black/40 border border-gray-800 rounded-lg p-4 space-y-3">
+            <div key={config.name} className="bg-black/40 border border-purple-800/20 rounded-lg p-4 space-y-3">
               <div className="flex flex-wrap gap-3 items-center justify-between">
                 <div className="flex flex-wrap gap-3 items-center">
-                  <div className="font-semibold text-emerald-200">{config.name}</div>
+                  <div className="font-semibold text-purple-200">{config.name}</div>
                   <div className="text-[11px] text-gray-500">{config.role} • {config.register}</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => onToggleInstrument(config.name)}
-                  className="ml-auto text-[11px] px-2 py-1 rounded border border-red-600/70 text-red-300 hover:bg-red-900/40"
+                  className="ml-auto text-[11px] px-2 py-1.5 rounded border border-red-600/70 text-red-300 hover:bg-red-900/40 transition-colors"
+                  title="Usuń instrument"
                 >
-                  Usuń instrument
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                    <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+                  </svg>
                 </button>
               </div>
               <SampleSelector
@@ -309,7 +312,7 @@ const ParamPanelComponent = ({
                   Dynamic range
                   <select value={config.dynamic_range}
                     onChange={event => handleInstrumentConfigChange(config.name, { dynamic_range: event.target.value as InstrumentConfig["dynamic_range"] })}
-                    className="bg-black/60 p-2 rounded border border-gray-700">
+                    className="bg-black/60 p-2 rounded border border-purple-800/30 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-colors">
                     {withCurrent(DYNAMIC_RANGE_OPTIONS, config.dynamic_range).map(option => (
                       <option key={option} value={option}>{option}</option>
                     ))}
@@ -319,8 +322,8 @@ const ParamPanelComponent = ({
                   Role
                   <select value={config.role}
                     onChange={event => handleInstrumentConfigChange(config.name, { role: event.target.value as InstrumentConfig["role"] })}
-                    className="bg-black/60 p-2 rounded border border-gray-700">
-                    {withCurrent(["Lead","Accompaniment","Rhythm","Pad","Bass","Percussion","Fx"], config.role ?? "").map(option => (
+                    className="bg-black/60 p-2 rounded border border-purple-800/30 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-colors">
+                    {withCurrent(["Lead", "Accompaniment", "Rhythm", "Pad", "Bass", "Percussion", "Fx"], config.role ?? "").map(option => (
                       <option key={option} value={option}>{option}</option>
                     ))}
                   </select>
@@ -330,9 +333,9 @@ const ParamPanelComponent = ({
                   <select
                     value={config.register}
                     onChange={event => handleInstrumentConfigChange(config.name, { register: event.target.value as InstrumentConfig["register"] })}
-                    className="bg-black/60 p-2 rounded border border-gray-700"
+                    className="bg-black/60 p-2 rounded border border-purple-800/30 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-colors"
                   >
-                    {withCurrent(["Low","Mid","High","Full"], config.register ?? "").map(option => (
+                    {withCurrent(["Low", "Mid", "High", "Full"], config.register ?? "").map(option => (
                       <option key={option} value={option}>{option}</option>
                     ))}
                   </select>
@@ -342,9 +345,9 @@ const ParamPanelComponent = ({
                   <select
                     value={config.articulation}
                     onChange={event => handleInstrumentConfigChange(config.name, { articulation: event.target.value as InstrumentConfig["articulation"] })}
-                    className="bg-black/60 p-2 rounded border border-gray-700"
+                    className="bg-black/60 p-2 rounded border border-purple-800/30 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-colors"
                   >
-                    {withCurrent(["Sustain","Staccato","Legato","Accented","Marcato","Pizzicato"], config.articulation ?? "").map(option => (
+                    {withCurrent(["Sustain", "Staccato", "Legato", "Accented", "Marcato", "Pizzicato"], config.articulation ?? "").map(option => (
                       <option key={option} value={option}>{option}</option>
                     ))}
                   </select>
