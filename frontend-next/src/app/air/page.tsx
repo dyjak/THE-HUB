@@ -41,10 +41,10 @@ export default function AirPanel() {
 					</div>
 				</div>
 				<div className="flex-1 flex justify-end">
-					<button
+					{/* <button
 					onClick={() => setShowTests(v => !v)}
 					className="px-3 py-1.5 rounded border border-gray-700 text-xs text-gray-300 hover:bg-black/40"
-					>{showTests ? "Ukryj testy" : "Pokaż testy"}</button>
+					>{showTests ? "Ukryj testy" : "Pokaż testy"}</button> */}
 				</div>
 			</div>
 

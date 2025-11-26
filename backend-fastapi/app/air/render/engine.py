@@ -235,6 +235,7 @@ def render_audio(req: RenderRequest) -> RenderResponse:
     stems: List[RenderedStem] = []
     all_stems_l: List[List[float]] = []
     all_stems_r: List[List[float]] = []
+    missing_or_failed: List[str] = []
 
     # Basic set of percussive instrument names for which we skip pitch-shifting
     # and always play the raw sample (as in the experimental renderer).
@@ -270,11 +271,13 @@ def render_audio(req: RenderRequest) -> RenderResponse:
         sample_path = _resolve_sample_for_instrument(instrument, req.selected_samples, lib)
         if not sample_path:
             log.warning("[render] no sample for instrument=%s (selected=%s)", instrument, (req.selected_samples or {}).get(instrument))
+            missing_or_failed.append(instrument)
             continue
 
         base_wave = _read_wav_mono(sample_path)
         if base_wave is None or not base_wave:
             log.warning("[render] failed to read sample for instrument=%s path=%s", instrument, sample_path)
+            missing_or_failed.append(instrument)
             continue
 
         # Build mono buffer for this instrument
@@ -337,6 +340,7 @@ def render_audio(req: RenderRequest) -> RenderResponse:
             stem_r.append(v * pan_r)
 
         if not stem_l or not stem_r:
+            missing_or_failed.append(instrument)
             continue
 
         stem_path = run_folder / f"{req.project_name}_{instrument}_{timestamp}.wav"
@@ -344,6 +348,16 @@ def render_audio(req: RenderRequest) -> RenderResponse:
         stems.append(RenderedStem(instrument=instrument, audio_rel=str(stem_path.relative_to(OUTPUT_ROOT.parent))))
         all_stems_l.append(stem_l)
         all_stems_r.append(stem_r)
+
+    # If nothing rendered at all, fail loudly so frontend can show a clear error.
+    if not stems:
+        details = {
+            "error": "render_no_instruments",
+            "message": "Żaden instrument nie został wyrenderowany (brak lub błędne sample).",
+        }
+        if missing_or_failed:
+            details["missing_or_failed"] = sorted(set(missing_or_failed))
+        raise RuntimeError(str(details))
 
     # Build mix from all stereo stems
     if all_stems_l and all_stems_r:

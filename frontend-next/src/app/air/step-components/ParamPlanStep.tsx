@@ -104,6 +104,32 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
 
   const pretty = useCallback((v: unknown) => { try { return JSON.stringify(v, null, 2); } catch { return String(v); } }, []);
 
+  // Sync selectedSamples to parent and persist to backend parameter_plan.json when runId is known
+  const updateSelectedSamples = useCallback(
+    async (next: Record<string, string | undefined>) => {
+      setSelectedSamples(next);
+      if (onPlanChange) {
+        onPlanChange(midi, next);
+      }
+      if (!runId) return;
+      try {
+        const cleaned: Record<string, string> = {};
+        for (const [k, v] of Object.entries(next)) {
+          if (!k || !v) continue;
+          cleaned[k] = v;
+        }
+        await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/plan/${encodeURIComponent(runId)}/selected-samples`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ selected_samples: cleaned }),
+        });
+      } catch {
+        // silently ignore PATCH errors; UI state remains source of truth
+      }
+    },
+    [midi, onPlanChange, runId],
+  );
+
   const send = useCallback(async () => {
     if (!prompt.trim()) { setError("Wpisz opis utworu."); return; }
 	setLoading(true); setError(null); setRaw(null); setParsed(null); setNormalized(null); setRunId(null); setWarnings([]);
@@ -156,11 +182,12 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
         const cloned = cloneParamPlan(normalizedMidi);
         setMidi(cloned);
         if (onMetaReady) onMetaReady(cloned);
-        if (onPlanChange) onPlanChange(cloned, selectedSamples);
+        // reset selected samples for a fresh plan; PATCH is handled inside helper
+        await updateSelectedSamples({});
       } else {
         setMidi(null);
         if (onMetaReady) onMetaReady(null);
-        if (onPlanChange) onPlanChange(null, selectedSamples);
+        if (onPlanChange) onPlanChange(null, {});
       }
   const errorsArr = Array.isArray(payload?.errors) ? payload.errors.filter((e: any) => typeof e === 'string') : [];
   const warn: string[] = [];
@@ -173,7 +200,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
     } finally {
       setLoading(false);
     }
-  }, [prompt, provider, model]);
+  }, [prompt, provider, model, updateSelectedSamples]);
 
   return (
     <section className="bg-gray-900/30 border border-blue-700/30 rounded-2xl shadow-lg shadow-blue-900/10 px-6 pt-6 pb-4 space-y-5">
@@ -306,11 +333,15 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
               return nextPlan;
             })}
             selectedSamples={selectedSamples}
-            onSelectSample={(instrument: string, sampleId: string | null) => setSelectedSamples((prev: Record<string, string | undefined>) => {
-              const next = { ...prev, [instrument]: sampleId || undefined };
-              if (onPlanChange) onPlanChange(midi, next);
-              return next;
-            })}
+            onSelectSample={(instrument: string, sampleId: string | null) => {
+              const next = { ...selectedSamples } as Record<string, string | undefined>;
+              if (!sampleId) {
+                delete next[instrument];
+              } else {
+                next[instrument] = sampleId;
+              }
+              void updateSelectedSamples(next);
+            }}
           />
         </div>
       )}

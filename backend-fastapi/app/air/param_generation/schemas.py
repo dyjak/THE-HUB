@@ -95,3 +95,5 @@ class ParameterPlanResult(BaseModel):
     meta: Dict[str, Any] | None = None
     saved_json_rel: str | None = None
     saved_raw_rel: str | None = None
+    # instrument -> inventory sample id (row.id) chosen in UI; not used by LLM
+    selected_samples: Dict[str, str] | None = None

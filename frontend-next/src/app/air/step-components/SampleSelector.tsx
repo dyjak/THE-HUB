@@ -28,10 +28,12 @@ export function SampleSelector({ apiBase, apiPrefix, modulePrefix, instrument, s
         if (!mounted) return;
         const list = Array.isArray(data.items) ? data.items : [];
         setItems(list);
+        // If no selection yet, pick a stable default: prefer API-provided default, else first item.
         if (!selectedId && list.length > 0) {
-          const rand = list[Math.floor(Math.random() * list.length)];
-          if (rand?.id) {
-            onChange(instrument, rand.id);
+          const preferred = data.default && list.find(x => x.id === data.default?.id);
+          const fallback = preferred || list[0];
+          if (fallback?.id) {
+            onChange(instrument, fallback.id);
           }
         }
       } catch (e) {
