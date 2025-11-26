@@ -32,9 +32,10 @@ export default function AirPanel() {
 				<div className="flex flex-col items-center gap-2 select-none">
 					<div className="w-[300px] h-[100px] md:w-[400px] md:h-[120px]">
 						<ParticleText
-							text="A I R   4 . 2"
-							font="bold 60px sans-serif"
-							colors={["#ab51e3", "#bd68ee", "#dc97ff", "#d283ff"]}
+							text="AIR 4.2"
+							font="bold 60px system-ui"
+							colors={["#ffffffff", "#ffffffff"]}
+							// colors={["#ab51e3", "#bd68ee", "#dc97ff", "#d283ff"]}
 							mouseRadius={20}
 							particleSize={1.2}
 						/>

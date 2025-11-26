@@ -67,15 +67,15 @@ export default function ParticleText({
 
       const textData = ctx.getImageData(0, 0, width, height);
       const particles: Particle[] = [];
-      
+
       // Sampling step - adjust for performance vs density
-      const step = 4; 
+      const step = 4;
 
       for (let y = 0; y < height; y += step) {
         for (let x = 0; x < width; x += step) {
           const index = (y * width + x) * 4;
           const alpha = textData.data[index + 3];
-          
+
           if (alpha > 128) {
             const color = colors[Math.floor(Math.random() * colors.length)];
             particles.push({
@@ -100,14 +100,14 @@ export default function ParticleText({
     const animate = () => {
       ctx.clearRect(0, 0, width, height);
       timeRef.current += 0.02;
-      
+
       particlesRef.current.forEach((particle, index) => {
         let dx = mouseRef.current.x - particle.x;
         let dy = mouseRef.current.y - particle.y;
         let distance = Math.sqrt(dx * dx + dy * dy);
         let forceDirectionX = dx / distance;
         let forceDirectionY = dy / distance;
-        
+
         // Mouse interaction
         let maxDistance = mouseRadius;
         let force = (maxDistance - distance) / maxDistance;
@@ -174,8 +174,8 @@ export default function ParticleText({
   }, [text, colors, font, mouseRadius, mouseStrength, particleSize]);
 
   return (
-    <canvas 
-      ref={canvasRef} 
+    <canvas
+      ref={canvasRef}
       className={className}
       style={{ width: '100%', height: '100%' }}
     />

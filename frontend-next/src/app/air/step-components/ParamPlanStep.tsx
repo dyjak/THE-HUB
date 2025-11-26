@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ParamPanel } from "./ParamPanel";
 import type { ParamPlan, InstrumentConfig, ParamPlanMeta } from "../lib/paramTypes";
 import { ensureInstrumentConfigs, normalizeParamPlan, cloneParamPlan } from "../lib/paramUtils";
-import CosmicButton from "@/components/ui/CosmicButton";
+import ElectricBorder from "@/components/ui/ElectricBorder";
 
 type ChatProviderInfo = { id: string; name: string; default_model?: string };
 
@@ -208,17 +208,15 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-3xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-pink-100 to-fuchsia-500 animate-pulse">Krok 1 • Generowanie parametrów</h2>
         {midi && !loading && (
-          <CosmicButton
+          <ElectricBorder
+            as="button"
             type="button"
             onClick={() => onNavigateNext && onNavigateNext()}
-            className="px-12 py-3 rounded-lg bg-gradient-to-r from-purple-500/70 via-fuchsia-500/70 to-pink-300/70 text-sm font-bold text-white whitespace-nowrap hover:from-purple-500/80 hover:via-fuchsia-500/80 hover:to-pink-300/80 hover:shadow-xl hover:shadow-purple-400/10 transition-all duration-300"
-            starCount={0}
-            particleCount={15}
-            particleSize={0.6}
-            colors={["#d2b2f0ff", "#efb4f8ff", "#ec4899", "#f0abfc"]}
+            className="w-auto px-12 py-3 font-bold text-white bg-black/50 rounded-2xl transition-all duration-300 hover:scale-105 hover:brightness-125 hover:bg-black/70 text-xs"
+            color="#ec48ecff"
           >
-            Przejdź do kroku 2  →
-          </CosmicButton>
+            Przejdź do kroku 2
+          </ElectricBorder>
         )}
       </div>
       <p className="text-xs text-gray-400 max-w-2xl">Model generuje <span className="text-pink-300">parametry muzyczne</span> w formacie JSON. Wynik będzie podstawą do późniejszego tworzenia planu MIDI i renderu audio.</p>
@@ -273,14 +271,12 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
       </div>
       {/* Action button full width */}
       <div>
-        <CosmicButton
+        <ElectricBorder
+          as="button"
           onClick={send}
           disabled={loading || prompt.trim().length <= 3}
-          className={`w-full px-4 py-4 rounded-xl bg-gradient-to-r from-pink-500/40 via-fuchsia-500/40 to-purple-600/40 text-lg font-semibold text-white focus:outline-none focus:ring-2 focus:ring-pink-500 transition-all duration-500 ${loading || prompt.trim().length <= 3 ? '' : 'hover:from-pink-500/50 hover:via-fuchsia-500/50 hover:to-purple-600/50 hover:shadow-lg hover:shadow-pink-400/20'
-            }`}
-          starCount={25}
-          particleCount={35}
-          colors={["#a855f7", "#d946ef", "#ec4899", "#f0abfc"]}
+          className={`w-full py-3.5 text-base font-semibold text-white bg-black/50 rounded-xl transition-all duration-300 ${loading || prompt.trim().length <= 3 ? 'opacity-30 cursor-not-allowed scale-[0.98] grayscale' : 'scale-[0.98] hover:scale-100 hover:brightness-125 hover:bg-black/70 hover:shadow-lg hover:shadow-pink-400/20'}`}
+          color="#d946ef"
         >
           {loading ? (
             'Generuję…'
@@ -292,7 +288,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
               </svg>
             </span>
           )}
-        </CosmicButton>
+        </ElectricBorder>
         {runId && <div className="mt-2 text-[11px] text-gray-500">run: {runId}</div>}
       </div>
 
