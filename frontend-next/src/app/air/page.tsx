@@ -52,10 +52,10 @@ export default function AirPanel() {
 			<div className="flex items-center justify-between gap-6">
 				<div className="flex-1" />
 				<div className="flex flex-col items-center gap-2 select-none">
-					<div className="w-[300px] h-[100px] md:w-[400px] md:h-[120px]">
+					<div className="w-full max-w-[90vw] h-[60px] sm:h-[80px] sm:max-w-[450px] md:max-w-[600px] md:h-[120px]">
 						<ParticleText
 							text="AIR 4.2"
-							font="bold 60px system-ui"
+							font="bold clamp(28px, 8vw, 70px) system-ui"
 							colors={["#ffffffff", "#ffffffff"]}
 							// colors={["#ab51e3", "#bd68ee", "#dc97ff", "#d283ff"]}
 							mouseRadius={20}
@@ -111,7 +111,7 @@ export default function AirPanel() {
 								handleStepChange(s.id);
 							}}
 							disabled={!s.ready}
-							className={`py-1.5 rounded-full border text-xs transition-all duration-1000 ${step === s.id ? `px-80 ${activeClass}` : 'px-3 border-gray-700 bg-black/40'} ${s.ready ? 'cursor-pointer hover:border-gray-500' : 'opacity-40 cursor-not-allowed'}`}
+							className={`py-1.5 rounded-full border text-xs transition-all duration-1000 ${step === s.id ? `px-6 sm:px-12 md:px-20 lg:px-40 xl:px-80 ${activeClass}` : 'px-3 border-gray-700 bg-black/40'} ${s.ready ? 'cursor-pointer hover:border-gray-500' : 'opacity-40 cursor-not-allowed'}`}
 						>{s.name}</button>
 					);
 				})}

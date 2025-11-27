@@ -202,7 +202,7 @@ export default function MidiPlanStep({ meta, onReady }: Props) {
           {meta ? (
             <div className="space-y-1">
               <div
-                className="relative text-[11px] bg-black/40 border border-orange-800/30 rounded-xl px-4 py-3 space-y-0.5 max-h-52 overflow-y-auto scroll-container-orange"
+                className="relative text-[11px] bg-black/40 border border-orange-800/30 rounded-xl px-4 py-3 space-y-0.5 max-h-28 overflow-y-auto scroll-container-orange"
               >
                 <div className="grid sm:grid-cols-3 gap-x-4 gap-y-1">
                   <div><span className="text-gray-400">Style:</span> <span className="text-gray-100">{meta.style}</span></div>
