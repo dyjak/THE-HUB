@@ -66,8 +66,8 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
             if (!colorMap[instrument]) {
               // bardziej zróżnicowane, ale nadal przyjemne kolory
               const hue = Math.floor(Math.random() * 360); // pełne koło barw
-              const sat = 55 + Math.floor(Math.random() * 30);  // 55-85%
-              const light = 45 + Math.floor(Math.random() * 10); // 45-55%
+              const sat = 60 + Math.floor(Math.random() * 20);  // 60-80%
+              const light = 50 + Math.floor(Math.random() * 10); // 50-60%
               colorMap[instrument] = `hsl(${hue} ${sat}% ${light}%)`;
             }
           }
@@ -132,7 +132,7 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
 
   if (!midi) {
     return (
-      <div className="text-[11px] text-gray-500 border border-gray-800 rounded-md p-2">
+      <div className="text-[11px] text-gray-500 border border-gray-800/50 rounded-xl p-4 bg-black/30 text-center">
         Brak danych MIDI do wizualizacji.
       </div>
     );
@@ -140,21 +140,27 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
 
   if (!lanes.length) {
     return (
-      <div className="text-[11px] text-gray-500 border border-gray-800 rounded-md p-2">
-        Model nie zwrócił żadnych nut (pattern jest pusty).
+      <div className="flex items-start gap-2 text-xs bg-red-900/40 border border-red-600/70 text-amber-100 px-3 py-2 rounded-lg">
+        <span className="mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-black text-[10px] font-bold">!</span>
+        <div>
+          <div className="font-semibold uppercase tracking-widest text-[10px] text-amber-200">Pusty pattern MIDI</div>
+          <div className="mt-0.5 text-[11px]">
+            Model nie zwrócił żadnych nut (pattern jest pusty).
+            <br />
+            To się zdarza, gdy model nie trzyma się narzuconejstruktury JSON.
+            <br />
+            Spróbuj ponownie.
+          </div>
+        </div>
       </div>
     );
   }
 
   const noteRange = Math.max(1, maxNote - minNote + 1);
-  // Utrzymujemy przyjemną szerokość kroku, ale dokładne "rozciągnięcie"
-  // do pełnej szerokości zostawiamy CSS-owi (flex + w-full), żeby nie
-  // ściskać patternów na siłę – przy krótkich patternach całość i tak
-  // wygląda szeroko, przy długich pojawia się scroll.
   const baseCellWidth = 36;
-  const baseCellHeight = 12;
-  const cellWidth = baseCellWidth * zoomX; // poziome przybliżanie/oddalanie
-  const cellHeight = baseCellHeight * zoomY; // pionowy zoom lane'ów
+  const baseCellHeight = 14; // slightly taller for better visibility
+  const cellWidth = baseCellWidth * zoomX;
+  const cellHeight = baseCellHeight * zoomY;
   const width = Math.max(1, totalSteps || 1) * cellWidth;
   const height = noteRange * cellHeight;
 
@@ -168,81 +174,80 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
   };
 
   return (
-    <div className="border border-gray-800 rounded-lg overflow-hidden bg-black/80 w-full flex flex-col">
-      <div className="text-[11px] text-gray-400 px-3 py-1 border-b border-gray-800 flex items-center justify-between gap-4">
-        <span>Pianoroll (frontend)</span>
-        <div className="flex-1 flex flex-wrap gap-2 items-center">
+    <div className="border bg-black/20 backdrop-blur-l border-orange-800/40 p-6 rounded-xl overflow-hidden w-full flex flex-col shadow-lg shadow-black/50">
+      <div className="text-[11px] text-gray-400 pb-2 mb-2 border-b border-orange-900/30 flex items-center justify-between gap-4">
+        <span className="font-semibold text-orange-500/80 uppercase tracking-wider">Pianoroll</span>
+        <div className="flex-1 flex flex-wrap gap-2 items-center justify-center">
           {mergedLane && (
-            <div className="flex items-center gap-1 text-[10px] text-gray-200">
-              <span className="inline-block w-3 h-3 rounded-sm bg-gray-200" />
-              <span className="truncate max-w-[120px]" title="Merged pattern">
+            <div className="flex items-center gap-1.5 text-[10px] text-gray-300 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
+              <span className="inline-block w-2 h-2 rounded-full bg-gray-200 shadow-[0_0_5px_rgba(255,255,255,0.5)]" />
+              <span className="truncate max-w-[100px]" title="Merged pattern">
                 Merged
               </span>
             </div>
           )}
           {lanes.map((lane, idx) => (
-            <div key={lane.instrument || idx} className="flex items-center gap-1 text-[10px] text-gray-300">
+            <div key={lane.instrument || idx} className="flex items-center gap-1.5 text-[10px] text-gray-300 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
               <span
-                className="inline-block w-3 h-3 rounded-sm"
-                style={{ backgroundColor: colorMap[lane.instrument] || "#34d399" }}
+                className="inline-block w-2 h-2 rounded-full shadow-[0_0_5px_currentColor]"
+                style={{ backgroundColor: colorMap[lane.instrument] || "#f97316", color: colorMap[lane.instrument] || "#f97316" }}
               />
-              <span className="truncate max-w-[120px]" title={lane.instrument || "pattern"}>
+              <span className="truncate max-w-[100px]" title={lane.instrument || "pattern"}>
                 {lane.instrument || "pattern"}
               </span>
             </div>
           ))}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {typeof midi?.meta?.tempo === "number" && (
-            <span className="text-[10px] text-gray-500 whitespace-nowrap">tempo: {midi.meta.tempo} BPM</span>
+            <span className="text-[10px] text-orange-400/70 font-mono bg-orange-900/20 px-2 py-0.5 rounded border border-orange-900/30">{midi.meta.tempo} BPM</span>
           )}
           <div className="flex items-center gap-2 text-[10px] text-gray-500">
-            <span className="hidden sm:inline">H</span>
+            <span className="hidden sm:inline font-bold text-gray-600">H</span>
             <input
               type="range"
               min={0.5}
-              max={5}
+              max={3}
               step={0.1}
               value={zoomX}
               onChange={e => setZoomX(parseFloat(e.target.value) || 1)}
-              className="w-16 accent-emerald-400 cursor-pointer"
+              className="w-16 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
             />
-            <span className="w-8 text-right">{(zoomX * 100).toFixed(0)}%</span>
-            <span className="hidden sm:inline ml-2">V</span>
+
+            <span className="hidden sm:inline font-bold text-gray-600 ml-2">V</span>
             <input
               type="range"
               min={0.5}
-              max={5}
+              max={3}
               step={0.1}
               value={zoomY}
               onChange={e => setZoomY(parseFloat(e.target.value) || 1)}
-              className="w-16 accent-emerald-400 cursor-pointer"
+              className="w-16 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
             />
-            <span className="w-8 text-right">{(zoomY * 100).toFixed(0)}%</span>
           </div>
         </div>
       </div>
-      <div ref={ref} className="relative w-full flex-1 bg-black overflow-x-auto scroll-container-green overflow-y-hidden">
+      <div ref={ref} className="relative w-full flex-1 bg-[#0a0a0a] overflow-x-auto scroll-container-orange overflow-y-hidden rounded-lg border border-orange-900/20">
         <div className="relative" style={{ minWidth: "100%" }}>
-            {mergedLane && (
-            <div className="border-t border-gray-800/60 first:border-t-0">
-              <div className="text-[10px] text-gray-300 px-3 py-1 flex items-center gap-2 bg-black">
-                <span className="inline-block w-3 h-3 rounded-sm bg-gray-200" />
-                <span className="truncate" title="Merged pattern">
+          {mergedLane && (
+            <div className="border-t border-orange-900/20 first:border-t-0">
+              <div className="text-[10px] text-gray-400 px-3 py-1 flex items-center gap-2 bg-black/60 backdrop-blur sticky left-0 z-10 border-b border-white/5 ">
+                <span className="inline-block w-2 h-2 rounded-full bg-gray-200" />
+                <span className="truncate font-medium" title="Merged pattern">
                   Merged pattern
                 </span>
               </div>
               <div
-                className="relative"
+                className="relative "
                 style={{
                   width,
                   height,
                   backgroundImage:
                     "repeating-linear-gradient(to right," +
-                    "rgba(55,65,81,0.4) 0 1px, transparent 1px 36px," +
-                    "rgba(148,163,184,0.45) 36px 37px, transparent 37px 288px)," +
+                    "rgba(249, 115, 22, 0.03) 0 1px, transparent 1px 36px," +
+                    "rgba(249, 115, 22, 0.07) 36px 37px, transparent 37px 288px)," +
                     "repeating-linear-gradient(to bottom," +
-                    "rgba(15,23,42,0.9) 0 12px, rgba(17,24,39,0.9) 12px 24px)",
+                    "rgba(255,255,255,0.02) 0 1px, transparent 1px 12px)", // subtler grid
                   backgroundSize: `${cellWidth}px ${cellHeight}px`,
                 }}
               >
@@ -250,28 +255,28 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
                   const abs = ev.bar * stepsPerBar + ev.step;
                   const x = (abs - (minAbsStep ?? 0)) * cellWidth;
                   const y = (maxNote - ev.note) * cellHeight;
-                  const w = Math.max(cellWidth * (ev.len || 1), 4);
+                  const w = Math.max(cellWidth * (ev.len || 1) - 1, 3); // -1 for gap
                   const h = cellHeight - 2;
-                  const opacity = Math.min(1, Math.max(0.25, (ev.vel || 80) / 127));
+                  const opacity = Math.min(1, Math.max(0.4, (ev.vel || 80) / 127));
                   const noteLabel = midiNoteName(ev.note);
-                  const baseColor = ev.instrument ? colorMap[ev.instrument] || "#34d399" : "#e5e7eb";
+                  const baseColor = ev.instrument ? colorMap[ev.instrument] || "#f97316" : "#e5e7eb";
 
                   return (
                     <div
                       key={`merged-${idx}`}
                       title={`bar ${ev.bar}, step ${ev.step}, note ${ev.note} (${noteLabel}), vel ${ev.vel ?? 80}`}
-                      className="absolute rounded-sm flex items-center justify-center text-[9px] font-medium text-black/80"
+                      className="absolute rounded-[2px] flex items-center justify-center text-[8px] font-bold text-black/70 shadow-sm transition-opacity hover:opacity-100 hover:z-20"
                       style={{
                         left: x,
-                        top: y,
+                        top: y + 1,
                         width: w,
                         height: h,
                         background: baseColor,
                         opacity,
-                        boxShadow: "0 0 4px rgba(156,163,175,0.8)",
+                        boxShadow: `0 0 8px ${baseColor}40`,
                       }}
                     >
-                      {noteLabel && <span className="px-0.5 truncate max-w-full">{noteLabel}</span>}
+                      {noteLabel && zoomX > 0.8 && <span className="px-0.5 truncate max-w-full">{noteLabel}</span>}
                     </div>
                   );
                 })}
@@ -287,13 +292,13 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
             const laneHeight = laneNoteCount * cellHeight;
 
             return (
-              <div key={lane.instrument || laneIdx} className="border-t border-gray-800/60 first:border-t-0">
-                <div className="text-[10px] text-gray-400 px-3 py-1 flex items-center gap-2 bg-black/70">
+              <div key={lane.instrument || laneIdx} className="border-t border-orange-900/20 first:border-t-0">
+                <div className="text-[10px] text-gray-400 px-3 py-1 flex items-center gap-2 bg-black/60 backdrop-blur sticky left-0 z-10 border-b border-white/5">
                   <span
-                    className="inline-block w-3 h-3 rounded-sm"
-                    style={{ backgroundColor: colorMap[lane.instrument] || "#34d399" }}
+                    className="inline-block w-2 h-2 rounded-full shadow-[0_0_5px_currentColor]"
+                    style={{ backgroundColor: colorMap[lane.instrument] || "#f97316", color: colorMap[lane.instrument] || "#f97316" }}
                   />
-                  <span className="truncate" title={lane.instrument || "pattern"}>
+                  <span className="truncate font-medium" title={lane.instrument || "pattern"}>
                     {lane.instrument || "pattern"}
                   </span>
                 </div>
@@ -305,11 +310,11 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
                     backgroundImage:
                       // pionowe linie: co krok cienka, co ósmy krok jaśniejsza
                       "repeating-linear-gradient(to right," +
-                      "rgba(55,65,81,0.4) 0 1px, transparent 1px 36px," +
-                      "rgba(148,163,184,0.45) 36px 37px, transparent 37px 288px)," +
-                      // poziome pasy: naprzemienne delikatnie ciemniejsze/jasniejsze
+                      "rgba(249, 115, 22, 0.03) 0 1px, transparent 1px 36px," +
+                      "rgba(249, 115, 22, 0.07) 36px 37px, transparent 37px 288px)," +
+                      // poziome pasy
                       "repeating-linear-gradient(to bottom," +
-                      "rgba(15,23,42,0.9) 0 12px, rgba(17,24,39,0.9) 12px 24px)",
+                      "rgba(255,255,255,0.02) 0 1px, transparent 1px 12px)",
                     backgroundSize: `${cellWidth}px ${cellHeight}px`,
                   }}
                 >
@@ -317,28 +322,28 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
                     const abs = ev.bar * stepsPerBar + ev.step;
                     const x = (abs - (minAbsStep ?? 0)) * cellWidth;
                     const y = (laneMax - ev.note) * cellHeight; // wyżej = wyższa nuta w obrębie lane'a
-                    const w = Math.max(cellWidth * (ev.len || 1), 4);
+                    const w = Math.max(cellWidth * (ev.len || 1) - 1, 3);
                     const h = cellHeight - 2;
-                    const opacity = Math.min(1, Math.max(0.25, (ev.vel || 80) / 127));
+                    const opacity = Math.min(1, Math.max(0.4, (ev.vel || 80) / 127));
                     const noteLabel = midiNoteName(ev.note);
-                    const color = colorMap[lane.instrument] || "#34d399";
+                    const color = colorMap[lane.instrument] || "#f97316";
 
                     return (
                       <div
                         key={`${lane.instrument || "lane"}-${idx}`}
                         title={`bar ${ev.bar}, step ${ev.step}, note ${ev.note} (${noteLabel}), vel ${ev.vel ?? 80}`}
-                        className="absolute rounded-sm flex items-center justify-center text-[9px] font-medium text-black/80"
+                        className="absolute rounded-[2px] flex items-center justify-center text-[8px] font-bold text-black/70 shadow-sm transition-opacity hover:opacity-100 hover:z-20"
                         style={{
                           left: x,
-                          top: y,
+                          top: y + 1,
                           width: w,
                           height: h,
                           background: color,
                           opacity,
-                          boxShadow: "0 0 4px rgba(16,185,129,0.7)",
+                          boxShadow: `0 0 8px ${color}40`,
                         }}
                       >
-                        {noteLabel && <span className="px-0.5 truncate max-w-full">{noteLabel}</span>}
+                        {noteLabel && zoomX > 0.8 && <span className="px-0.5 truncate max-w-full">{noteLabel}</span>}
                       </div>
                     );
                   })}

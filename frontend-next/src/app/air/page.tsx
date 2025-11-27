@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import AnimatedCard from "../../components/ui/AnimatedCard";
 import ParamPlanStep from "./step-components/ParamPlanStep";
 import MidiPlanStep, { type MidiPlanResult } from "./step-components/MidiPlanStep";
@@ -18,6 +19,27 @@ export default function AirPanel() {
 	const [midiResult, setMidiResult] = useState<MidiPlanResult | null>(null);
 	const [paramPlan, setParamPlan] = useState<ParamPlan | null>(null);
 	const [selectedSamples, setSelectedSamples] = useState<Record<string, string | undefined>>({});
+	const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+	const [pendingStep, setPendingStep] = useState<StepId | null>(null);
+
+	const handleStepChange = (newStep: StepId) => {
+		if (newStep === step) return;
+		setPendingStep(newStep);
+		setShowConfirmDialog(true);
+	};
+
+	const confirmStepChange = () => {
+		if (pendingStep) {
+			setStep(pendingStep);
+		}
+		setShowConfirmDialog(false);
+		setPendingStep(null);
+	};
+
+	const cancelStepChange = () => {
+		setShowConfirmDialog(false);
+		setPendingStep(null);
+	};
 
 	const steps: { id: StepId; name: string; ready: boolean }[] = useMemo(() => ([
 		{ id: "param-plan", name: "Krok 1 • Parametry (AI)", ready: true },
@@ -66,19 +88,33 @@ export default function AirPanel() {
 
 			{/* Step navigation */}
 			<div className="flex flex-wrap gap-2">
-				{steps.map(s => (
-					<button
-						key={s.id}
-						onClick={() => {
-							if (!s.ready) return;
-							// jeśli wracamy do kroku 1 mając już wygenerowane MIDI,
-							// nie resetujemy tu nic automatycznie – ostrzeżenie i reset są w samym kroku 1
-							setStep(s.id);
-						}}
-						disabled={!s.ready}
-						className={`px-3 py-1.5 rounded-full border text-xs ${step === s.id ? 'border-emerald-500 bg-emerald-800/40' : 'border-gray-700 bg-black/40'} ${s.ready ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed'}`}
-					>{s.name}</button>
-				))}
+				{steps.map(s => {
+					let activeClass = "";
+					switch (s.id) {
+						case "param-plan":
+							activeClass = "border-purple-500/40 bg-purple-500/10 shadow-lg shadow-purple-500/20";
+							break;
+						case "midi-plan":
+							activeClass = "border-orange-500/40 bg-orange-500/10 shadow-lg shadow-orange-500/20";
+							break;
+						case "midi-export":
+						case "render":
+							activeClass = "border-emerald-500/40 bg-emerald-500/10 shadow-lg shadow-emerald-500/20";
+							break;
+					}
+
+					return (
+						<button
+							key={s.id}
+							onClick={() => {
+								if (!s.ready) return;
+								handleStepChange(s.id);
+							}}
+							disabled={!s.ready}
+							className={`py-1.5 rounded-full border text-xs transition-all duration-1000 ${step === s.id ? `px-80 ${activeClass}` : 'px-3 border-gray-700 bg-black/40'} ${s.ready ? 'cursor-pointer hover:border-gray-500' : 'opacity-40 cursor-not-allowed'}`}
+						>{s.name}</button>
+					);
+				})}
 			</div>
 
 			{/* Active step panel */}
@@ -111,6 +147,42 @@ export default function AirPanel() {
 					</div>
 				)}
 			</div>
+
+			{/* Confirmation Dialog */}
+			{showConfirmDialog && typeof document !== 'undefined' && createPortal(
+				<div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] animate-in fade-in duration-200">
+					<div className="bg-gray-900/95 border border-gray-500/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-gray-500/10 animate-in zoom-in-95 duration-200">
+						<div className="flex items-start gap-4">
+							<div className="flex-shrink-0 w-12 h-12 rounded-full bg-gray-500/20 flex items-center justify-center">
+								<svg className="w-6 h-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+								</svg>
+							</div>
+							<div className="flex-1">
+								<h3 className="text-xs uppercase tracking-widest text-gray-200 mb-3">Zmiana kroku</h3>
+								<p className="text-gray-200 text-sm mb-6 leading-relaxed">
+									To może spowodować utratę aktualnego postępu
+								</p>
+								<div className="flex gap-3 justify-end">
+									<button
+										onClick={cancelStepChange}
+										className="px-5 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-800 hover:border-gray-500 transition-all text-xs uppercase tracking-wider font-medium"
+									>
+										Anuluj
+									</button>
+									<button
+										onClick={confirmStepChange}
+										className="px-5 py-2 rounded-lg bg-gray-600 hover:bg-gray-500 text-white transition-all text-xs uppercase tracking-wider font-medium shadow-lg shadow-gray-500/20"
+									>
+										Kontynuuj
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>,
+				document.body
+			)}
 		</div>
 	);
 }

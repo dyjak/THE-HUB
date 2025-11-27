@@ -32,7 +32,7 @@ function hexToRgba(hex: string, alpha = 1): string {
 const ElectricBorder = <T extends ElementType = 'div'>({
     children,
     color = '#5227FF',
-    speed = 0.3,
+    speed = 0.1,
     chaos = 0.3,
     thickness = 3,
     className,

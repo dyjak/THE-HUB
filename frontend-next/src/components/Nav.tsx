@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
-import {FaHome, FaGithub, FaBrain} from "react-icons/fa";
-import {red} from "next/dist/lib/picocolors";
+import { FaHome, FaGithub, FaBrain } from "react-icons/fa";
+import { red } from "next/dist/lib/picocolors";
+import ParticleText from "./ui/ParticleText";
 
 
 export default function Nav() {
-    const {data: session} = useSession();
+    const { data: session } = useSession();
 
     return (
         <nav className="shade p-4 bg-black flex justify-around items-center relative z-10">
@@ -17,7 +18,7 @@ export default function Nav() {
                 {/*<Link href="/app2" className="text-m hover:text-gray-300">🎶 App2</Link>*/}
                 {/*<Link href="/air" className="text-m hover:text-gray-300">🚀 AIR</Link>*/}
                 <Link href="/air" className="text-xl hover:text-gray-300"> <FaHome />  </Link>
-                <Link href="/air" className="text-xl hover:text-gray-300"><FaGithub/> </Link>
+                <Link href="/air" className="text-xl hover:text-gray-300"><FaGithub /> </Link>
                 <Link href="/air" className="text-xl hover:text-gray-300"> <FaBrain /></Link>
                 <Link href="/air/inventory" className="text-s hover:text-gray-300"> Inventory </Link>
 
@@ -27,7 +28,7 @@ export default function Nav() {
                     <div className="flex items-center gap-4">
                         <span>Witaj, {session.user?.name}</span>
                         <button
-                            onClick={() => signOut({callbackUrl: '/'})}
+                            onClick={() => signOut({ callbackUrl: '/' })}
                             className="px-4 py-2 border border-red-500 rounded-lg hover:bg-red-800 transition-colors"
                         >
                             Wyloguj
@@ -36,7 +37,7 @@ export default function Nav() {
                 ) : (
                     <Link
                         href="/login"
-                        className="px-4 py-2 border border-purple-500 rounded-lg hover:bg-blue-800 transition-colors"
+                        className="px-4 py-2 border border-white rounded-lg hover:bg-white/20 transition-colors"
                     >
                         Log In
                     </Link>

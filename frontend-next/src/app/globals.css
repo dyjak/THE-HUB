@@ -2,8 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Zdefiniowanie zmiennych kolorów */
+:root {
+    --primary-color: #acacaca7;
+    /* fioletowy */
+    --secondary-color: #7c7c7c;
+    /* jasny fiolet */
+    --accent-color: #ffffff;
+    /* różowy */
+    --highlight-color: #a8a8a8;
+    /* jasny różowy */
+    --background-dark: #0a0a19;
+    /* ciemny niebieski */
+    --background-gradient-start: rgba(10, 10, 25, 1);
+    /* początek gradientu */
+    --background-gradient-end: rgb(172, 172, 172);
+    /* koniec gradientu */
+    --scroll-thumb-radius: 4px;
+    /* promień zaokrąglenia scrolla */
+    --scrollbar-width: 4px;
+    /* szerokość scrolla */
+}
+
+/* Tło i tekst */
 body {
-    background: radial-gradient(circle, rgba(10, 10, 25, 1) 0%, rgb(161, 66, 224) 100%);
+    background: radial-gradient(circle, var(--background-gradient-start) 0%, var(--background-gradient-end) 100%);
     color: white;
 }
 
@@ -18,9 +41,9 @@ body {
     /* blokuje globalny scroll */
 }
 
-/* Estetyczny scrollbar tylko tam gdzie nadamy klasę scroll-container */
+/* Scrollbar */
 .scroll-container::-webkit-scrollbar {
-    width: 8px;
+    width: var(--scrollbar-width);
 }
 
 .scroll-container::-webkit-scrollbar-track {
@@ -28,17 +51,17 @@ body {
 }
 
 .scroll-container::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, #4f46e5, #9333ea);
-    border-radius: 4px;
+    background: linear-gradient(180deg, var(--secondary-color), var(--accent-color));
+    border-radius: var(--scroll-thumb-radius);
 }
 
 .scroll-container::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, #6366f1, #a855f7);
+    background: linear-gradient(180deg, var(--highlight-color), var(--secondary-color));
 }
 
-/* Zielony wariant scrolla w tej samej konwencji */
+/* Zielony wariant scrolla */
 .scroll-container-green::-webkit-scrollbar {
-    width: 8px;
+    width: var(--scrollbar-width);
 }
 
 .scroll-container-green::-webkit-scrollbar-track {
@@ -47,32 +70,14 @@ body {
 
 .scroll-container-green::-webkit-scrollbar-thumb {
     background: linear-gradient(180deg, #16a34a, #22c55e);
-    border-radius: 4px;
+    border-radius: var(--scroll-thumb-radius);
 }
 
 .scroll-container-green::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(180deg, #22c55e, #4ade80);
 }
 
-
-.shade {
-    background-color: #24003d;
-    position: relative;
-}
-
-
-.shade::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    box-shadow: 0px 0px 30px 20px #24003d;
-    z-index: -1;
-    /* Places shadow behind the element */
-}
-
+/* Animacja gradientu */
 .animate-gradient-x {
     background-size: 200% 200%;
     animation: gradient-x 2s ease infinite;
@@ -92,56 +97,54 @@ body {
     }
 }
 
-@keyframes pulse-scale {
+/* Scrollbar globalny */
+*::-webkit-scrollbar {
+    width: var(--scrollbar-width);
+    height: var(--scrollbar-width);
+    opacity: 0.2;
 
-    0%,
-    100% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.05);
-    }
 }
 
-/* Purple variant scrollbar */
-.scroll-container-purple::-webkit-scrollbar {
-    width: 8px;
-}
-
-.scroll-container-purple::-webkit-scrollbar-track {
+*::-webkit-scrollbar-track {
     background: transparent;
+    opacity: 0.2;
+
 }
 
-.scroll-container-purple::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, #a855f7, #d946ef);
-    border-radius: 4px;
+*::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--secondary-color), var(--accent-color));
+    border-radius: var(--scroll-thumb-radius);
+    opacity: 0.2;
+
 }
 
-.scroll-container-purple::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, #c084fc, #e879f9);
+*::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, var(--highlight-color), var(--secondary-color));
+    opacity: 0.2;
 }
 
-/* Style range inputs with purple/violet */
+/* Style range inputs */
 input[type="range"] {
     -webkit-appearance: none;
     appearance: none;
     cursor: pointer;
     height: 0.5rem;
-    background: linear-gradient(to right, #7c3aed, #a855f7, #d946ef);
+    background: linear-gradient(to right, var(--primary-color), var(--secondary-color), var(--accent-color));
     border-radius: 0.25rem;
 }
 
 input[type="range"]::-webkit-slider-track {
-    background: linear-gradient(to right, #7c3aed, #a855f7, #d946ef);
+    background: linear-gradient(to right, var(--primary-color), var(--secondary-color), var(--accent-color));
     height: 0.5rem;
     border-radius: 0.25rem;
+    opacity: 0.2;
 }
 
 input[type="range"]::-moz-range-track {
-    background: linear-gradient(to right, #7c3aed, #a855f7, #d946ef);
+    background: linear-gradient(to right, var(--primary-color), var(--secondary-color), var(--accent-color));
     height: 0.5rem;
     border-radius: 0.25rem;
+    opacity: 0.2;
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -150,15 +153,16 @@ input[type="range"]::-webkit-slider-thumb {
     width: 1.25rem;
     height: 1.25rem;
     border-radius: 50%;
-    background: #e879f9;
-    border: 2px solid #c084fc;
+    background: var(--highlight-color);
+    border: 2px solid var(--secondary-color);
     cursor: pointer;
     transition: all 0.2s;
+
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
-    background: #f0abfc;
-    border-color: #e879f9;
+    background: #abfcac;
+    border-color: var(--highlight-color);
     transform: scale(1.1);
 }
 
@@ -166,45 +170,47 @@ input[type="range"]::-moz-range-thumb {
     width: 1.25rem;
     height: 1.25rem;
     border-radius: 50%;
-    background: #e879f9;
-    border: 2px solid #c084fc;
+    background: var(--highlight-color);
+    border: 2px solid var(--secondary-color);
     cursor: pointer;
     transition: all 0.2s;
+    opacity: 0.2;
+
 }
 
 input[type="range"]::-moz-range-thumb:hover {
-    background: #f0abfc;
-    border-color: #e879f9;
+    background: #abfcc5;
+    border-color: var(--highlight-color);
     transform: scale(1.1);
+    opacity: 0.2;
+
 }
 
-/* Global scrollbar styling for all overflow elements */
-*::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-*::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-*::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, #a855f7, #d946ef);
-    border-radius: 4px;
-}
-
-*::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, #c084fc, #e879f9);
-}
-
-/* Global styling for select option elements */
+/* Globalne style dla select option */
 select option {
-    background: #1a0b2e;
-    color: #f0abfc;
+    background: var(--background-dark);
+    color: var(--highlight-color);
 }
 
 select option:checked,
 select option:hover {
     background: #2d1b4e;
     color: #fae8ff;
+}
+
+/* Shade */
+.shade {
+    background-color: #000000;
+    position: relative;
+}
+
+.shade::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    box-shadow: 0px 0px 30px 20px #000000;
+    z-index: -1;
 }

@@ -4,6 +4,7 @@ import { ParamPanel } from "./ParamPanel";
 import type { ParamPlan, InstrumentConfig, ParamPlanMeta } from "../lib/paramTypes";
 import { ensureInstrumentConfigs, normalizeParamPlan, cloneParamPlan } from "../lib/paramUtils";
 import ElectricBorder from "@/components/ui/ElectricBorder";
+import LoadingOverlay from "@/components/ui/LoadingOverlay";
 
 type ChatProviderInfo = { id: string; name: string; default_model?: string };
 
@@ -18,6 +19,7 @@ type Props = {
   // pełny plan + wybrane sample (instrument -> sampleId) przekazywane do AirPanel
   onPlanChange?: (plan: ParamPlan | null, selectedSamples: Record<string, string | undefined>) => void;
 };
+
 
 export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChange }: Props) {
   const [prompt, setPrompt] = useState("");
@@ -204,9 +206,10 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
   }, [prompt, provider, model, updateSelectedSamples]);
 
   return (
-    <section className="bg-gray-900/30 border border-pink-700/30 rounded-2xl shadow-lg shadow-pink-900/10 px-6 pt-6 pb-4 space-y-5">
+
+    <section className="bg-gray-900/30 border border-purple-700/30 rounded-2xl shadow-lg shadow-purple-900/10 px-6 pt-6 pb-4 space-y-5">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-3xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-pink-100 to-fuchsia-500 animate-pulse">Krok 1 • Generowanie parametrów</h2>
+        <h2 className="text-3xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-purple-100 to-fuchsia-500 animate-pulse">Krok 1 • Generowanie parametrów</h2>
         {midi && !loading && (
           <ElectricBorder
             as="button"
@@ -214,22 +217,24 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
             onClick={() => onNavigateNext && onNavigateNext()}
             className="w-auto px-12 py-3 font-bold text-white bg-black/50 rounded-2xl transition-all duration-300 hover:scale-105 hover:brightness-125 hover:bg-black/70 text-xs"
             color="#ec48ecff"
+            speed={0.6}
+            chaos={0.4}
           >
             Przejdź do kroku 2
           </ElectricBorder>
         )}
       </div>
-      <p className="text-xs text-gray-400 max-w-2xl">Model generuje <span className="text-pink-300">parametry muzyczne</span> w formacie JSON. Wynik będzie podstawą do późniejszego tworzenia planu MIDI i renderu audio.</p>
+      <p className="text-xs text-gray-400 max-w-2xl">Model generuje <span className="text-purple-300">parametry muzyczne</span> w formacie JSON. Wynik będzie podstawą do późniejszego tworzenia planu MIDI i renderu audio.</p>
       {/* Layout: lewa kolumna 1/4 (provider, model), prawa 3/4 (prompt) */}
       <div className="grid md:grid-cols-4 gap-4 items-start">
         <div className="md:col-span-1 space-y-3">
           <div>
-            <label className="block text-xs uppercase tracking-widest text-pink-300 mb-1">Provider</label>
+            <label className="block text-xs uppercase tracking-widest text-purple-300 mb-1">Provider</label>
             <div className="relative">
               <select
                 value={provider}
                 onChange={e => setProvider(e.target.value)}
-                className="appearance-none w-full bg-black/50 border border-pink-800/40 rounded-lg pr-9 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                className="appearance-none w-full bg-black/50 border border-purple-800/40 rounded-lg pr-9 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-500"
               >
                 {providers.map(p => (
                   <option key={p.id} value={p.id} disabled={(p.id || '').toLowerCase() === 'openai'}>
@@ -237,35 +242,35 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
                   </option>
                 ))}
               </select>
-              <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-pink-300 opacity-70" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-purple-300 opacity-70" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.08 1.04l-4.25 4.25a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clipRule="evenodd" />
               </svg>
             </div>
           </div>
           <div>
-            <label className="block text-xs uppercase tracking-widest text-pink-300 mb-1">Model</label>
+            <label className="block text-xs uppercase tracking-widest text-purple-300 mb-1">Model</label>
             {models.length > 0 ? (
               <div className="relative">
-                <select value={model} onChange={e => setModel(e.target.value)} className="appearance-none w-full bg-black/50 border border-pink-800/40 rounded-lg pr-9 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500">
+                <select value={model} onChange={e => setModel(e.target.value)} className="appearance-none w-full bg-black/50 border border-purple-800/40 rounded-lg pr-9 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-500">
                   {models.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
-                <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-pink-300 opacity-70" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-purple-300 opacity-70" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                   <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.08 1.04l-4.25 4.25a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clipRule="evenodd" />
                 </svg>
               </div>
             ) : (
-              <input value={model} onChange={e => setModel(e.target.value)} placeholder="gemini-2.5-flash" className="w-full bg-black/50 border border-pink-800/40 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500" />
+              <input value={model} onChange={e => setModel(e.target.value)} placeholder="gemini-2.5-flash" className="w-full bg-black/50 border border-purple-800/40 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-500" />
             )}
           </div>
         </div>
         <div className="md:col-span-3">
-          <label className="block text-xs uppercase tracking-widest text-pink-300 mb-1">Opis utworu (prompt)</label>
+          <label className="block text-xs uppercase tracking-widest text-purple-300 mb-1">Opis utworu (prompt)</label>
           <textarea
             value={prompt}
             onChange={e => setPrompt(e.target.value)}
             rows={4}
             placeholder="np. 'epicki, kinowy motyw 90 BPM z chórem i perkusją'"
-            className="w-full bg-black/50 border border-pink-800/40 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none"
+            className="w-full bg-black/50 border border-purple-800/40 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 resize-none"
           />
         </div>
       </div>
@@ -275,8 +280,10 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
           as="button"
           onClick={send}
           disabled={loading || prompt.trim().length <= 3}
-          className={`w-full py-3.5 text-base font-semibold text-white bg-black/50 rounded-xl transition-all duration-300 ${loading || prompt.trim().length <= 3 ? 'opacity-30 cursor-not-allowed scale-[0.98] grayscale' : 'scale-[0.98] hover:scale-100 hover:brightness-125 hover:bg-black/70 hover:shadow-lg hover:shadow-pink-400/20'}`}
+          className={`w-full py-3.5 text-base font-semibold text-white bg-black/50 rounded-xl transition-all duration-300 ${loading || prompt.trim().length <= 3 ? 'opacity-30 cursor-not-allowed scale-[0.98] grayscale' : 'scale-[0.98] hover:scale-100 hover:brightness-125 hover:bg-black/70 hover:shadow-lg hover:shadow-purple-400/20'}`}
           color="#d946ef"
+          speed={0.1}
+          chaos={0.3}
         >
           {loading ? (
             'Generuję…'
@@ -294,14 +301,24 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
 
       {error && <div className="bg-red-900/30 border border-red-800/70 text-red-200 text-sm rounded-xl px-4 py-3">{error}</div>}
       {warnings.length > 0 && (
-        <div className="bg-amber-900/20 border border-amber-700/60 text-amber-200 text-xs rounded-xl px-4 py-3 space-y-1">
-          {warnings.map((w, i) => <div key={i}>• {w}</div>)}
+        <div className="flex items-start gap-2 text-xs bg-amber-900/40 border border-amber-600/70 text-amber-100 px-3 py-2 rounded-lg">
+          <span className="mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-black text-[10px] font-bold">!</span>
+          <div>
+            <div className="font-semibold uppercase tracking-widest text-[10px] text-amber-200">Ostrzeżenie</div>
+            <div className="mt-0.5 text-[11px]">
+              {warnings.map((w, i) => <div key={i}>{w}</div>)}
+              <br />
+              To się zdarza, gdy model nie trzyma się narzuconej struktury JSON.
+              <br />
+              Spróbuj ponownie.
+            </div>
+          </div>
         </div>
       )}
       {/* Panel dostosowania parametrów - widoczny po wygenerowaniu */}
       {midi && (
-        <div className="bg-black/30 border border-pink-800/40 rounded-2xl p-4 space-y-3 text-xs">
-          <div className="text-pink-300 text-xs uppercase tracking-widest">Panel dostosowania parametrów</div>
+        <div className="bg-black/30 border border-purple-800/40 rounded-2xl p-4 space-y-3 text-xs">
+          <div className="text-purple-300 text-xs uppercase tracking-widest">Panel dostosowania parametrów</div>
           <ParamPanel
             midi={midi}
             availableInstruments={available}
@@ -362,8 +379,8 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
       )}
       {showResetWarning && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
-          <div className="bg-gray-900 border border-red-700 rounded-2xl p-5 max-w-sm w-full space-y-3 shadow-xl">
-            <div className="text-sm font-semibold text-red-300">Uwaga: zresetować aktualne ustawienia?</div>
+          <div className="bg-gray-900 border border-purple-700 rounded-2xl p-5 max-w-sm w-full space-y-3 shadow-xl">
+            <div className="text-sm font-semibold text-purple-300">Uwaga: zresetować aktualne ustawienia?</div>
             <p className="text-xs text-gray-300">
               Powrót do kroku 1 i ponowne generowanie parametrów wyzeruje bieżący plan MIDI oraz wybór sampli.
             </p>
@@ -392,7 +409,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
                   setError(null);
                   if (onMetaReady) onMetaReady(null);
                 }}
-                className="px-3 py-1.5 rounded-lg bg-red-700 text-white hover:bg-red-600"
+                className="px-3 py-1.5 rounded-lg bg-purple-700 text-white hover:bg-purple-600"
               >
                 Wyzeruj ustawienia
               </button>
@@ -402,36 +419,42 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
       )}
       {/* Podgląd promptu i odpowiedzi modelu */}
       {(systemPrompt || userPrompt || normalized || raw) && (
-        <details className="bg-gray-900/30 rounded-xl px-3 py-2 border border-pink-800/30">
-          <summary className="cursor-pointer text-pink-300 text-xs mb-1 hover:text-pink-200 transition-colors">Pełny kontekst wymiany z modelem</summary>
+        <details className="bg-gray-900/30 rounded-xl px-3 py-2 border border-purple-800/30">
+          <summary className="cursor-pointer text-purple-300 text-xs mb-1 hover:text-purple-200 transition-colors">Pełny kontekst wymiany z modelem</summary>
           <div className="space-y-2 mt-2">
             {systemPrompt && (
               <div>
                 <div className="text-[10px] text-gray-400">System prompt</div>
-                <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-pink-900/40">{systemPrompt}</pre>
+                <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-purple-900/40">{systemPrompt}</pre>
               </div>
             )}
             {userPrompt && (
               <div>
                 <div className="text-[10px] text-gray-400">User payload (JSON)</div>
-                <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-pink-900/40">{userPrompt}</pre>
+                <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-purple-900/40">{userPrompt}</pre>
               </div>
             )}
             {normalized && (
               <div>
                 <div className="text-[10px] text-gray-400">Normalizowana odpowiedź modelu</div>
-                <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-pink-900/40">{pretty(normalized)}</pre>
+                <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-purple-900/40">{pretty(normalized)}</pre>
               </div>
             )}
             {raw && (
               <details className="mt-1">
                 <summary className="cursor-pointer text-[10px] text-gray-500 hover:text-gray-300">Pokaż surową odpowiedź modelu</summary>
-                <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-pink-900/40">{raw}</pre>
+                <pre className="mt-0.5 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto bg-black/40 rounded-lg px-2 py-1 border border-purple-900/40">{raw}</pre>
               </details>
             )}
           </div>
         </details>
       )}
+
+      {/* Loading overlay */}
+      <LoadingOverlay
+        isVisible={loading}
+        message="Generuję zestaw parametrów dla Twojego utworu. To potrwa parę chwil... Serio."
+      />
     </section>
   );
 }
