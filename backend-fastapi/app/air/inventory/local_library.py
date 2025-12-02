@@ -30,6 +30,8 @@ class LocalSample:
     is_loop: bool = False
     sample_rate: int | None = None
     length_sec: float | None = None
+    loudness_rms: float | None = None
+    gain_db_normalize: float | None = None
 
 
 def _abs_path(root: Path, row: dict) -> Path:
@@ -81,6 +83,8 @@ def discover_samples(deep: bool = False) -> Dict[str, List[LocalSample]]:
                     is_loop=bool(r.get("is_loop", False)),
                     sample_rate=r.get("sample_rate"),
                     length_sec=r.get("length_sec"),
+                    loudness_rms=r.get("loudness_rms"),
+                    gain_db_normalize=r.get("gain_db_normalize"),
                 )
                 lst.append(s)
             except Exception:

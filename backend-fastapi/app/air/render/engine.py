@@ -137,8 +137,8 @@ def _mix_tracks(tracks: List[List[float]]) -> List[float]:
     return out
 
 
-def _resolve_sample_for_instrument(instrument: str, selected_samples: Dict[str, str] | None, lib: Dict[str, List[LocalSample]]) -> Path | None:
-    """Find the WAV file for an instrument using selected_samples + inventory.
+def _resolve_sample_for_instrument(instrument: str, selected_samples: Dict[str, str] | None, lib: Dict[str, List[LocalSample]]) -> LocalSample | None:
+    """Find the LocalSample for an instrument using selected_samples + inventory.
 
     selected_samples: instrument -> sample_id
     If no explicit selection, fall back to first sample in inventory for that instrument.
@@ -148,12 +148,12 @@ def _resolve_sample_for_instrument(instrument: str, selected_samples: Dict[str, 
     if sample_id:
         s = find_sample_by_id(lib, instrument, sample_id)
         if s and s.file.exists():
-            return s.file
+            return s
 
     # fallback: first available
     for s in lib.get(instrument, []) or []:
         if s.file.exists():
-            return s.file
+            return s
     return None
 
 
@@ -268,17 +268,28 @@ def render_audio(req: RenderRequest) -> RenderResponse:
             continue
 
         instrument = track.instrument
-        sample_path = _resolve_sample_for_instrument(instrument, req.selected_samples, lib)
-        if not sample_path:
+        sample = _resolve_sample_for_instrument(instrument, req.selected_samples, lib)
+        if not sample:
             log.warning("[render] no sample for instrument=%s (selected=%s)", instrument, (req.selected_samples or {}).get(instrument))
             missing_or_failed.append(instrument)
             continue
 
+        sample_path = sample.file
         base_wave = _read_wav_mono(sample_path)
         if base_wave is None or not base_wave:
             log.warning("[render] failed to read sample for instrument=%s path=%s", instrument, sample_path)
             missing_or_failed.append(instrument)
             continue
+
+        # Optional per-sample loudness normalisation based on inventory analysis.
+        try:
+            if sample.gain_db_normalize is not None:
+                gain = _db_to_gain(float(sample.gain_db_normalize))
+                if gain > 0.0 and gain != 1.0:
+                    base_wave = [v * gain for v in base_wave]
+        except Exception:
+            # Fail-silent: fall back to raw sample if anything goes wrong.
+            pass
 
         # Build mono buffer for this instrument
         buf = [0.0] * frames

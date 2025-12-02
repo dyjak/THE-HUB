@@ -1,7 +1,13 @@
+# pilne
+### rekaftoryzacja sampli
+### normalizacja głośności poszczególnych instrumentów w renderze
+
+
 # general
 ### ostrzeżenie przy powrocie do danego kroku o możliwości i utraty postępu
 ### panel ładowania 
 ### zapisywanie info o aktualnym runid aby w każdym kroku można było przywrócić bieżące komponenty na froncie
+### czat pomocniczy - przewodnik
 
 ### baza danych logowanie sesja itd
 

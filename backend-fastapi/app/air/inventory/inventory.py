@@ -25,6 +25,7 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
 
     - Groups samples by a simple, robust keyword-based instrument classifier
     - Stores absolute + relative paths for reliable URL building later
+    - Optionally (deep=True) computes basic audio stats for loudness normalisation
     - Keeps schema stable so runtime readers don't need to change
     """
     root = DEFAULT_LOCAL_SAMPLES_ROOT
@@ -77,102 +78,90 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
         family = rel_parts[0] if rel_parts else None
         pitch = _detect_pitch(file_name)
 
-        # Priority rules (most specific first)
-        # 1) FX with named subtypes
-        fx_subs = {
-            "texture": "Texture",
-            "downfilter": "Downfilter",
-            "impact": "Impact",
-            "swell": "Swell",
-            "riser": "Riser",
-            "subdrop": "Subdrop",
-            "upfilter": "Upfilter",
-        }
-        for kw, sub in fx_subs.items():
-            if kw in tokens:
-                return sub, family, "FX", sub, pitch
+        name_upper = file_name.upper()
 
-        # 2) Drums family (excluding 808 which is its own top-level)
-        drum_map = {
+        # 1) Explicit name-based rules from spec
+        # Acoustic Guitar: filename contains "ACOUSTICG"
+        if "ACOUSTICG" in name_upper:
+            return "Acoustic Guitar", family, None, None, pitch
+
+        # Electric Guitar: filename contains "DARK STAL METAL"
+        if "DARK STAL METAL" in name_upper:
+            return "Electric Guitar", family, None, None, pitch
+
+        # Bass Guitar: filename contains "DEEPER PURPLE"
+        if "DEEPER PURPLE" in name_upper:
+            return "Bass Guitar", family, None, None, pitch
+
+        # Trombone: filename contains "TRO MLON"
+        if "TRO MLON" in name_upper:
+            return "Trombone", family, None, None, pitch
+
+        # Piano specials: "CHANGPIANOHARD" or prefix "Gz_"
+        if "CHANGPIANOHARD" in name_upper or name_upper.startswith("GZ_"):
+            return "Piano", family, None, None, pitch
+
+        # 2) Folder-based high-level families
+        # Top-level folders are already reflected in `family` from rel_parts[0]
+        if family:
+            fam_low = family.lower()
+            if fam_low == "choirs":
+                return "Choirs", family, None, None, pitch
+            if fam_low == "fx":
+                # FX without subcategories
+                return "FX", family, "FX", None, pitch
+            if fam_low == "pads":
+                return "Pads", family, None, None, pitch
+            if fam_low == "strings":
+                return "Strings", family, None, None, pitch
+            if fam_low == "sax":
+                return "Sax", family, None, None, pitch
+            if fam_low == "trombone":
+                return "Trombone", family, None, None, pitch
+            if fam_low == "piano":
+                return "Piano", family, None, None, pitch
+
+        # 3) Drums with detailed subtypes
+        # We treat all of them under category "Drums" with subtypes
+        drum_subs = {
             "clap": "Clap",
             "hat": "Hat",
             "hihat": "Hat",
             "kick": "Kick",
             "snare": "Snare",
+            "crash": "Crash",
+            "ride": "Ride",
+            "splash": "Splash",
+            "tom": "Tom",
+            "rim": "Rim",
+            "shake": "Shake",
+            "shaker": "Shake",
         }
-        for kw, sub in drum_map.items():
+        for kw, sub in drum_subs.items():
             if kw in tokens:
-                return sub, family, "Drums", sub, pitch
+                return sub, family or "Drums", "Drums", sub, pitch
 
-        # 3) 808 (treat separately from Drums)
-        if "808" in tokens:
-            return "808", family, None, None, pitch
-
-        # 4) Specific compound instruments
-        if "bass" in tokens and "guitar" in tokens:
-            return "Bass Guitar", family, None, None, pitch
-        if "bass" in tokens and "synth" in tokens:
-            return "Bass Synth", family, None, None, pitch
-
-        # 5) Single instruments (singular naming)
+        # 4) Remaining broader instrument categories
+        # Uwaga: nie dodajemy ogólnego fallbacku "guitar" tutaj, żeby nie mylić Electric/Acoustic.
         single_map = [
-            ("bell", "Bell"),
-            ("flute", "Flute"),
-            ("guitar", "Guitar"),
-            ("pad", "Pad"),
-            ("pluck", "Pluck"),
-            ("synth", "Synth"),
-            ("lead", "Lead"),
-            ("reese", "Reese"),
-            ("brass", "Brass"),
-            ("piano", "Piano"),
-            ("violin", "Violin"),
+            ("choir", "Choirs"),
+            ("string", "Strings"),
             ("sax", "Sax"),
+            ("trombone", "Trombone"),
+            ("pad", "Pads"),
+            ("piano", "Piano"),
             ("bass", "Bass"),
         ]
         for kw, inst in single_map:
             if kw in tokens:
                 return inst, family, None, None, pitch
 
-        # 6) Fallbacks based on directory hints
-        # If a second-level directory suggests category, keep as that instrument in singular
-        for p in reversed(rel_parts):
-            pl = p.lower()
-            hints = {
-                "bells": "Bell", "bell": "Bell",
-                "pads": "Pad", "pad": "Pad",
-                "plucks": "Pluck", "pluck": "Pluck",
-                "leads": "Lead", "lead": "Lead",
-                "guitar": "Guitar", "flute": "Flute", "sax": "Sax",
-                "reese": "Reese", "synth": "Synth", "bass": "Bass",
-                "kicks": "Drums", "kick": "Drums",
-                "snares": "Drums", "snare": "Drums",
-                "hats": "Drums", "hat": "Drums",
-                "claps": "Drums", "clap": "Drums",
-                "808s": "808", "808": "808",
-                "piano": "Piano", "violin": "Violin", "brass": "Brass",
-            }
-            if pl in hints:
-                inst = hints[pl]
-                cat = None
-                sub = None
-                if inst == "Drums":
-                    # map specific to subtypes if possible
-                    if "kick" in pl:
-                        sub = "Kick"
-                    elif "snare" in pl:
-                        sub = "Snare"
-                    elif "hat" in pl:
-                        sub = "Hat"
-                    elif "clap" in pl:
-                        sub = "Clap"
-                    if sub:
-                        return sub, family, "Drums", sub, pitch
-                    return inst, family, "Drums", None, pitch
-                return inst, family, cat, sub, pitch
+        # 5) Default to FX or Synth depending on folder
+        if family and family.lower() == "fx":
+            return "FX", family, "FX", None, pitch
 
-        # 7) Default to Synth as neutral melodic if nothing matched
-        return "Synth", family, None, None, pitch
+        # Neutral melodic default
+        return "Pads", family, None, None, pitch
 
     instruments: Dict[str, Any] = {}
     all_samples: list[dict[str, Any]] = []
@@ -201,6 +190,52 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
                 size = f.stat().st_size
             except Exception:
                 pass
+
+            # Optional deep analysis for loudness/length if requested.
+            sample_rate: int | None = None
+            length_sec: float | None = None
+            loudness_rms: float | None = None
+            gain_db_normalize: float | None = None
+            if deep:
+                try:
+                    import wave as _wav  # type: ignore
+                    import contextlib as _ctx  # type: ignore
+                    import math as _math  # type: ignore
+                    with _ctx.closing(_wav.open(str(f), "rb")) as wf:
+                        sr = wf.getframerate()
+                        n_channels = wf.getnchannels()
+                        n_frames = wf.getnframes()
+                        # limit frames for RMS to keep it quick on huge files
+                        max_frames = min(n_frames, sr * 60)
+                        frames = wf.readframes(max_frames)
+                        import struct as _struct  # type: ignore
+
+                        if wf.getsampwidth() == 2 and n_channels > 0:
+                            total_samples = max_frames * n_channels
+                            fmt = "<" + "h" * total_samples
+                            try:
+                                ints = _struct.unpack(fmt, frames)
+                                # downmix to mono by taking first channel
+                                mono = ints[0::n_channels]
+                                if mono:
+                                    # normalise to [-1, 1]
+                                    vals = [x / 32768.0 for x in mono]
+                                    n = float(len(vals))
+                                    if n > 0:
+                                        rms = _math.sqrt(sum(v * v for v in vals) / n)
+                                        loudness_rms = float(rms)
+                                        # baseline target ~0.2 (arbitrary but sensible for headroom)
+                                        target = 0.2
+                                        if rms > 0:
+                                            gain_db_normalize = float(-20.0 * _math.log10(rms / target))
+                            except Exception:
+                                pass
+                        sample_rate = int(sr)
+                        if sr > 0:
+                            length_sec = float(n_frames) / float(sr)
+                except Exception:
+                    pass
+
             row = {
                 "instrument": instrument,
                 "id": rel.as_posix(),  # stable, human-inspectable id
@@ -212,10 +247,11 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
                 "category": category,
                 "family": family,
                 "subtype": subtype,
+                "sample_rate": sample_rate,
+                "length_sec": length_sec,
+                "loudness_rms": loudness_rms,
+                "gain_db_normalize": gain_db_normalize,
             }
-            if deep:
-                # Placeholder: fields remain None unless an analyzer is integrated
-                row.update({"sample_rate": None, "length_sec": None})
             all_samples.append(row)
             total_files += 1
             total_bytes += size

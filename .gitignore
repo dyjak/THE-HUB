@@ -12,3 +12,8 @@ venv
 
 
 **/output/
+
+
+*.wav
+*.dwp
+*.fst
