@@ -24,6 +24,29 @@ export default function AirPanel() {
 	const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 	const [pendingStep, setPendingStep] = useState<StepId | null>(null);
 
+	// Helper: persist selected_samples to backend parameter_plan.json for current param run
+	const persistSelectedSamples = async (next: Record<string, string | undefined>) => {
+		setSelectedSamples(next);
+		if (!runIdParam) return;
+		try {
+			const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+			const API_PREFIX = "/api";
+			const MODULE_PREFIX = "/air/param-generation";
+			const cleaned: Record<string, string> = {};
+			for (const [k, v] of Object.entries(next)) {
+				if (!k || !v) continue;
+				cleaned[k] = v;
+			}
+			await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/plan/${encodeURIComponent(runIdParam)}/selected-samples`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ selected_samples: cleaned }),
+			});
+		} catch {
+			// backend sync failure nie blokuje UX; frontend pozostaje źródłem prawdy
+		}
+	};
+
 	const handleStepChange = (newStep: StepId) => {
 		if (newStep === step) return;
 		setPendingStep(newStep);
@@ -168,6 +191,7 @@ export default function AirPanel() {
 						selectedSamples={selectedSamples}
 						initialRunId={runIdRender}
 						onRunIdChange={setRunIdRender}
+						onSelectedSamplesChange={persistSelectedSamples}
 					/>
 				)}
 				{step === "render" && (

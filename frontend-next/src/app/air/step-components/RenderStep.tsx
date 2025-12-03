@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import type { ParamPlanMeta } from "../lib/paramTypes";
 import type { MidiPlanResult } from "./MidiPlanStep";
+import { SampleSelector } from "./SampleSelector";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
 const API_PREFIX = "/api";
@@ -24,9 +25,11 @@ type Props = {
   // run_id z backendu dla kroku renderu (zwykle ten sam co z MIDI)
   initialRunId?: string | null;
   onRunIdChange?: (runId: string | null) => void;
+  // Opcjonalne powiadomienie rodzica o zmianie wyboru sampli w kroku render
+  onSelectedSamplesChange?: (next: Record<string, string | undefined>) => void;
 };
 
-export default function RenderStep({ meta, midi, selectedSamples, initialRunId, onRunIdChange }: Props) {
+export default function RenderStep({ meta, midi, selectedSamples, initialRunId, onRunIdChange, onSelectedSamplesChange }: Props) {
   const [projectName, setProjectName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,10 +42,6 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
       enabled: true,
       volume_db: idx === 0 ? 0 : -3,
       pan: 0,
-      eq: { low: 0, mid: 0, high: 0 },
-      comp: { threshold: -18, ratio: 2 },
-      reverb: { mix: 0.15, time: 1.5 },
-      delay: { mix: 0.1, time_ms: 400, feedback: 0.3 },
     }));
   });
 
@@ -56,6 +55,21 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
   const handleTrackChange = (index: number, patch: Partial<(typeof tracks)[number]>) => {
     setTracks(prev => prev.map((t, i) => (i === index ? { ...t, ...patch } : t)));
   };
+
+  const handleSampleChange = useCallback(
+    (instrument: string, sampleId: string | null) => {
+      const next: Record<string, string | undefined> = { ...selectedSamples };
+      if (!sampleId) {
+        delete next[instrument];
+      } else {
+        next[instrument] = sampleId;
+      }
+      if (onSelectedSamplesChange) {
+        onSelectedSamplesChange(next);
+      }
+    },
+    [selectedSamples, onSelectedSamplesChange],
+  );
 
   const handleRender = async () => {
     if (!meta || !midi || !projectName.trim()) return;
@@ -195,40 +209,15 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
                         {t.pan < 0 ? `L ${Math.abs(t.pan).toFixed(1)}` : t.pan > 0 ? `R ${t.pan.toFixed(1)}` : "Center"}
                       </div>
                     </div>
-                    <div className="space-y-1">
-                      <div className="text-[10px] text-gray-400">Reverb / Delay (mix)</div>
-                      <div className="flex gap-1 items-center">
-                        <input
-                          type="range"
-                          min={0}
-                          max={1}
-                          step={0.05}
-                          value={t.reverb.mix}
-                          onChange={e =>
-                            handleTrackChange(idx, { reverb: { ...t.reverb, mix: Number(e.target.value) } })
-                          }
-                          className="flex-1"
-                        />
-                        <span className="text-[10px] text-gray-300 w-10 text-right">
-                          {(t.reverb.mix * 100).toFixed(0)}%
-                        </span>
-                      </div>
-                      <div className="flex gap-1 items-center">
-                        <input
-                          type="range"
-                          min={0}
-                          max={1}
-                          step={0.05}
-                          value={t.delay.mix}
-                          onChange={e =>
-                            handleTrackChange(idx, { delay: { ...t.delay, mix: Number(e.target.value) } })
-                          }
-                          className="flex-1"
-                        />
-                        <span className="text-[10px] text-gray-300 w-10 text-right">
-                          {(t.delay.mix * 100).toFixed(0)}%
-                        </span>
-                      </div>
+                    <div>
+                      <SampleSelector
+                        apiBase={API_BASE}
+                        apiPrefix={API_PREFIX}
+                        modulePrefix={"/air/param-generation"}
+                        instrument={t.instrument}
+                        selectedId={selectedSamples[t.instrument] || null}
+                        onChange={handleSampleChange}
+                      />
                     </div>
                   </div>
                 </div>
