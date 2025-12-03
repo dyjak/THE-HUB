@@ -91,8 +91,8 @@ const ParamPanelComponent = ({
   const gridCols = columns === 4 ? "sm:grid-cols-4" : columns === 3 ? "sm:grid-cols-3" : columns === 1 ? "sm:grid-cols-1" : "sm:grid-cols-2";
   const sizeClass = compact ? "text-xs" : "text-sm";
 
-  const DRUMS = ["Kick", "Snare", "Clap", "Hat"];
-  const FX = ["Impact", "Riser", "Subdrop", "Swell", "Texture"];
+  const DRUMS = ["Kick", "Snare", "Clap", "Hat", "Tom", "Rim", "Crash", "Ride", "Splash", "Shake"];
+  const FX = ["Impact", "Riser", "Subdrop", "Swell", "Texture"]; //old
   const genericInstruments = selectableInstruments.filter(inst => !DRUMS.includes(inst) && !FX.includes(inst));
 
   // Derive instruments that are present in the MIDI meta but not available in the inventory.

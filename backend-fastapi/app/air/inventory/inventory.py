@@ -26,6 +26,7 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
     - Groups samples by a simple, robust keyword-based instrument classifier
     - Stores absolute + relative paths for reliable URL building later
     - Optionally (deep=True) computes basic audio stats for loudness normalisation
+    - Skips unreadable/invalid audio files so broken samples never enter inventory
     - Keeps schema stable so runtime readers don't need to change
     """
     root = DEFAULT_LOCAL_SAMPLES_ROOT
@@ -86,7 +87,7 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
             return "Acoustic Guitar", family, None, None, pitch
 
         # Electric Guitar: filename contains "DARK STAL METAL"
-        if "DARK STAL METAL" in name_upper:
+        if "DARK STAR METAL" in name_upper:
             return "Electric Guitar", family, None, None, pitch
 
         # Bass Guitar: filename contains "DEEPER PURPLE"
@@ -183,6 +184,22 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
             except Exception:
                 # If file is outside the expected root, skip
                 continue
+
+            # Lightweight validity check: try opening audio file once.
+            # This ensures corrupt/unreadable files never reach the inventory
+            # and therefore nie pojawią się w panelu ani w playbacku.
+            try:
+                if f.suffix.lower() == ".wav":
+                    import wave as _wav  # type: ignore
+                    with _wav.open(str(f), "rb") as _wf:  # type: ignore
+                        _ = _wf.getnframes()
+                else:
+                    # For now other formats are trusted; extend here if needed.
+                    pass
+            except Exception:
+                # Broken / unreadable file -> completely skip
+                continue
+
             rel_parts = list(rel.parts[:-1])  # directory parts only
             instrument, family, category, subtype, pitch = classify(rel_parts, f.name)
             size = 0

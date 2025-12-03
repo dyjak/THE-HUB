@@ -28,9 +28,12 @@ export type MidiPlanResult = {
 type Props = {
   meta: ParamPlanMeta | null;
   onReady?: (result: MidiPlanResult) => void;
+  // run_id z backendu do odtwarzania/śledzenia kroku 2
+  initialRunId?: string | null;
+  onRunIdChange?: (runId: string | null) => void;
 };
 
-export default function MidiPlanStep({ meta, onReady }: Props) {
+export default function MidiPlanStep({ meta, onReady, initialRunId, onRunIdChange }: Props) {
   const pianorollScrollRef = useRef<HTMLDivElement | null>(null);
   const [providers, setProviders] = useState<{ id: string; name: string; default_model?: string }[]>([]);
   const [provider, setProvider] = useState<string>("gemini");
@@ -92,6 +95,31 @@ export default function MidiPlanStep({ meta, onReady }: Props) {
     return () => { mounted = false; };
   }, [provider]);
 
+  // Jeśli mamy initialRunId, spróbujmy odtworzyć poprzedni run z backendu
+  useEffect(() => {
+    if (!initialRunId || result) return;
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/run/${encodeURIComponent(initialRunId)}`);
+        if (!res.ok) return;
+        const data: any = await res.json().catch(() => null);
+        if (!active || !data) return;
+        setResult(data as MidiPlanResult);
+        setSystemPrompt(typeof data.system === "string" ? data.system : null);
+        setUserPrompt(typeof data.user === "string" ? data.user : null);
+        setRawText(typeof data.raw === "string" ? data.raw : null);
+        const parsed = data.parsed ?? data.midi ?? null;
+        setNormalized(parsed ?? null);
+        if (onReady) onReady(data as MidiPlanResult);
+        if (onRunIdChange) onRunIdChange(initialRunId);
+      } catch {
+        // jeśli nie uda się odczytać, po prostu startujemy od zera
+      }
+    })();
+    return () => { active = false; };
+  }, [initialRunId, result, onReady, onRunIdChange]);
+
   const canRun = !!meta && !loading;
 
   const handleRun = async () => {
@@ -116,6 +144,9 @@ export default function MidiPlanStep({ meta, onReady }: Props) {
       const parsed = data.parsed ?? null;
       setNormalized(parsed ?? null);
       if (onReady) onReady(data);
+      if (onRunIdChange && typeof data.run_id === "string") {
+        onRunIdChange(data.run_id);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

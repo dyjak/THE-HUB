@@ -18,10 +18,13 @@ type Props = {
   onNavigateNext?: () => void;
   // pełny plan + wybrane sample (instrument -> sampleId) przekazywane do AirPanel
   onPlanChange?: (plan: ParamPlan | null, selectedSamples: Record<string, string | undefined>) => void;
+  // Obsługa run_id z backendu, żeby można było odtworzyć stan kroku 1
+  initialRunId?: string | null;
+  onRunIdChange?: (runId: string | null) => void;
 };
 
 
-export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChange }: Props) {
+export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChange, initialRunId, onRunIdChange }: Props) {
   const [prompt, setPrompt] = useState("");
   const [providers, setProviders] = useState<ChatProviderInfo[]>([]);
   const [provider, setProvider] = useState<string>("gemini");
@@ -42,6 +45,65 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
   const [selectable, setSelectable] = useState<string[]>([]);
   const [selectedSamples, setSelectedSamples] = useState<Record<string, string | undefined>>({});
   const [showResetWarning, setShowResetWarning] = useState(false);
+
+  // Synchronize local plan + selected samples to parent AirPanel
+  useEffect(() => {
+    if (!onPlanChange) return;
+    onPlanChange(midi, selectedSamples);
+  }, [midi, selectedSamples, onPlanChange]);
+
+  // Jeśli mamy initialRunId, spróbujmy wczytać istniejący parameter_plan.json z backendu
+  useEffect(() => {
+    if (!initialRunId) return;
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/plan/${encodeURIComponent(initialRunId)}`);
+        if (!res.ok) return;
+        const payload = await res.json().catch(() => null);
+        if (!active || !payload?.plan) return;
+
+        // Preferuj payload.plan.meta, ale jeśli jej nie ma, spróbuj użyć całego planu jako ParamPlan
+        const rawMeta = (payload.plan.meta || payload.plan) as any;
+        if (!rawMeta || typeof rawMeta !== "object") return;
+
+        let cloned: ParamPlan;
+        try {
+          const normalizedMidi = normalizeParamPlan(rawMeta);
+          cloned = cloneParamPlan(normalizedMidi);
+        } catch {
+          // Fallback: zbuduj minimalny ParamPlan na podstawie dostępnych pól,
+          // tak aby ParamPanel zawsze mógł się pojawić, jeśli dane istnieją.
+          cloned = {
+            style: rawMeta.style ?? "ambient",
+            genre: rawMeta.genre ?? "generic",
+            mood: rawMeta.mood ?? "calm",
+            tempo: typeof rawMeta.tempo === "number" ? rawMeta.tempo : 80,
+            key: rawMeta.key ?? "C",
+            scale: rawMeta.scale ?? "major",
+            meter: rawMeta.meter ?? "4/4",
+            bars: typeof rawMeta.bars === "number" ? rawMeta.bars : 16,
+            length_seconds: typeof rawMeta.length_seconds === "number" ? rawMeta.length_seconds : 180,
+            dynamic_profile: rawMeta.dynamic_profile ?? "moderate",
+            arrangement_density: rawMeta.arrangement_density ?? "balanced",
+            harmonic_color: rawMeta.harmonic_color ?? "diatonic",
+            instruments: Array.isArray(rawMeta.instruments) && rawMeta.instruments.length > 0 ? rawMeta.instruments : ["piano"],
+            instrument_configs: Array.isArray(rawMeta.instrument_configs) ? rawMeta.instrument_configs : [],
+            seed: typeof rawMeta.seed === "number" ? rawMeta.seed : null,
+          };
+        }
+        setMidi(cloned);
+        setRunId(initialRunId);
+        if (onMetaReady) onMetaReady(cloned);
+        const sel = (payload.plan.meta?.selected_samples || payload.plan.selected_samples || {}) as Record<string, string>;
+        setSelectedSamples(sel);
+        if (onPlanChange) onPlanChange(cloned, sel);
+      } catch {
+        // brak stanu nie jest błędem krytycznym
+      }
+    })();
+    return () => { active = false; };
+  }, [initialRunId]);
 
   // Fetch providers
   useEffect(() => {
@@ -111,9 +173,6 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
   const updateSelectedSamples = useCallback(
     async (next: Record<string, string | undefined>) => {
       setSelectedSamples(next);
-      if (onPlanChange) {
-        onPlanChange(midi, next);
-      }
       if (!runId) return;
       try {
         const cleaned: Record<string, string> = {};
@@ -130,7 +189,24 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
         // silently ignore PATCH errors; UI state remains source of truth
       }
     },
-    [midi, onPlanChange, runId],
+    [runId],
+  );
+
+  // Persist full meta (ParamPlan) to backend parameter_plan.json when runId is known
+  const persistMeta = useCallback(
+    async (nextMeta: ParamPlan) => {
+      if (!runId) return;
+      try {
+        await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/plan/${encodeURIComponent(runId)}/meta`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ meta: nextMeta }),
+        });
+      } catch {
+        // backend sync failure nie powinien blokować UX; frontend pozostaje źródłem prawdy
+      }
+    },
+    [runId],
   );
 
   const send = useCallback(async () => {
@@ -168,6 +244,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
       if (!res.ok) throw new Error(payload?.detail?.message || res.statusText || "Request failed");
       const runVal = typeof payload?.run_id === 'string' ? payload.run_id : null;
       setRunId(runVal);
+      if (onRunIdChange) onRunIdChange(runVal);
       const sysStr = typeof payload?.system === 'string' ? payload.system : null;
       const userStr = typeof payload?.user === 'string' ? payload.user : null;
       setSystemPrompt(sysStr);
@@ -190,7 +267,6 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
       } else {
         setMidi(null);
         if (onMetaReady) onMetaReady(null);
-        if (onPlanChange) onPlanChange(null, {});
       }
       const errorsArr = Array.isArray(payload?.errors) ? payload.errors.filter((e: any) => typeof e === 'string') : [];
       const warn: string[] = [];
@@ -332,7 +408,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
             onUpdate={(patch: Partial<ParamPlan>) => setMidi((prev: ParamPlan | null) => {
               if (!prev) return prev;
               const next = { ...prev, ...patch };
-              if (onPlanChange) onPlanChange(next, selectedSamples);
+              void persistMeta(next);
               return next;
             })}
             onToggleInstrument={(inst: string) => {
@@ -346,22 +422,20 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
                     const copy = { ...ss }; delete copy[inst]; return copy;
                   });
                 }
-                return {
+                const nextPlan: ParamPlan = {
                   ...prev,
                   instruments: nextInstruments,
                   instrument_configs: ensureInstrumentConfigs(nextInstruments, prev.instrument_configs),
                 };
+                void persistMeta(nextPlan);
+                return nextPlan;
               });
-              if (onPlanChange) {
-                // stan zostanie zaktualizowany asynchronicznie; użyj bieżącej mapy sampli
-                onPlanChange(midi, selectedSamples);
-              }
             }}
             onUpdateInstrumentConfig={(name: string, patch: Partial<InstrumentConfig>) => setMidi((prev: ParamPlan | null) => {
               if (!prev) return prev;
               const nextConfigs = prev.instrument_configs.map((cfg: InstrumentConfig) => cfg.name === name ? { ...cfg, ...patch } as InstrumentConfig : cfg);
-              const nextPlan = { ...prev, instrument_configs: ensureInstrumentConfigs(prev.instruments, nextConfigs) };
-              if (onPlanChange) onPlanChange(nextPlan, selectedSamples);
+              const nextPlan: ParamPlan = { ...prev, instrument_configs: ensureInstrumentConfigs(prev.instruments, nextConfigs) };
+              void persistMeta(nextPlan);
               return nextPlan;
             })}
             selectedSamples={selectedSamples}

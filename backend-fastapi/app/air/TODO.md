@@ -1,6 +1,7 @@
 # pilne
 ### rekaftoryzacja sampli
 ### normalizacja głośności poszczególnych instrumentów w renderze
+### rozdzielenie electric guitar
 
 
 # general

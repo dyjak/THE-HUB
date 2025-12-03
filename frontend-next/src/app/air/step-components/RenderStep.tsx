@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type { ParamPlanMeta } from "../lib/paramTypes";
 import type { MidiPlanResult } from "./MidiPlanStep";
 
@@ -21,9 +21,12 @@ type Props = {
   meta: ParamPlanMeta | null;
   midi: MidiPlanResult | null;
   selectedSamples: Record<string, string | undefined>;
+  // run_id z backendu dla kroku renderu (zwykle ten sam co z MIDI)
+  initialRunId?: string | null;
+  onRunIdChange?: (runId: string | null) => void;
 };
 
-export default function RenderStep({ meta, midi, selectedSamples }: Props) {
+export default function RenderStep({ meta, midi, selectedSamples, initialRunId, onRunIdChange }: Props) {
   const [projectName, setProjectName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,12 +80,34 @@ export default function RenderStep({ meta, midi, selectedSamples }: Props) {
         throw new Error(data?.detail?.message || `HTTP ${res.status}`);
       }
       setResult(data as RenderResult);
+      if (onRunIdChange && typeof data.run_id === "string") {
+        onRunIdChange(data.run_id);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
   };
+
+  // Przy initialRunId spróbujmy odczytać ostatni stan renderu
+  useEffect(() => {
+    if (!initialRunId || result) return;
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/run/${encodeURIComponent(initialRunId)}`);
+        if (!res.ok) return;
+        const data: any = await res.json().catch(() => null);
+        if (!active || !data) return;
+        setResult(data as RenderResult);
+        if (onRunIdChange) onRunIdChange(initialRunId);
+      } catch {
+        // brak stanu renderu jest akceptowalny
+      }
+    })();
+    return () => { active = false; };
+  }, [initialRunId, result, onRunIdChange]);
 
   return (
     <section className="bg-gray-900/30 border border-purple-700/40 rounded-2xl shadow-lg shadow-purple-900/20 px-6 pt-6 pb-4 space-y-5">

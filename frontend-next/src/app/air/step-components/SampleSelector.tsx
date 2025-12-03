@@ -28,14 +28,6 @@ export function SampleSelector({ apiBase, apiPrefix, modulePrefix, instrument, s
         if (!mounted) return;
         const list = Array.isArray(data.items) ? data.items : [];
         setItems(list);
-        // If no selection yet, pick a stable default: prefer API-provided default, else first item.
-        if (!selectedId && list.length > 0) {
-          const preferred = data.default && list.find(x => x.id === data.default?.id);
-          const fallback = preferred || list[0];
-          if (fallback?.id) {
-            onChange(instrument, fallback.id);
-          }
-        }
       } catch (e) {
         if (!mounted) return;
         setError(e instanceof Error ? e.message : String(e));
@@ -45,7 +37,21 @@ export function SampleSelector({ apiBase, apiPrefix, modulePrefix, instrument, s
     };
     load();
     return () => { mounted = false; };
-  }, [apiBase, apiPrefix, modulePrefix, instrument, onChange, selectedId]);
+  }, [apiBase, apiPrefix, modulePrefix, instrument]);
+
+  // If there is no selection yet but we have items, pick a stable default
+  // (prefer API-provided default, else first item). This effect is decoupled
+  // from the fetch effect to avoid re-triggering loads when selection changes.
+  useEffect(() => {
+    if (!items || items.length === 0) return;
+    if (selectedId) return;
+    const dataDefault = (items as any)._default as SampleListItem | undefined; // optional hint, usually absent
+    const preferred = dataDefault && items.find(x => x.id === dataDefault.id);
+    const fallback = preferred || items[0];
+    if (fallback?.id) {
+      onChange(instrument, fallback.id);
+    }
+  }, [items, selectedId, instrument, onChange]);
 
   const current = useMemo(() => (items || []).find(x => x.id === selectedId) || null, [items, selectedId]);
 

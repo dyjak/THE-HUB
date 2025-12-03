@@ -1,6 +1,8 @@
 from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from typing import Any, Dict, Optional, List
+from pathlib import Path
+import json
 import os
 
 from .schemas import MidiGenerationIn, MidiGenerationOut, MidiArtifactPaths
@@ -13,6 +15,9 @@ from app.air.providers.client import (
 )
 
 router = APIRouter(prefix="/air/midi-generation", tags=["air:midi-generation"])
+
+BASE_OUTPUT_DIR = Path(__file__).parent / "output"
+BASE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _call_composer(provider: str, model: Optional[str], meta: Dict[str, Any]) -> tuple[str, str, str]:
@@ -173,4 +178,85 @@ def compose(req: MidiGenerationIn) -> MidiGenerationOut:
         user=user,
         raw=raw_text,
         parsed=raw_midi_json,
+    )
+
+
+@router.get("/run/{run_id}", response_model=MidiGenerationOut)
+def get_midi_run(run_id: str) -> MidiGenerationOut:
+    """Zwraca zapisany stan MIDI dla danego run_id z dysku.
+
+    Frontend może tego użyć do ponownego załadowania kroku MIDI
+    (pattern, artefakty, podział per instrument).
+    """
+
+    # Struktura katalogu jest zgodna z generate_midi_and_artifacts: *_<run_id>/midi.json itd.
+    run_dir: Optional[Path] = None
+    for p in BASE_OUTPUT_DIR.iterdir():
+        if not p.is_dir():
+            continue
+        if p.name.endswith(run_id) and (p / "midi.json").exists():
+            run_dir = p
+            break
+    if run_dir is None:
+        raise HTTPException(status_code=404, detail={"error": "midi_not_found", "message": "midi.json not found for run_id"})
+
+    midi_json_path = run_dir / "midi.json"
+    try:
+        midi_data: Dict[str, Any] = json.loads(midi_json_path.read_text(encoding="utf-8"))
+    except Exception as e:  # noqa: PERF203
+        raise HTTPException(status_code=500, detail={"error": "midi_read_failed", "message": str(e)})
+
+    # Artefakty globalne
+    def _rel(p: Optional[Path]) -> Optional[str]:
+        if p is None:
+            return None
+        try:
+            return str(p.relative_to(BASE_OUTPUT_DIR))
+        except Exception:
+            return p.name
+
+    midi_mid_path = run_dir / "midi.mid"
+    midi_svg_path = run_dir / "pianoroll.svg"
+
+    artifacts = MidiArtifactPaths(
+        midi_json_rel=_rel(midi_json_path),
+        midi_mid_rel=_rel(midi_mid_path) if midi_mid_path.exists() else None,
+        midi_image_rel=_rel(midi_svg_path) if midi_svg_path.exists() else None,
+    )
+
+    # Per-instrument MIDI + artefakty
+    midi_per_instrument: Dict[str, Dict[str, Any]] = {}
+    artifacts_per_instrument: Dict[str, MidiArtifactPaths] = {}
+
+    for p in run_dir.glob("midi_*.json"):
+        if p.name == "midi.json":
+            continue
+        name = p.stem[len("midi_"):]
+        try:
+            inst_midi = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        midi_per_instrument[name] = inst_midi
+
+        inst_mid = run_dir / f"midi_{name}.mid"
+        inst_svg = run_dir / f"pianoroll_{name}.svg"
+        artifacts_per_instrument[name] = MidiArtifactPaths(
+            midi_json_rel=_rel(p),
+            midi_mid_rel=_rel(inst_mid) if inst_mid.exists() else None,
+            midi_image_rel=_rel(inst_svg) if inst_svg.exists() else None,
+        )
+
+    return MidiGenerationOut(
+        run_id=run_id,
+        midi=midi_data,
+        artifacts=artifacts,
+        midi_per_instrument=midi_per_instrument or None,
+        artifacts_per_instrument=artifacts_per_instrument or None,
+        provider=None,
+        model=None,
+        errors=None,
+        system=None,
+        user=None,
+        raw=None,
+        parsed=midi_data,
     )

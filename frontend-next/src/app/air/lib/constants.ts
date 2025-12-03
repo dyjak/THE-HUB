@@ -40,4 +40,11 @@ export type DynamicRangeOption = (typeof DYNAMIC_RANGE_OPTIONS)[number];
 
 export const DEFAULT_INSTRUMENTS = ["Piano","Pad","Strings"] as const;
 
-export const INSTRUMENT_CHOICES = ["Piano","Pad","Strings","Bass","Guitar","Lead","Choir","Flute","Trumpet","Saxophone","Kick","Snare","Hihat","Clap","Rim","Tom","808","Perc","Drumkit","Fx"] as const;
+// Instrument choices exposed in the main AIR UI. Keep drums in sync with
+// backend "Drums" subtypes: Kick, Snare, Hat, Clap, Tom, Rim, Crash,
+// Ride, Splash, Shake.
+export const INSTRUMENT_CHOICES = [
+  "Piano","Pad","Strings","Bass","Guitar","Lead","Choir","Flute","Trumpet","Saxophone",
+  "Kick","Snare","Hat","Clap","Tom","Rim","Crash","Ride","Splash","Shake",
+  "808","Perc","Drumkit","Fx"
+] as const;

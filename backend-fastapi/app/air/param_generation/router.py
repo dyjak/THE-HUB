@@ -76,8 +76,9 @@ def _allowed_instruments_hint() -> str:
                 return ", ".join(inv_list)
     except Exception:
         pass
-    # Final static fallback (no ai-render-test dependency)
-    return "piano, pad, strings, lead, bass, drumkit, kick, snare, hihat, fx"
+    # Final static fallback (no inventory available). Keep it close to
+    # real inventory instrument names so that resolver + inventory stay aligned.
+    return "Piano, Pad, Violin, Lead, Bass, Electric Guitar, Acoustic Guitar, Kick, Snare, Hat, Clap"
 
 
 def _parameter_plan_system(plan: ParameterPlanIn) -> tuple[str, str]:
@@ -101,7 +102,7 @@ def _parameter_plan_system(plan: ParameterPlanIn) -> tuple[str, str]:
         "}]}}."
         " Choose all values based on the natural-language description from the user."
         " For every instrument listed in meta.instruments you MUST include exactly one matching entry in meta.instrument_configs"
-        " with the same name and your best guess for its role (Lead, Accompaniment, Bass, Percussion, Pad, FX, etc.),"
+        " with the same name and your best guess for its role (Lead, Accompaniment, Bass, Percussion, Pad, etc.),"
         " register (Low, Mid, High, Full or similar), articulation (e.g. Sustain, Legato, Staccato, Percussive, etc.)"
         " and dynamic_range (e.g. Delicate, Moderate, Intense or similar)."
         " You are free to change tempo, bar count, form and instrument choices to best match the request."
@@ -110,6 +111,8 @@ def _parameter_plan_system(plan: ParameterPlanIn) -> tuple[str, str]:
         " No markdown, no comments."
         " IMPORTANT: Allowed instrument names are strictly: [" + allowed + "]."
         " Always use only these names in meta.instruments (case preserved as listed)."
+        " Never use a generic instrument named 'FX' in meta.instruments;"
+        " instead choose more specific instruments (e.g. pads, textures, drums, bass, leads)."
     )
     # For generative behavior we only send the high-level natural language
     # description from the user. All concrete parameter values are chosen by
@@ -236,15 +239,7 @@ def _resolve_target_instruments(inv: dict, name: str) -> list[str]:
     q = (name or "").strip()
     ql = q.lower()
 
-    # Helpers to aggregate groups from available names
-    def _present(opts: list[str]) -> list[str]:
-        return [x for x in opts if x in names]
-
     # synonyms / normalization -> singular instrument naming
-    # Canonical inventory instruments (for reference):
-    # 808, Bass, Bass Guitar, Bass Synth, Bell, Brass, Clap, Flute, Guitar,
-    # Hat, Impact, Kick, Lead, Pad, Piano, Pluck, Reese, Riser, Snare,
-    # Subdrop, Swell, Synth, Texture, Violin
     syn = {
         # Core tonal families
         "pad": "Pad", "pads": "Pad",
@@ -253,7 +248,11 @@ def _resolve_target_instruments(inv: dict, name: str) -> list[str]:
         "lead": "Lead", "leads": "Lead",
         "synth": "Synth", "reese": "Reese",
         "bass": "Bass", "bass guitar": "Bass Guitar", "bass synth": "Bass Synth",
-        "flute": "Flute", "guitar": "Guitar",
+        "flute": "Flute",
+        # Guitars: prefer explicit electric/acoustic when present in inventory
+        "guitar": "Guitar", "guitars": "Guitar",
+        "electric guitar": "Electric Guitar", "electric guitars": "Electric Guitar",
+        "acoustic guitar": "Acoustic Guitar", "acoustic guitars": "Acoustic Guitar",
         "piano": "Piano",
         # String family / orchestral synonyms
         "violin": "Violin", "violins": "Violin",
@@ -263,7 +262,10 @@ def _resolve_target_instruments(inv: dict, name: str) -> list[str]:
         "orchestra": "Brass",  # rough fallback if only brass/strings are available
         "brass": "Brass",
         # FX textures
-        "fx": "Texture", "textures": "Texture",
+        # FX bucket – treat "fx" as whatever FX-like instruments exist in inventory.
+        # We DON'T hard-code Texture/Downfilter/etc. anymore; instead, we resolve
+        # dynamically below based on what's actually present.
+        "fx": "fx",
         # 808 / low percussion
         "808": "808",
         # high-level rhythm labels -> treat as drumkit / percussive set
@@ -292,15 +294,29 @@ def _resolve_target_instruments(inv: dict, name: str) -> list[str]:
 
     # Group aggregators
     if ql in ("drums", "drumkit"):
-        agg = _present(["Kick", "Snare", "Hat", "Clap"]) or _present(["Kick", "Snare", "Hats", "Claps"])  # tolerate legacy plural
-        return agg
-    if ql == "fx":
-        fx_opts = ["Texture", "Downfilter", "Impact", "Swell", "Riser", "Subdrop", "Upfilter"]
-        return _present(fx_opts)
+        # Prefer whatever concrete drum parts are actually present in the
+        # current inventory, instead of relying on legacy plural forms.
+        drum_opts = ["Kick", "Snare", "Hat", "Clap"]
+        return [x for x in drum_opts if x in names]
 
     # Synonym resolution to a single instrument
     if ql in syn:
         tgt = syn[ql]
+        # Special dynamic handling for the generic "fx" bucket:
+        # map to all instruments that look like FX based on their
+        # own name or category in the inventory.
+        if tgt == "fx":
+            fx_like = []
+            # Heuristic: prefer instruments whose name contains "fx",
+            # "Texture", "Impact", "Riser", "Subdrop", "Swell" etc.
+            fx_keywords = ["fx", "texture", "impact", "riser", "subdrop", "swell"]
+            for n in names:
+                nl = n.lower()
+                if any(k in nl for k in fx_keywords):
+                    fx_like.append(n)
+            if fx_like:
+                return sorted(set(fx_like))
+        # Standard single-target synonym resolution
         if tgt in names:
             return [tgt]
         if tgt.lower() in lower_map:
@@ -394,6 +410,8 @@ class ParameterPlanRequest(BaseModel):
     parameters: Dict[str, Any]
     provider: Optional[str] = None
     model: Optional[str] = None
+    # Opcjonalny identyfikator projektu, spójny między krokami param/midi/render.
+    project_id: Optional[str] = None
 
 
 def _safe_parse_json(raw: str) -> tuple[Optional[Dict[str, Any]], list[str]]:
@@ -476,8 +494,6 @@ def generate_parameter_plan(body: ParameterPlanRequest):
         run.log("parse", "json_error", {"error": errors[0]})
 
     # Persist outputs
-    run_dir = OUTPUT_DIR / f"{json.dumps(None) or ''}"
-    # fix: use run_id in directory name with timestamp
     from datetime import datetime
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     run_dir = OUTPUT_DIR / f"{ts}_{run.run_id}"
@@ -516,6 +532,7 @@ def generate_parameter_plan(body: ParameterPlanRequest):
         "errors": errors or None,
         "saved_raw_rel": _rel(raw_path),
         "saved_json_rel": _rel(json_path) if isinstance(parsed, dict) else None,
+        "project_id": body.project_id or None,
     }
     run.log("plan", "completed", {"ok": parsed is not None, "errors": (errors[:1] if errors else None)})
     return result
@@ -527,6 +544,77 @@ def get_debug(run_id: str):
     if not data:
         raise HTTPException(status_code=404, detail={"error": "not_found", "message": "run not found"})
     return data
+
+
+@router.get("/plan/{run_id}")
+def get_parameter_plan(run_id: str):
+    """Zwraca zapisany parameter_plan.json oraz podstawowe metadane dla danego run_id.
+
+    Używane przez frontend do ponownego załadowania stanu kroku parametrów
+    (np. po powrocie z dalszych kroków).
+    """
+
+    # Znajdź katalog runu po wzorcu *_<run_id>/parameter_plan.json
+    run_dir: Path | None = None
+    for p in OUTPUT_DIR.iterdir():
+        if not p.is_dir():
+            continue
+        if p.name.endswith(run_id) and (p / "parameter_plan.json").exists():
+            run_dir = p
+            break
+    if run_dir is None:
+        raise HTTPException(status_code=404, detail={"error": "plan_not_found", "message": "parameter_plan.json not found for run_id"})
+
+    json_path = run_dir / "parameter_plan.json"
+    raw_path = run_dir / "parameter_plan_raw.txt"
+
+    # W niektórych przypadkach zapisany plik mógł zawierać śmieci na końcu
+    # (np. doklejone fragmenty ścieżek plików lub nadmiarowe klamry). Żeby
+    # nie blokować UX, próbujemy znaleźć najdłuższy poprawny prefiks JSON.
+    try:
+        text = json_path.read_text(encoding="utf-8")
+    except Exception as e:  # noqa: PERF203
+        raise HTTPException(status_code=500, detail={"error": "plan_read_failed", "message": str(e)})
+
+    # 1) Szybka ścieżka: całość jest poprawnym JSON-em.
+    try:
+        doc = json.loads(text)
+    except Exception:
+        # 2) Szukamy najdłuższego poprawnego prefiksu od pierwszej klamry.
+        first = text.find("{")
+        if first == -1:
+            raise HTTPException(status_code=500, detail={"error": "plan_read_failed", "message": "no json object start found"})
+
+        last_error: Exception | None = None
+        doc = None  # type: ignore[assignment]
+        for i in range(len(text) - 1, first - 1, -1):
+            chunk = text[first : i + 1]
+            try:
+                candidate = json.loads(chunk)
+                if isinstance(candidate, dict):
+                    doc = candidate
+                    break
+            except Exception as e:  # noqa: PERF203
+                last_error = e
+                continue
+
+        if doc is None:
+            raise HTTPException(status_code=500, detail={"error": "plan_read_failed", "message": str(last_error or "unable to recover json")})
+
+    raw_text: Optional[str] = None
+    try:
+        if raw_path.exists():
+            raw_text = raw_path.read_text(encoding="utf-8")
+    except Exception:
+        raw_text = None
+
+    return {
+        "run_id": run_id,
+        "plan": doc,
+        "raw": raw_text,
+        "saved_json_rel": str(json_path.relative_to(OUTPUT_DIR)),
+        "saved_raw_rel": str(raw_path.relative_to(OUTPUT_DIR)) if raw_path.exists() else None,
+    }
 
 
 class SelectedSamplesUpdate(BaseModel):
@@ -563,10 +651,36 @@ def update_selected_samples(run_id: str, body: SelectedSamplesUpdate):
         if run_dir is None:
             raise HTTPException(status_code=404, detail={"error": "plan_not_found", "message": "parameter_plan.json not found for run_id"})
         json_path = run_dir / "parameter_plan.json"
+        # Używamy tej samej strategii "najdłuższego poprawnego prefiksu JSON"
+        # co w get_parameter_plan, żeby poradzić sobie z ewentualnymi śmieciami
+        # na końcu pliku.
         try:
-            doc = json.loads(json_path.read_text(encoding="utf-8"))
+            text = json_path.read_text(encoding="utf-8")
         except Exception as e:  # noqa: PERF203
             raise HTTPException(status_code=500, detail={"error": "plan_read_failed", "message": str(e)})
+
+        try:
+            doc = json.loads(text)
+        except Exception:
+            first = text.find("{")
+            if first == -1:
+                raise HTTPException(status_code=500, detail={"error": "plan_read_failed", "message": "no json object start found"})
+
+            last_error: Exception | None = None
+            doc = None  # type: ignore[assignment]
+            for i in range(len(text) - 1, first - 1, -1):
+                chunk = text[first : i + 1]
+                try:
+                    candidate = json.loads(chunk)
+                    if isinstance(candidate, dict):
+                        doc = candidate
+                        break
+                except Exception as e:  # noqa: PERF203
+                    last_error = e
+                    continue
+
+            if doc is None:
+                raise HTTPException(status_code=500, detail={"error": "plan_read_failed", "message": str(last_error or "unable to recover json")})
 
         if not isinstance(doc, dict):
             doc = {}
@@ -598,3 +712,91 @@ def update_selected_samples(run_id: str, body: SelectedSamplesUpdate):
         raise
     except Exception as e:  # noqa: PERF203
         raise HTTPException(status_code=500, detail={"error": "selected_samples_update_failed", "message": str(e)})
+
+
+class MetaUpdate(BaseModel):
+    """Payload do pełnej aktualizacji pola meta w parameter_plan.json.
+
+    Oczekujemy struktury zgodnej z ParamPlan/ParamPlanMeta z frontendu, np.:
+    {
+      "meta": { ... pełen obiekt ParamPlan ... }
+    }
+    """
+
+    meta: Dict[str, Any]
+
+
+@router.patch("/plan/{run_id}/meta")
+def update_meta(run_id: str, body: MetaUpdate):
+    """Nadpisz całe pole doc["meta"] w istniejącym parameter_plan.json.
+
+    Używane przez frontend po każdej istotnej zmianie w Panelu parametrów,
+    tak aby backendowy parameter_plan.json pozostał źródłem prawdy dla
+    późniejszych odczytów (np. przy powrocie po samym run_id).
+    """
+
+    try:
+        run_dir: Path | None = None
+        for p in OUTPUT_DIR.iterdir():
+            if not p.is_dir():
+                continue
+            if p.name.endswith(run_id) and (p / "parameter_plan.json").exists():
+                run_dir = p
+                break
+        if run_dir is None:
+            raise HTTPException(status_code=404, detail={"error": "plan_not_found", "message": "parameter_plan.json not found for run_id"})
+
+        json_path = run_dir / "parameter_plan.json"
+
+        try:
+            text = json_path.read_text(encoding="utf-8")
+        except Exception as e:  # noqa: PERF203
+            raise HTTPException(status_code=500, detail={"error": "plan_read_failed", "message": str(e)})
+
+        # Użyjemy tej samej strategii prefiksowej, co w get_parameter_plan,
+        # żeby poradzić sobie z ewentualnymi śmieciami na końcu pliku.
+        try:
+            doc = json.loads(text)
+        except Exception:
+            first = text.find("{")
+            if first == -1:
+                raise HTTPException(status_code=500, detail={"error": "plan_read_failed", "message": "no json object start found"})
+
+            last_error: Exception | None = None
+            doc = None  # type: ignore[assignment]
+            for i in range(len(text) - 1, first - 1, -1):
+                chunk = text[first : i + 1]
+                try:
+                    candidate = json.loads(chunk)
+                    if isinstance(candidate, dict):
+                        doc = candidate
+                        break
+                except Exception as e:  # noqa: PERF203
+                    last_error = e
+                    continue
+
+            if doc is None:
+                raise HTTPException(status_code=500, detail={"error": "plan_read_failed", "message": str(last_error or "unable to recover json")})
+
+        if not isinstance(doc, dict):
+            doc = {}
+
+        # Podmień całe meta obiektem z frontendu, ale zachowaj ewentualne
+        # istniejące selected_samples jeśli frontend ich nie nadpisuje.
+        incoming_meta = dict(body.meta or {})
+        existing_meta = doc.get("meta") if isinstance(doc.get("meta"), dict) else {}
+        if isinstance(existing_meta, dict) and "selected_samples" in existing_meta and "selected_samples" not in incoming_meta:
+            incoming_meta["selected_samples"] = existing_meta["selected_samples"]
+
+        doc["meta"] = incoming_meta
+
+        try:
+            json_path.write_text(json.dumps(doc), encoding="utf-8")
+        except Exception as e:  # noqa: PERF203
+            raise HTTPException(status_code=500, detail={"error": "plan_write_failed", "message": str(e)})
+
+        return {"run_id": run_id, "updated": True}
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: PERF203
+        raise HTTPException(status_code=500, detail={"error": "meta_update_failed", "message": str(e)})
