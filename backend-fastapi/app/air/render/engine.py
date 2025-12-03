@@ -82,10 +82,13 @@ def _read_wav_mono(path: Path) -> List[float] | None:
             return None
 
 
-def _pitch_shift_resample(samples: List[float], base_freq: float, target_freq: float) -> List[float]:
+def _pitch_shift_resample(samples: List[float], base_freq: float, target_freq: float, max_semitones: float | None = None) -> List[float]:
     """Simple resampling pitch-shift using numpy if available.
 
     If numpy is missing or base_freq invalid, returns the original samples.
+
+    Optional max_semitones clamps the pitch shift range around base_freq,
+    which helps avoid extremely unnatural transpositions (e.g. many octaves).
     """
 
     try:
@@ -96,7 +99,24 @@ def _pitch_shift_resample(samples: List[float], base_freq: float, target_freq: f
     if base_freq <= 0.0:
         return samples
 
-    ratio = target_freq / base_freq
+    # Clamp pitch shift in semitones if requested.
+    if max_semitones is not None and max_semitones > 0.0:
+        try:
+            # ratio = target / base, semitones = 12 * log2(ratio)
+            raw_ratio = target_freq / base_freq
+            if raw_ratio <= 0.0:
+                return samples
+            semitones = 12.0 * math.log(raw_ratio, 2.0)
+            if semitones > max_semitones:
+                semitones = max_semitones
+            elif semitones < -max_semitones:
+                semitones = -max_semitones
+            ratio = 2.0 ** (semitones / 12.0)
+            target_freq = base_freq * ratio
+        except Exception:
+            ratio = target_freq / base_freq
+    else:
+        ratio = target_freq / base_freq
     safe_ratio = max(ratio, 1e-6)
     new_len = max(1, int(len(samples) / safe_ratio))
     if new_len <= 1 or len(samples) <= 1:
@@ -361,7 +381,13 @@ def render_audio(req: RenderRequest) -> RenderResponse:
                 try:
                     key = str(instrument).strip().lower()
                     if isinstance(note, int) and key not in perc_set:
-                        pitched = _pitch_shift_resample(base_wave, base_freq, _note_freq(int(note)))
+                        # Global clamp on pitch shift to avoid extreme octave jumps.
+                        pitched = _pitch_shift_resample(
+                            base_wave,
+                            base_freq,
+                            _note_freq(int(note)),
+                            max_semitones=7.0,
+                        )
                 except Exception:
                     pitched = base_wave
 
