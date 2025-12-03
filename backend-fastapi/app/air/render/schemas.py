@@ -24,6 +24,10 @@ class RenderRequest(BaseModel):
     tracks: List[TrackSettings]
     # instrument -> inventory sample id (row.id) or resolved file path
     selected_samples: Dict[str, str] | None = None
+    # Opcjonalne dostrojenie voice-stealingu: długość fade-outu ogona
+    # poprzedniej nuty w sekundach. 0.0 oznacza natychmiastowe ucięcie,
+    # wartości rzędu 0.005-0.02 dają subtelne wygaszenie. Domyślnie 0.01s.
+    fadeout_seconds: float = Field(0.01, ge=0.0, le=0.1)
 
 
 class RenderedStem(BaseModel):

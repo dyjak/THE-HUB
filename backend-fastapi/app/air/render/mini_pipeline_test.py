@@ -13,7 +13,6 @@ def _auto_update_selected_samples(param_run_dir: Path) -> None:
     z meta.instruments ustawiamy sample_id = nazwa_instrumentu (to pozwala
     zademonstrować przepływ; docelowo front dostarczy realne ID z inventory).
     """
-
     json_path = param_run_dir / "parameter_plan.json"
     if not json_path.exists():
         return
@@ -128,42 +127,51 @@ def run_mini_render(
     return render_audio(req)
 
 
+def _pick_latest_run(output_root: Path) -> Path:
+    """Zwróć katalog o *najnowszej* nazwie (sort lex) z danego output_root."""
+    if not output_root.is_dir():
+        raise FileNotFoundError(f"Output root not found: {output_root}")
+    dirs = [p for p in output_root.iterdir() if p.is_dir()]
+    if not dirs:
+        raise FileNotFoundError(f"No run directories found in {output_root}")
+    # Nazwy mają prefiks z datą/czasem, więc sortowanie leksykalne działa jako proxy czasu.
+    dirs.sort(key=lambda p: p.name)
+    return dirs[-1]
+
+
 if __name__ == "__main__":
-    # Interaktywne uruchomienie: pytamy o nazwy folderów (run_id) dla
-    # param_generation i midi_generation bez datowego prefiksu.
+    # Interaktywne uruchomienie: pozwalamy wpisać NAZWY folderów albo zostawić puste,
+    # wtedy automatycznie wybieramy najnowsze runy z obu modułów.
     base = Path(__file__).resolve().parent
 
     print("Mini render pipeline")
-    param_folder = input("Podaj NAZWĘ folderu z param_generation/output (np. 20251126_143015_58273ec4c712): ").strip()
-    midi_folder = input("Podaj NAZWĘ folderu z midi_generation/output (np. 20251126_143154_110e9346e0e0): ").strip()
+    print("Jeśli zostawisz pole puste, zostanie wybrany NAJNOWSZY run z output/.\n")
 
-    if not param_folder or not midi_folder:
-        raise SystemExit("Nazwy folderów nie mogą być puste")
-
-    # Korzystamy bezpośrednio z pełnych nazw folderów podanych przez użytkownika.
     param_root = base.parent / "param_generation" / "output"
     midi_root = base.parent / "midi_generation" / "output"
 
-    param_dir = param_root / param_folder
-    midi_dir = midi_root / midi_folder
+    print(f"param_generation output root: {param_root}")
+    print(f"midi_generation output root:  {midi_root}\n")
 
-    if not param_dir.is_dir():
-        raise FileNotFoundError(f"Nie znaleziono katalogu param_generation: {param_dir}")
-    if not midi_dir.is_dir():
-        raise FileNotFoundError(f"Nie znaleziono katalogu midi_generation: {midi_dir}")
+    param_folder = input("Podaj NAZWĘ folderu z param_generation/output (ENTER = najnowszy): ").strip()
+    midi_folder = input("Podaj NAZWĘ folderu z midi_generation/output (ENTER = najnowszy): ").strip()
+
+    if param_folder:
+        param_dir = param_root / param_folder
+        if not param_dir.is_dir():
+            raise FileNotFoundError(f"Nie znaleziono katalogu param_generation: {param_dir}")
+    else:
+        param_dir = _pick_latest_run(param_root)
+        print(f"[auto] wybrano najnowszy param run: {param_dir.name}")
+
+    if midi_folder:
+        midi_dir = midi_root / midi_folder
+        if not midi_dir.is_dir():
+            raise FileNotFoundError(f"Nie znaleziono katalogu midi_generation: {midi_dir}")
+    else:
+        midi_dir = _pick_latest_run(midi_root)
+        print(f"[auto] wybrano najnowszy midi run:  {midi_dir.name}")
 
     # run_id do rendera ustawiamy na pełną nazwę katalogu MIDI (żeby było jednoznaczne).
     result = run_mini_render(param_dir, midi_dir, run_id=midi_dir.name)
     print("Render result:", result)
-
-
-
-
-
-"""
-UWAGA a propos WavFileWarning podczas czytania plików WAV:
-Plik WAV ma dodatkowe „chunk-i” (np. metadane, LIST/INFO, ADTL, itp.), których wavfile.read nie rozpoznaje jako audio.
-Biblioteka wtedy wypisuje:
-WavFileWarning: Chunk (non-data) not understood, skipping it.
-i po prostu ignoruje te fragmenty, czytając dalej główny chunk z danymi audio (data).
-"""

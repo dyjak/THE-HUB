@@ -176,6 +176,14 @@ def render_audio(req: RenderRequest) -> RenderResponse:
     )
 
     sr = 44100
+    # Użytkownik może delikatnie dostroić długość fade-outu pomiędzy
+    # kolejnymi nutami tego samego instrumentu. Zakres w sekundach,
+    # defensywnie ograniczony do [0.0, 0.1].
+    try:
+        fadeout_sec = float(getattr(req, "fadeout_seconds", 0.01) or 0.0)
+    except Exception:
+        fadeout_sec = 0.01
+    fadeout_sec = max(0.0, min(0.1, fadeout_sec))
 
     # Determine global song length (bars * 8 steps), inferred from MIDI if possible.
     # Jeśli dostępne jest per-instrument MIDI, bierzemy meta z globalnego MIDI,
@@ -293,12 +301,28 @@ def render_audio(req: RenderRequest) -> RenderResponse:
 
         # Build mono buffer for this instrument
         buf = [0.0] * frames
+        # Prosta logika "voice stealing": kolejne zdarzenie tego samego
+        # instrumentu może wejść w dowolnym momencie (zgodnie z MIDI), ale
+        # ogon poprzedniego jest szybko wygaszany od chwili pojawienia się
+        # nowego eventu (krótki fade-out zamiast twardego ucięcia).
+        last_event_end = 0
         # Wybór warstwy MIDI: preferujemy midi_per_instrument, fallback na globalne layers.
         if req.midi_per_instrument and instrument in req.midi_per_instrument:
             inst_midi = req.midi_per_instrument[instrument] or {}
             layer = (inst_midi.get("layers") or {}).get(instrument, [])
         else:
             layer = global_layers.get(instrument, [])
+
+        # Znormalizuj indeksy taktów tak, aby najwcześniejszy takt
+        # zaczynał się od 0. Dzięki temu, jeśli generator MIDI
+        # rozpoczyna pattern od bar=1 (lub większego), nie pojawi
+        # się sztuczna cisza na początku wyrenderowanego stema.
+        min_bar = 0
+        try:
+            if layer:
+                min_bar = min(int(b.get("bar", 0)) for b in layer)
+        except Exception:
+            min_bar = 0
         total_events = sum(len((b.get("events") or [])) for b in (layer or []))
         log.info(
             "[render] instrument=%s bars=%d events=%d duration=%.2fs",
@@ -308,7 +332,10 @@ def render_audio(req: RenderRequest) -> RenderResponse:
             duration_sec,
         )
         for bar in (layer or []):
-            b = bar.get("bar", 0)
+            try:
+                b = int(bar.get("bar", 0)) - int(min_bar)
+            except Exception:
+                b = 0
             for ev in bar.get("events", []):
                 step = ev.get("step", 0)
                 vel = float(ev.get("vel", 100)) / 127.0
@@ -329,7 +356,33 @@ def render_audio(req: RenderRequest) -> RenderResponse:
                 nl = min(len(pitched), frames - start)
                 if nl <= 0:
                     continue
-                # simple attack/release envelope
+
+                # Jeśli poprzednie zdarzenie jeszcze trwa w momencie startu
+                # nowego, wykonujemy krótki fade-out jego ogona w przedziale
+                # [start, last_event_end), aby uniknąć kliku i jednocześnie
+                # nie dopuścić do długiego nakładania się ogonów.
+                if last_event_end > start:
+                    # długość wygaszania ogona poprzedniej nuty według
+                    # parametru fadeout_seconds (domyślnie ok. 10 ms)
+                    fade_len = min(int(fadeout_sec * sr), last_event_end - start)
+                    if fade_len <= 0:
+                        for idx in range(start, min(last_event_end, frames)):
+                            buf[idx] = 0.0
+                    else:
+                        end_fade = start + fade_len
+                        # 1) krótki liniowy fade-out istniejącego ogona
+                        for i in range(fade_len):
+                            idx = start + i
+                            if idx >= frames:
+                                break
+                            t = i / float(max(fade_len - 1, 1))
+                            buf[idx] *= max(0.0, 1.0 - t)
+                        # 2) pozostałą część ogona (jeśli jest dłuższa niż fade)
+                        # czyścimy do zera, żeby nie ciągnęła się za długo.
+                        for idx in range(end_fade, min(last_event_end, frames)):
+                            buf[idx] = 0.0
+
+                # simple attack/release envelope dla nowego zdarzenia
                 a = max(1, int(0.01 * sr))
                 r = max(1, int(0.1 * sr))
                 for i in range(nl):
@@ -339,6 +392,10 @@ def render_audio(req: RenderRequest) -> RenderResponse:
                     elif i > nl - r:
                         amp = max(0.0, (nl - i) / r)
                     buf[start + i] += pitched[i] * vel * amp
+
+                # Zapisz koniec bieżącego zdarzenia (do ewentualnego duckingu
+                # przy następnym evencie tego instrumentu).
+                last_event_end = max(last_event_end, start + nl)
 
         # Apply volume + pan and write stereo stem
         gain = _db_to_gain(track.volume_db)

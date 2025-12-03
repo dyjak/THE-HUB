@@ -86,7 +86,18 @@ export const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({ src, class
           <span>{fmt(duration)}</span>
         </div>
       </div>
-
+      <div className={`flex items-center gap-1 ${volWidthClass} shrink-0`}>
+        <span className="text-[10px] text-gray-500">vol</span>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={volume}
+          onChange={e => setVolume(Number(e.target.value))}
+          className="flex-1 min-w-0"
+        />
+      </div>
     </div>
   );
 };

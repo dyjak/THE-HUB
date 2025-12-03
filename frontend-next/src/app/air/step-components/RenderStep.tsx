@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import type { ParamPlanMeta } from "../lib/paramTypes";
 import type { MidiPlanResult } from "./MidiPlanStep";
 import { SampleSelector } from "./SampleSelector";
+import { SimpleAudioPlayer } from "./SimpleAudioPlayer";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
 const API_PREFIX = "/api";
@@ -34,6 +35,8 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<RenderResult | null>(null);
+  const [history, setHistory] = useState<RenderResult[]>([]);
+  const [fadeoutMs, setFadeoutMs] = useState(10);
 
   const [tracks, setTracks] = useState(() => {
     const instruments = meta?.instruments || [];
@@ -47,10 +50,29 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
 
   const canRender = !!meta && !!midi && !loading && !!projectName.trim();
 
-  const backendAudioBase = useMemo(() => {
-    // Backend exposes audio files under /api/audio/{run_id}/...
-    return `${API_BASE}/api/`;
-  }, []);
+const backendAudioBase = useMemo(() => {
+  // Backend: app.mount("/api/audio", StaticFiles(directory=render_output))
+  // => pliki siedzą w: output/<run_id>/<file>, URL: /api/audio/<run_id>/<file>
+  return `${API_BASE}/api/audio/`;
+}, []);
+
+const resolveRenderUrl = useCallback(
+  (rel: string) => {
+    if (!rel) return backendAudioBase;
+
+    const marker = "output\\";
+    const idx = rel.indexOf(marker);
+    const tail = idx >= 0 ? rel.slice(idx + marker.length) : rel;
+
+    const finalUrl = `${backendAudioBase}${tail}`;
+    if (process.env.NODE_ENV === "development") {
+      // eslint-disable-next-line no-console
+      console.log("[RenderStep] resolveRenderUrl", { rel, tail, finalUrl });
+    }
+    return finalUrl;
+  },
+  [backendAudioBase],
+);
 
   const handleTrackChange = (index: number, patch: Partial<(typeof tracks)[number]>) => {
     setTracks(prev => prev.map((t, i) => (i === index ? { ...t, ...patch } : t)));
@@ -83,6 +105,9 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
         midi: midi.midi,
         tracks,
         selected_samples: selectedSamples,
+        // Umożliwiamy delikatne dostrojenie długości fade-outu poprzedniej
+        // nuty w ramach jednego instrumentu. Backend oczekuje sekund.
+        fadeout_seconds: Math.max(0, Math.min(100, fadeoutMs)) / 1000,
       };
       const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/render-audio`, {
         method: "POST",
@@ -93,9 +118,11 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
       if (!res.ok) {
         throw new Error(data?.detail?.message || `HTTP ${res.status}`);
       }
-      setResult(data as RenderResult);
-      if (onRunIdChange && typeof data.run_id === "string") {
-        onRunIdChange(data.run_id);
+      const rr = data as RenderResult;
+      setResult(rr);
+      setHistory(prev => [...prev, rr]);
+      if (onRunIdChange && typeof rr.run_id === "string") {
+        onRunIdChange(rr.run_id);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -114,7 +141,12 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
         if (!res.ok) return;
         const data: any = await res.json().catch(() => null);
         if (!active || !data) return;
-        setResult(data as RenderResult);
+        const rr = data as RenderResult;
+        setResult(rr);
+        setHistory(prev => {
+          const exists = prev.some(h => h.run_id === rr.run_id && h.mix_wav_rel === rr.mix_wav_rel);
+          return exists ? prev : [...prev, rr];
+        });
         if (onRunIdChange) onRunIdChange(initialRunId);
       } catch {
         // brak stanu renderu jest akceptowalny
@@ -148,6 +180,24 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
                   placeholder="np. ambient_sunset_v1"
                   className="w-full bg-black/60 border border-purple-800/60 rounded-lg px-3 py-2 text-sm"
                 />
+              </div>
+              <div className="space-y-1 mt-2">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-[10px] uppercase tracking-widest text-purple-300">Fade-out (ms)</label>
+                  <span className="text-[10px] text-gray-400">{fadeoutMs.toFixed(0)} ms</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={30}
+                  step={1}
+                  value={fadeoutMs}
+                  onChange={e => setFadeoutMs(Number(e.target.value))}
+                  className="w-full"
+                />
+                <p className="text-[10px] text-gray-500">
+                  0 ms = twarde ucięcie, 10 ms (domyślnie) = krótki, gładki fade-out.
+                </p>
               </div>
               <button
                 onClick={handleRender}
@@ -231,39 +281,59 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
             </div>
           )}
 
-          {result && (
+          {history.length > 0 && (
             <div className="bg-black/40 border border-purple-800/50 rounded-2xl p-4 space-y-3 text-xs">
               <div className="text-purple-300 text-[11px] uppercase tracking-widest mb-1">
-                Wynik renderu
+                Historia renderów
               </div>
-              <div className="space-y-1 text-gray-200">
-                <div>
-                  <span className="text-gray-400">Mix:</span>{" "}
-                  <a
-                    href={`${backendAudioBase}${result.mix_wav_rel}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-purple-300 underline"
-                  >
-                    pobierz / odsłuchaj
-                  </a>
-                </div>
-                <div className="mt-1 text-gray-400">Stemy:</div>
-                <ul className="pl-4 list-disc space-y-0.5">
-                  {result.stems.map(stem => (
-                    <li key={stem.instrument}>
-                      <span className="text-gray-300 mr-1">{stem.instrument}:</span>
-                      <a
-                        href={`${backendAudioBase}${stem.audio_rel}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-purple-300 underline"
-                      >
-                        audio
-                      </a>
-                    </li>
-                  ))}
-                </ul>
+              <div className="space-y-3 text-gray-200 max-h-64 overflow-y-auto pr-1">
+                {[...history].map((h, idx) => {
+                  const versionLabel = `Wersja ${idx + 1}`;
+                  return (
+                    <div
+                      key={`${h.run_id}-${h.mix_wav_rel}-${idx}`}
+                      className="border border-purple-800/40 rounded-xl px-3 py-2 bg-black/40 space-y-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-semibold text-purple-200 text-[11px]">
+                          {versionLabel}
+                        </div>
+                        {typeof h.duration_seconds === "number" && h.duration_seconds > 0 && (
+                          <div className="text-[10px] text-gray-400">
+                            {h.duration_seconds.toFixed(1)} s
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-[11px] text-gray-300 mb-1">Mix</div>
+                        <SimpleAudioPlayer
+                          src={resolveRenderUrl(h.mix_wav_rel)}
+                          className="w-full"
+                          height={36}
+                          variant="compact"
+                        />
+                      </div>
+                      {h.stems.length > 0 && (
+                        <div className="space-y-1">
+                          <div className="mt-1 text-gray-400 text-[11px]">Stemy</div>
+                          <ul className="pl-3 space-y-1">
+                            {h.stems.map(stem => (
+                              <li key={`${stem.instrument}-${stem.audio_rel}`} className="space-y-0.5">
+                                <div className="text-[11px] text-gray-300">{stem.instrument}</div>
+                                <SimpleAudioPlayer
+                                  src={resolveRenderUrl(stem.audio_rel)}
+                                  className="w-full"
+                                  height={32}
+                                  variant="compact"
+                                />
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
