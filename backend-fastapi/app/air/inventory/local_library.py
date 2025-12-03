@@ -24,6 +24,7 @@ class LocalSample:
     id: str
     source: str = "local"
     pitch: str | None = None
+    root_midi: float | None = None
     category: str | None = None
     family: str | None = None
     subtype: str | None = None
@@ -77,6 +78,7 @@ def discover_samples(deep: bool = False) -> Dict[str, List[LocalSample]]:
                     id=str(r.get("id")),
                     source=str(r.get("source") or "local"),
                     pitch=r.get("pitch"),
+                    root_midi=r.get("root_midi"),
                     category=r.get("category"),
                     family=r.get("family"),
                     subtype=r.get("subtype"),

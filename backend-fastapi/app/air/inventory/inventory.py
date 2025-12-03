@@ -3,6 +3,8 @@ from pathlib import Path
 from typing import Dict, Any, List, Tuple
 import json, time, re
 
+from .analyze_pitch_fft import estimate_root_pitch
+
 
 INVENTORY_FILE = Path(__file__).parent / "inventory.json"
 INVENTORY_SCHEMA_VERSION = "air-inventory-1"
@@ -213,6 +215,7 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
             length_sec: float | None = None
             loudness_rms: float | None = None
             gain_db_normalize: float | None = None
+            root_midi: float | None = None
             if deep:
                 try:
                     import wave as _wav  # type: ignore
@@ -253,6 +256,14 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
                 except Exception:
                     pass
 
+                # Optional FFT-based pitch estimation for root note
+                try:
+                    est = estimate_root_pitch(f)
+                    if est and "pitch_midi" in est:
+                        root_midi = float(est["pitch_midi"])
+                except Exception:
+                    root_midi = None
+
             row = {
                 "instrument": instrument,
                 "id": rel.as_posix(),  # stable, human-inspectable id
@@ -264,6 +275,7 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
                 "category": category,
                 "family": family,
                 "subtype": subtype,
+                "root_midi": root_midi,
                 "sample_rate": sample_rate,
                 "length_sec": length_sec,
                 "loudness_rms": loudness_rms,

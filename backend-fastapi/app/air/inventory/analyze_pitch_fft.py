@@ -8,8 +8,6 @@ import contextlib
 
 import numpy as np  # type: ignore
 
-from .inventory import DEFAULT_LOCAL_SAMPLES_ROOT
-
 
 def _iter_wav_files(root: Path) -> Iterable[Path]:
     audio_exts = {".wav"}
@@ -123,6 +121,10 @@ def estimate_root_pitch(path: Path) -> Optional[dict]:
 
 
 def main() -> None:
+    # Import here to avoid circular import when inventory imports
+    # analyze_pitch_fft. CLI usage still works as expected.
+    from .inventory import DEFAULT_LOCAL_SAMPLES_ROOT  # type: ignore
+
     root = DEFAULT_LOCAL_SAMPLES_ROOT
     results = []
     for wav_path in _iter_wav_files(root):

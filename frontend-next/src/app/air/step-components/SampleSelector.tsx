@@ -47,7 +47,9 @@ export function SampleSelector({ apiBase, apiPrefix, modulePrefix, instrument, s
     if (selectedId) return;
     const dataDefault = (items as any)._default as SampleListItem | undefined; // optional hint, usually absent
     const preferred = dataDefault && items.find(x => x.id === dataDefault.id);
-    const fallback = preferred || items[0];
+    const fallback =
+  preferred ||
+  (items.length > 0 ? items[Math.floor(Math.random() * items.length)] : undefined); //losowy
     if (fallback?.id) {
       onChange(instrument, fallback.id);
     }

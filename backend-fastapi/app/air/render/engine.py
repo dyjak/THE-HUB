@@ -18,7 +18,8 @@ log = logging.getLogger("air.render")
 
 # Base reference frequency for pitch-shifting (assume C4 for raw samples),
 # kept in sync conceptually with the experimental audio_renderer.
-_BASE_FREQ = 261.63
+_BASE_FREQ = 261.63 # C4
+#_BASE_FREQ = 523.25  # C5
 
 
 def _note_freq(midi_note: int) -> float:
@@ -331,6 +332,17 @@ def render_audio(req: RenderRequest) -> RenderResponse:
             total_events,
             duration_sec,
         )
+
+        # Determine per-sample base frequency for melodic instruments.
+        # If inventory provided a numeric root_midi from FFT analysis,
+        # use it; otherwise fall back to global _BASE_FREQ.
+        base_freq = _BASE_FREQ
+        try:
+            rm = getattr(sample, "root_midi", None)
+            if rm is not None:
+                base_freq = _note_freq(int(round(float(rm))))
+        except Exception:
+            base_freq = _BASE_FREQ
         for bar in (layer or []):
             try:
                 b = int(bar.get("bar", 0)) - int(min_bar)
@@ -349,7 +361,7 @@ def render_audio(req: RenderRequest) -> RenderResponse:
                 try:
                     key = str(instrument).strip().lower()
                     if isinstance(note, int) and key not in perc_set:
-                        pitched = _pitch_shift_resample(base_wave, _BASE_FREQ, _note_freq(int(note)))
+                        pitched = _pitch_shift_resample(base_wave, base_freq, _note_freq(int(note)))
                 except Exception:
                     pitched = base_wave
 
