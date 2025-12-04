@@ -1,5 +1,5 @@
 from __future__ import annotations
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pathlib import Path
 import json
 
@@ -10,9 +10,14 @@ from .schemas import (
     RecommendedSample,
 )
 from .engine import render_audio, OUTPUT_ROOT, recommend_sample_for_instrument
+from app.auth.dependencies import get_current_user
 
 
-router = APIRouter(prefix="/air/render", tags=["air:render"])
+router = APIRouter(
+    prefix="/air/render",
+    tags=["air:render"],
+    # Auth is enforced at the frontend /air/* route; backend endpoints remain public.
+)
 
 
 @router.post("/render-audio", response_model=RenderResponse)

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import Any, Dict, Optional, List
 from pathlib import Path
 import json
@@ -13,8 +13,14 @@ from app.air.providers.client import (
     get_gemini_client as _get_gemini_client,
     get_openrouter_client as _get_openrouter_client,
 )
+from app.auth.dependencies import get_current_user
 
-router = APIRouter(prefix="/air/midi-generation", tags=["air:midi-generation"])
+router = APIRouter(
+    prefix="/air/midi-generation",
+    tags=["air:midi-generation"],
+    # Auth is enforced at the frontend route (/air/*).
+    # This module's endpoints stay public for now.
+)
 
 BASE_OUTPUT_DIR = Path(__file__).parent / "output"
 BASE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

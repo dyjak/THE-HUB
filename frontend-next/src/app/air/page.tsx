@@ -10,9 +10,11 @@ import type { ParamPlan } from "./lib/paramTypes";
 import type { ParamPlanMeta } from "./lib/paramTypes";
 import ParticleText from "@/components/ui/ParticleText";
 
+
 type StepId = "param-plan" | "midi-plan" | "midi-export" | "render";
 
-export default function AirPanel() {
+
+export default function AirPage() {
 	const [step, setStep] = useState<StepId>("param-plan");
 	const [showTests, setShowTests] = useState<boolean>(false);
 	const [midiResult, setMidiResult] = useState<MidiPlanResult | null>(null);
@@ -23,6 +25,12 @@ export default function AirPanel() {
 	const [runIdRender, setRunIdRender] = useState<string | null>(null);
 	const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 	const [pendingStep, setPendingStep] = useState<StepId | null>(null);
+
+	const steps: { id: StepId; name: string; ready: boolean }[] = useMemo(() => ([
+		{ id: "param-plan", name: "Krok 1 • Parametry (AI)", ready: true },
+		{ id: "midi-plan", name: "Krok 2 • Plan MIDI (AI)", ready: !!paramPlan },
+		{ id: "midi-export", name: "Krok 3 • Export + Render", ready: !!midiResult },
+	]), [paramPlan, midiResult]);
 
 	// Helper: persist selected_samples to backend parameter_plan.json for current param run
 	const persistSelectedSamples = async (next: Record<string, string | undefined>) => {
@@ -65,12 +73,6 @@ export default function AirPanel() {
 		setShowConfirmDialog(false);
 		setPendingStep(null);
 	};
-
-	const steps: { id: StepId; name: string; ready: boolean }[] = useMemo(() => ([
-		{ id: "param-plan", name: "Krok 1 • Parametry (AI)", ready: true },
-		{ id: "midi-plan", name: "Krok 2 • Plan MIDI (AI)", ready: !!paramPlan },
-		{ id: "midi-export", name: "Krok 3 • Export + Render", ready: !!midiResult },
-	]), [paramPlan, midiResult]);
 
 	return (
 		<div className="min-h-[500px] w-full bg-transparent from-black via-gray-950 to-black text-white px-6 py-6 pb-4 space-y-6">

@@ -3,13 +3,15 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 import json
 from datetime import datetime
+from uuid import uuid4
 
 try:  # opcjonalny export .mid
     import mido  # type: ignore
 except Exception:  # pragma: no cover - środowiska bez mido
     mido = None  # type: ignore
 
-#from app.tests.ai_render_test.debug_store import DEBUG_STORE  # TODO: zastąpić własnym store jeśli potrzebne
+## W produkcyjnym module nie używamy DEBUG_STORE z testów –
+## generujemy prosty run_id lokalnie.
 
 
 BASE_OUTPUT_DIR = Path(__file__).parent / "output"
@@ -252,37 +254,31 @@ def generate_midi_and_artifacts(
     - artifacts_per_instrument (artefakty per instrument).
     """
 
-    run = DEBUG_STORE.start()
-    run.log("run", "midi_generation", {"source": "midi_generation_module"})
+    run_id = uuid4().hex[:12]
 
     midi_data = _ensure_midi_structure(meta, midi_data)
 
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    run_dir = BASE_OUTPUT_DIR / f"{ts}_{run.run_id}"
+    run_dir = BASE_OUTPUT_DIR / f"{ts}_{run_id}"
     run_dir.mkdir(parents=True, exist_ok=True)
 
     midi_json_path = run_dir / "midi.json"
     with midi_json_path.open("w", encoding="utf-8") as f:
         json.dump(midi_data, f)
-    run.log("midi", "saved_json", {"file": str(midi_json_path)})
 
     midi_mid_path: Optional[Path] = None
     tempo = int(midi_data.get("meta", {}).get("tempo", meta.get("tempo", 80)))
     if mido is not None:
         try:
             midi_mid_path = _export_pattern_to_mid(midi_data.get("pattern") or [], tempo, run_dir / "midi.mid")
-            if midi_mid_path:
-                run.log("midi", "export_mid", {"file": str(midi_mid_path)})
-        except Exception as e:
-            run.log("midi", "export_mid_failed", {"error": str(e)})
+        except Exception:
+            midi_mid_path = None
 
     midi_svg_path: Optional[Path] = None
     try:
         midi_svg_path = _render_pianoroll_svg(midi_data, run_dir / "pianoroll.svg")
-        if midi_svg_path:
-            run.log("viz", "pianoroll_svg", {"file": str(midi_svg_path)})
-    except Exception as e:
-        run.log("viz", "pianoroll_svg_failed", {"error": str(e)})
+    except Exception:
+        midi_svg_path = None
 
     def _rel(p: Optional[Path]) -> Optional[str]:
         if p is None:
@@ -324,24 +320,19 @@ def generate_midi_and_artifacts(
             inst_json_path = run_dir / f"midi_{safe_inst}.json"
             with inst_json_path.open("w", encoding="utf-8") as f:
                 json.dump(inst_midi, f)
-            run.log("midi", "saved_json_instrument", {"instrument": inst, "file": str(inst_json_path)})
 
             inst_mid_path: Optional[Path] = None
             try:
                 if mido is not None:
                     inst_mid_path = _export_pattern_to_mid(inst_pattern, tempo, run_dir / f"midi_{safe_inst}.mid")
-                    if inst_mid_path:
-                        run.log("midi", "export_mid_instrument", {"instrument": inst, "file": str(inst_mid_path)})
-            except Exception as e:
-                run.log("midi", "export_mid_instrument_failed", {"instrument": inst, "error": str(e)})
+            except Exception:
+                inst_mid_path = None
 
             inst_svg_path: Optional[Path] = None
             try:
                 inst_svg_path = _render_pianoroll_svg(inst_midi, run_dir / f"pianoroll_{safe_inst}.svg")
-                if inst_svg_path:
-                    run.log("viz", "pianoroll_svg_instrument", {"instrument": inst, "file": str(inst_svg_path)})
-            except Exception as e:
-                run.log("viz", "pianoroll_svg_instrument_failed", {"instrument": inst, "error": str(e)})
+            except Exception:
+                inst_svg_path = None
 
             artifacts_per_instrument[inst] = {
                 "midi_json_rel": _rel(inst_json_path),
@@ -355,9 +346,7 @@ def generate_midi_and_artifacts(
         per_inst_path = run_dir / "midi_per_instrument.json"
         with per_inst_path.open("w", encoding="utf-8") as f:
             json.dump(midi_per_instrument, f)
-        run.log("midi", "saved_midi_per_instrument_index", {"file": str(per_inst_path)})
-    except Exception as e:
-        run.log("midi", "save_midi_per_instrument_index_failed", {"error": str(e)})
+    except Exception:
+        pass
 
-    run.log("run", "completed", {"midi_json_rel": artifacts["midi_json_rel"]})
-    return run.run_id, midi_data, artifacts, midi_per_instrument, artifacts_per_instrument
+    return run_id, midi_data, artifacts, midi_per_instrument, artifacts_per_instrument

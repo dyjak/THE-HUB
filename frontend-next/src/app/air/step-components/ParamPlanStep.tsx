@@ -22,8 +22,6 @@ type Props = {
   initialRunId?: string | null;
   onRunIdChange?: (runId: string | null) => void;
 };
-
-
 export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChange, initialRunId, onRunIdChange }: Props) {
   const [prompt, setPrompt] = useState("");
   const [providers, setProviders] = useState<ChatProviderInfo[]>([]);
@@ -105,7 +103,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
     return () => { active = false; };
   }, [initialRunId]);
 
-  // Fetch providers
+  // Fetch providers (no auth required on this endpoint for now)
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -129,7 +127,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
     return () => { mounted = false; };
   }, []);
 
-  // Fetch models for provider
+  // Fetch models for provider (no auth token needed)
   useEffect(() => {
     let mounted = true;
     if (!provider) { setModels([]); return; }
@@ -182,7 +180,9 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
         }
         await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/plan/${encodeURIComponent(runId)}/selected-samples`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({ selected_samples: cleaned }),
         });
       } catch {
@@ -199,7 +199,9 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
       try {
         await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/plan/${encodeURIComponent(runId)}/meta`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({ meta: nextMeta }),
         });
       } catch {
@@ -238,7 +240,11 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
         model,
       };
       const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/plan`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok) throw new Error(payload?.detail?.message || res.statusText || "Request failed");

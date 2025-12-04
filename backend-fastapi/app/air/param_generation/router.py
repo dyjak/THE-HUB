@@ -27,9 +27,10 @@ from app.air.providers.client import (
     list_providers as _providers_list,
     list_models as _models_list,
 )
-
-
-router = APIRouter(prefix="/air/param-generation", tags=["air:param-generation"])
+router = APIRouter(
+    prefix="/air/param-generation",
+    tags=["air:param-generation"],
+)
 
 OUTPUT_DIR = Path(__file__).parent / "output"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

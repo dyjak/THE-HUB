@@ -25,3 +25,4 @@ python-dotenv
 openai
 anthropic
 google-generativeai
+python-jose

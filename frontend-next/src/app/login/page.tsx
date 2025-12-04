@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import CosmicOrb from "@/components/ui/CosmicOrb";
 
 export default function LoginPage() {
+    const [username, setUsername] = useState("");
     const [pin, setPin] = useState<string[]>(Array(6).fill(''));
     const [activeIndex, setActiveIndex] = useState(0); // tylko do focusu / highlightu
     const [loading, setLoading] = useState(false);
@@ -18,6 +19,11 @@ export default function LoginPage() {
     // Uniwersalna funkcja logowania (można przekazać świeżo złożony PIN)
     const handleLogin = async (pinOverride?: string) => {
         const pinString = pinOverride ?? pin.join('');
+
+        if (!username.trim()) {
+            setError("Nazwa użytkownika jest wymagana");
+            return;
+        }
 
         if (pinString.length !== 6) {
             setError("PIN musi składać się z 6 cyfr");
@@ -31,11 +37,12 @@ export default function LoginPage() {
         try {
             const result = await signIn("credentials", {
                 redirect: false,
+                username: username.trim(),
                 pin: pinString,
             });
 
             if (result?.error) {
-                setError("Nieprawidłowy PIN. Spróbuj ponownie.");
+                setError("Nieprawidłowa nazwa użytkownika lub PIN.");
                 setPin(Array(6).fill(''));
                 setActiveIndex(0);
             } else {
@@ -133,6 +140,18 @@ export default function LoginPage() {
                 </div>
 
                 <div className="mb-8">
+                    <label className="block text-sm font-medium mb-2 text-center">
+                        Nazwa użytkownika
+                    </label>
+                    <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="w-full mb-6 px-4 py-2 rounded-lg bg-gray-800 border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="np. admin"
+                        autoComplete="username"
+                    />
+
                     <label className="block text-center text-lg font-medium mb-4">
                         Wprowadź 6-cyfrowy PIN
                     </label>

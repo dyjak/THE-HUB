@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from ..database.connection import SessionLocal
 from .models import User
 from .schemas import LoginRequest, RegisterRequest
+from .dependencies import create_access_token
 
 router = APIRouter()
 
@@ -19,21 +20,20 @@ def login(data: LoginRequest = Body(...), db: Session = Depends(get_db)):
     if len(data.pin) != 6 or not data.pin.isdigit():
         raise HTTPException(status_code=400, detail="PIN musi składać się z 6 cyfr")
 
-    # Znajdź użytkownika po PIN (musimy sprawdzić wszystkich)
-    users = db.query(User).all()
-    found_user = None
+    # Znajdź użytkownika po username i zweryfikuj PIN
+    user = db.query(User).filter(User.username == data.username).first()
 
-    for user in users:
-        if User.verify_pin(data.pin, user.pin_hash):
-            found_user = user
-            break
+    if not user or not User.verify_pin(data.pin, user.pin_hash):
+        raise HTTPException(status_code=401, detail="Nieprawidłowa nazwa użytkownika lub PIN")
 
-    if not found_user:
-        raise HTTPException(status_code=401, detail="Nieprawidłowy PIN")
+    access_token = create_access_token({"sub": user.id})
 
     return {
         "message": "Login successful",
-        "username": found_user.username
+        "id": user.id,
+        "username": user.username,
+        "access_token": access_token,
+        "token_type": "bearer",
     }
 
 @router.post("/register")
@@ -47,16 +47,15 @@ def register(data: RegisterRequest = Body(...), db: Session = Depends(get_db)):
     if user_exists:
         raise HTTPException(status_code=400, detail="Nazwa użytkownika jest już zajęta")
 
-    # Sprawdzenie czy PIN jest już używany (musimy sprawdzić wszystkich)
-    users = db.query(User).all()
-
-    for user in users:
-        if User.verify_pin(data.pin, user.pin_hash):
-            raise HTTPException(status_code=400, detail="Ten PIN jest już zajęty")
+    # Sprawdzenie czy PIN jest już używany (po kolumnie pin_plain)
+    existing_pin_user = db.query(User).filter(User.pin_plain == data.pin).first()
+    if existing_pin_user:
+        raise HTTPException(status_code=400, detail="Ten PIN jest już zajęty")
 
     user = User(
         username=data.username,
-        pin_hash=User.hash_pin(data.pin)
+        pin_hash=User.hash_pin(data.pin),
+        pin_plain=data.pin,
     )
 
     db.add(user)

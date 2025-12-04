@@ -1,7 +1,8 @@
 from pydantic import BaseModel
-from typing import List
+
 
 class LoginRequest(BaseModel):
+    username: str
     pin: str
 
 class RegisterRequest(BaseModel):

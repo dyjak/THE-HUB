@@ -130,7 +130,9 @@ export default function MidiPlanStep({ meta, onReady, initialRunId, onRunIdChang
       const body: any = { meta, provider, model: model || null };
       const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/compose`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(body),
       });
       if (!res.ok) {

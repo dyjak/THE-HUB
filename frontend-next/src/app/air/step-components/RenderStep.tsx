@@ -112,7 +112,9 @@ const resolveRenderUrl = useCallback(
       };
       const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/render-audio`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => null);
@@ -149,7 +151,9 @@ const resolveRenderUrl = useCallback(
 
       const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/recommend-samples`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => null);
@@ -180,7 +184,9 @@ const resolveRenderUrl = useCallback(
             )}/selected-samples`,
             {
               method: "PATCH",
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+              },
               body: JSON.stringify({ selected_samples: merged }),
             },
           );

@@ -6,8 +6,9 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True)
-    pin_hash = Column(String, unique=True, index=True)  # PIN musi być unikalny
+    username = Column(String(255), unique=True, index=True)
+    pin_hash = Column(String(255))  # USUNIĘTE unique=True - bcrypt zawsze generuje różne hashe!
+    pin_plain = Column(String(6), unique=True, index=True)  # DODANE - do sprawdzania unikalności PIN
 
     @staticmethod
     def hash_pin(pin: str) -> str:

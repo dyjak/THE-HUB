@@ -1,5 +1,5 @@
 from __future__ import annotations
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pathlib import Path
 from typing import Any
 
@@ -7,8 +7,13 @@ from .inventory import build_inventory, load_inventory, INVENTORY_SCHEMA_VERSION
 from .access import get_inventory_cached, ensure_inventory
 from urllib.parse import quote
 from pathlib import Path
+from app.auth.dependencies import get_current_user
 
-router = APIRouter(prefix="/air/inventory", tags=["air:inventory"])  # reload nudge
+router = APIRouter(
+    prefix="/air/inventory",
+    tags=["air:inventory"],
+    # Auth is enforced by the frontend /air/* route; these endpoints stay public.
+)  # reload nudge
 
 @router.get("/meta")
 def meta():
