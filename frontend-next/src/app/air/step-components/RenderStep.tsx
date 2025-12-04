@@ -37,6 +37,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
   const [result, setResult] = useState<RenderResult | null>(null);
   const [history, setHistory] = useState<RenderResult[]>([]);
   const [fadeoutMs, setFadeoutMs] = useState(10);
+  const [recommending, setRecommending] = useState(false);
 
   const [tracks, setTracks] = useState(() => {
     const instruments = meta?.instruments || [];
@@ -131,6 +132,73 @@ const resolveRenderUrl = useCallback(
     }
   };
 
+  const handleRecommendSamples = async () => {
+    if (!meta || !midi) return;
+    setRecommending(true);
+    setError(null);
+    try {
+      const body = {
+        project_name: projectName.trim() || meta.style || "air_demo",
+        run_id: midi.run_id,
+        midi: midi.midi,
+        midi_per_instrument: midi.midi_per_instrument ?? undefined,
+        tracks,
+        selected_samples: selectedSamples,
+        fadeout_seconds: Math.max(0, Math.min(100, fadeoutMs)) / 1000,
+      };
+
+      const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/recommend-samples`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.detail?.message || `HTTP ${res.status}`);
+      }
+
+      const recommended = (data?.recommended_samples || {}) as Record<
+        string,
+        { instrument: string; sample_id: string }
+      >;
+
+      // Zbuduj mapę instrument -> sample_id
+      const merged: Record<string, string | undefined> = { ...selectedSamples };
+      for (const [inst, rec] of Object.entries(recommended)) {
+        if (rec?.sample_id) {
+          merged[inst] = rec.sample_id;
+        }
+      }
+
+      // Zapisz do parameter_plan.json przez PATCH selected-samples,
+      // jeśli mamy run_id z kroku parametrów.
+      if (meta.run_id) {
+        try {
+          await fetch(
+            `${API_BASE}${API_PREFIX}/air/param-generation/plan/${encodeURIComponent(
+              meta.run_id,
+            )}/selected-samples`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ selected_samples: merged }),
+            },
+          );
+        } catch {
+          // zapis do param-plan nie jest krytyczny dla UX renderu
+        }
+      }
+
+      if (onSelectedSamplesChange) {
+        onSelectedSamplesChange(merged);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRecommending(false);
+    }
+  };
+
   // Przy initialRunId spróbujmy odczytać ostatni stan renderu
   useEffect(() => {
     if (!initialRunId || result) return;
@@ -181,6 +249,18 @@ const resolveRenderUrl = useCallback(
                   className="w-full bg-black/60 border border-purple-800/60 rounded-lg px-3 py-2 text-sm"
                 />
               </div>
+              <button
+                type="button"
+                onClick={handleRecommendSamples}
+                disabled={!meta || !midi || recommending}
+                className={`w-full px-3 py-2 rounded-lg text-xs font-semibold mt-3 ${
+                  !meta || !midi || recommending
+                    ? "bg-black/40 text-gray-500 border border-gray-700 cursor-not-allowed"
+                    : "bg-gradient-to-r from-emerald-500 to-teal-500 text-black hover:brightness-110"
+                }`}
+              >
+                {recommending ? "Dobieranie sampli…" : "Dobierz rekomendowane sample"}
+              </button>
               <div className="space-y-1 mt-2">
                 <div className="flex items-center justify-between gap-2">
                   <label className="text-[10px] uppercase tracking-widest text-purple-300">Fade-out (ms)</label>

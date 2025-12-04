@@ -16,18 +16,18 @@ BASE_OUTPUT_DIR = Path(__file__).parent / "output"
 BASE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 #debug
-class _DummyRun:
-    def __init__(self) -> None:
-        from uuid import uuid4
-        self.run_id = str(uuid4())
+# class _DummyRun:
+#     def __init__(self) -> None:
+#         from uuid import uuid4
+#         self.run_id = str(uuid4())
 
-    def log(self, category: str, event: str, payload: dict) -> None:
-        # Możesz tu w razie czego zrobić print/logowanie do pliku
-        pass
-class _DummyStore:
-    def start(self) -> "_DummyRun":
-        return _DummyRun()
-DEBUG_STORE = _DummyStore()
+#     def log(self, category: str, event: str, payload: dict) -> None:
+#         # Możesz tu w razie czego zrobić print/logowanie do pliku
+#         pass
+# class _DummyStore:
+#     def start(self) -> "_DummyRun":
+#         return _DummyRun()
+# DEBUG_STORE = _DummyStore()
 
 
 def _safe_parse_midi_json(raw: str) -> Tuple[Dict[str, Any], List[str]]:

@@ -15,9 +15,9 @@ OUTPUT_ROOT = Path(__file__).parent / "output"
 OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 
 log = logging.getLogger("air.render")
-log.setLevel(logging.DEBUG)
-if not logging.getLogger().handlers:
-    logging.basicConfig(level=logging.DEBUG)
+# log.setLevel(logging.DEBUG)
+# if not logging.getLogger().handlers:
+#     logging.basicConfig(level=logging.DEBUG)
 
 # Base reference frequency for pitch-shifting (assume C4 for raw samples),
 # kept in sync conceptually with the experimental audio_renderer.
@@ -190,20 +190,95 @@ def _mix_tracks(tracks: List[List[float]]) -> List[float]:
     return out
 
 
-def _resolve_sample_for_instrument(instrument: str, selected_samples: Dict[str, str] | None, lib: Dict[str, List[LocalSample]]) -> LocalSample | None:
-    """Find the LocalSample for an instrument using selected_samples + inventory.
+def recommend_sample_for_instrument(
+    instrument: str,
+    lib: Dict[str, List[LocalSample]],
+    midi_layers: Dict[str, Any] | None,
+) -> LocalSample | None:
+    """Zaproponuj LocalSample na podstawie MIDI + inventory.
 
-    selected_samples: instrument -> sample_id
-    If no explicit selection, fall back to first sample in inventory for that instrument.
+    Strategia:
+    - zbierz wszystkie nuty MIDI dla danego instrumentu,
+    - policz medianę wysokości (median_note),
+    - wybierz sample z inventory, którego root_midi jest możliwie najbliżej
+      median_note.
+
+    Funkcja jest czysto doradcza: NIE nadpisuje niczego w renderze sama z siebie,
+    tylko zwraca referencję do próbki. Frontend może tę rekomendację zapisać
+    w param JSON jako selected_samples[instrument].
     """
 
+    rows = lib.get(instrument) or []
+    if not rows or not isinstance(midi_layers, dict):
+        return None
+
+    # Zbieramy wszystkie nuty z warstwy MIDI dla danego instrumentu.
+    notes: List[int] = []
+    layer = midi_layers.get(instrument) or []
+    for bar in layer:
+        for ev in (bar.get("events") or []):
+            n = ev.get("note")
+            if isinstance(n, int):
+                notes.append(n)
+    if not notes:
+        return None
+
+    notes_sorted = sorted(notes)
+    mid = len(notes_sorted) // 2
+    if len(notes_sorted) % 2 == 1:
+        median_note = float(notes_sorted[mid])
+    else:
+        median_note = (notes_sorted[mid - 1] + notes_sorted[mid]) / 2.0
+
+    best: LocalSample | None = None
+    best_dist: float | None = None
+    for s in rows:
+        try:
+            if s.root_midi is None:
+                continue
+            dist = abs(float(s.root_midi) - median_note)
+            if best is None or best_dist is None or dist < best_dist:
+                if s.file.exists():
+                    best = s
+                    best_dist = dist
+        except Exception:
+            continue
+
+    if best is not None:
+        log.debug(
+            "[sample-select] instrument=%s strategy=median_midi median_note=%.2f root_midi=%s sample_id=%s path=%s",
+            instrument,
+            median_note,
+            best.root_midi,
+            best.id,
+            best.file,
+        )
+    return best
+
+
+def _resolve_sample_for_instrument(
+    instrument: str,
+    selected_samples: Dict[str, str] | None,
+    lib: Dict[str, List[LocalSample]],
+) -> LocalSample | None:
+    """Find the LocalSample for an instrument using selected_samples + inventory.
+
+    Tu NIE stosujemy automatycznej heurystyki – renderer respektuje tylko to,
+    co przyszło z frontendu (selected_samples), a jeśli brak wyboru, spada
+    do prostego fallbacku: pierwsza dostępna próbka.
+    Inteligentne dobieranie sampli dzieje się wcześniej, na żądanie UI
+    (np. przez osobny endpoint, który wywołuje recommend_sample_for_instrument
+    i zwraca gotowe sample_id do zapisania w param JSON).
+    """
+
+    # 1) Frontend override – jeśli użytkownik coś wybrał, szanujemy ten wybór.
     sample_id = (selected_samples or {}).get(instrument)
     if sample_id:
         s = find_sample_by_id(lib, instrument, sample_id)
         if s and s.file.exists():
             return s
 
-    # fallback: first available
+    # 2) Fallback: pierwsza dostępna próbka (obecne zachowanie).
     for s in lib.get(instrument, []) or []:
         if s.file.exists():
             return s
@@ -329,7 +404,11 @@ def render_audio(req: RenderRequest) -> RenderResponse:
             continue
 
         instrument = track.instrument
-        sample = _resolve_sample_for_instrument(instrument, req.selected_samples, lib)
+        sample = _resolve_sample_for_instrument(
+            instrument,
+            req.selected_samples,
+            lib,
+        )
         if not sample:
             log.warning("[render] no sample for instrument=%s (selected=%s)", instrument, (req.selected_samples or {}).get(instrument))
             missing_or_failed.append(instrument)

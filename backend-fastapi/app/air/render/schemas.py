@@ -42,3 +42,19 @@ class RenderResponse(BaseModel):
     stems: List[RenderedStem]
     sample_rate: int = 44100
     duration_seconds: Optional[float] = None
+
+
+class RecommendedSample(BaseModel):
+    instrument: str
+    sample_id: str
+    path: Optional[str] = None
+    # Inventory może zwracać root_midi jako float (z analizy FFT),
+    # więc tutaj pozwalamy na dowolną wartość numeryczną.
+    root_midi: Optional[float] = None
+    gain_db_normalize: Optional[float] = None
+
+
+class RecommendSamplesResponse(BaseModel):
+    project_name: Optional[str] = None
+    run_id: Optional[str] = None
+    recommended_samples: Dict[str, RecommendedSample]
