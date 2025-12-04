@@ -7,60 +7,9 @@ from .users import router as users_router
 from .database.seeder import seed_users
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-try:
-    from .tests.parametrize_advanced_test.router import router as param_adv_router
-    _PARAM_ADV_AVAILABLE = True
-except Exception as e:  # broad for diagnostic
-    param_adv_router = None  # type: ignore
-    _PARAM_ADV_AVAILABLE = False
-    _PARAM_ADV_IMPORT_ERROR = str(e)
-try:
-    from .tests.parametrize_sampling_test.router import router as param_sampling_router
-    _PARAM_SAMPLING_AVAILABLE = True
-except Exception as e:  # broad for diagnostic
-    param_sampling_router = None  # type: ignore
-    _PARAM_SAMPLING_AVAILABLE = False
-    _PARAM_SAMPLING_IMPORT_ERROR = str(e)
-try:
-    from .tests.ai_param_test.router import router as ai_param_router  # type: ignore
-    _AI_PARAM_AVAILABLE = True
-except Exception as e:  # broad for diagnostic
-    # Fallback: load from hyphenated folder 'ai-param-test' with a synthetic package so relative imports work
-    ai_param_router = None  # type: ignore
-    _AI_PARAM_AVAILABLE = False
-    _AI_PARAM_IMPORT_ERROR = str(e)
-    try:
-        import importlib.util, types
-        pkg_name = "app.tests.ai_param_test"
-        spec_name = pkg_name + ".router"
-        dir_path = Path(__file__).parent / "tests" / "ai-param-test"
-        file_path = dir_path / "router.py"
-        if file_path.exists():
-            # Create a synthetic package module to back relative imports like `.parameters`
-            if pkg_name not in sys.modules:
-                pkg = types.ModuleType(pkg_name)
-                pkg.__path__ = [str(dir_path)]  # type: ignore[attr-defined]
-                sys.modules[pkg_name] = pkg
-            spec = importlib.util.spec_from_file_location(spec_name, str(file_path))
-            if spec and spec.loader:
-                module = importlib.util.module_from_spec(spec)
-                sys.modules[spec_name] = module
-                spec.loader.exec_module(module)  # type: ignore[attr-defined]
-                ai_param_router = getattr(module, "router", None)  # type: ignore
-                _AI_PARAM_AVAILABLE = ai_param_router is not None
-                if not _AI_PARAM_AVAILABLE:
-                    _AI_PARAM_IMPORT_ERROR = "router object not found in ai-param-test/router.py"
-            else:
-                _AI_PARAM_IMPORT_ERROR = "failed to create import spec for ai-param-test/router.py"
-        else:
-            _AI_PARAM_IMPORT_ERROR = f"not found: {file_path}"
-    except Exception as e2:
-        _AI_PARAM_IMPORT_ERROR = f"{_AI_PARAM_IMPORT_ERROR}; fallback failed: {e2}"
-import subprocess
-import sys
-from pathlib import Path
-
 import os
+import sys
+
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
 # Load .env early so downstream modules (sample fetcher / chat) see secrets
@@ -82,43 +31,6 @@ try:
         load_dotenv()
 except Exception:
     pass
-
-# Include AI render test router (1:1 copy of ai-param-test under new prefix) - define before router wiring
-try:
-    from .tests.ai_render_test.router import router as ai_render_router  # type: ignore
-    _AI_RENDER_AVAILABLE = True
-except Exception as e:  # broad for diagnostic
-    # Fallback: load from hyphenated folder 'ai-render-test' with a synthetic package so relative imports work
-    ai_render_router = None  # type: ignore
-    _AI_RENDER_AVAILABLE = False
-    _AI_RENDER_IMPORT_ERROR = str(e)
-    try:
-        import importlib.util, types
-        pkg_name = "app.tests.ai_render_test"
-        spec_name = pkg_name + ".router"
-        dir_path = Path(__file__).parent / "tests" / "ai-render-test"
-        file_path = dir_path / "router.py"
-        if file_path.exists():
-            # Create a synthetic package module to back relative imports like `.parameters`
-            if pkg_name not in sys.modules:
-                pkg = types.ModuleType(pkg_name)
-                pkg.__path__ = [str(dir_path)]  # type: ignore[attr-defined]
-                sys.modules[pkg_name] = pkg
-            spec = importlib.util.spec_from_file_location(spec_name, str(file_path))
-            if spec and spec.loader:
-                module = importlib.util.module_from_spec(spec)
-                sys.modules[spec_name] = module
-                spec.loader.exec_module(module)  # type: ignore[attr-defined]
-                ai_render_router = getattr(module, "router", None)  # type: ignore
-                _AI_RENDER_AVAILABLE = ai_render_router is not None
-                if not _AI_RENDER_AVAILABLE:
-                    _AI_RENDER_IMPORT_ERROR = "router object not found in ai-render-test/router.py"
-            else:
-                _AI_RENDER_IMPORT_ERROR = "failed to create import spec for ai-render-test/router.py"
-        else:
-            _AI_RENDER_IMPORT_ERROR = f"not found: {file_path}"
-    except Exception as e2:
-        _AI_RENDER_IMPORT_ERROR = f"{_AI_RENDER_IMPORT_ERROR}; fallback failed: {e2}"
 
 # Include production param-generation module (separate step: AI MIDI plan)
 try:
@@ -194,85 +106,6 @@ seed_users()
 # Dodaj routery
 app.include_router(auth_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
-if _PARAM_ADV_AVAILABLE and param_adv_router:
-    app.include_router(param_adv_router, prefix="/api")
-    # Serve generated artifacts (MIDI/images) for param-adv module
-    try:
-        param_adv_output = Path(__file__).parent / "tests" / "parametrize_advanced_test" / "output"
-        param_adv_output.mkdir(parents=True, exist_ok=True)
-        app.mount("/api/param-adv/output", StaticFiles(directory=str(param_adv_output)), name="param_adv_output")
-    except Exception as e:
-        print("[WARN] failed to mount param-adv static output:", e)
-    # Debug: list param-adv routes to verify availability
-    try:
-        param_routes = [getattr(r, "path", str(r)) for r in app.routes if "/param-adv" in getattr(r, "path", "")]
-        print("[param-adv] registered routes:")
-        for p in sorted(param_routes):
-            print("   ", p)
-    except Exception as e:
-        print("[WARN] failed to enumerate param-adv routes:", e)
-else:
-    print("[WARN] param_adv_router not loaded:", globals().get('_PARAM_ADV_IMPORT_ERROR'))
-
-# Include new local-sample parametrized router
-if _PARAM_SAMPLING_AVAILABLE and param_sampling_router:
-    app.include_router(param_sampling_router, prefix="/api")
-    try:
-        param_sampling_output = Path(__file__).parent / "tests" / "parametrize_sampling_test" / "output"
-        param_sampling_output.mkdir(parents=True, exist_ok=True)
-        app.mount("/api/param-sampling/output", StaticFiles(directory=str(param_sampling_output)), name="param_sampling_output")
-    except Exception as e:
-        print("[WARN] failed to mount param-sampling static output:", e)
-    try:
-        sampling_routes = [getattr(r, "path", str(r)) for r in app.routes if "/param-sampling" in getattr(r, "path", "")]
-        print("[param-sampling] registered routes:")
-        for p in sorted(sampling_routes):
-            print("   ", p)
-    except Exception as e:
-        print("[WARN] failed to enumerate param-sampling routes:", e)
-else:
-    print("[WARN] param_sampling_router not loaded:", globals().get('_PARAM_SAMPLING_IMPORT_ERROR'))
-
-# Include AI param test router (next-gen variant)
-if _AI_PARAM_AVAILABLE and ai_param_router:
-    app.include_router(ai_param_router, prefix="/api")
-    try:
-        ai_param_output = Path(__file__).parent / "tests" / "ai-param-test" / "output"
-        ai_param_output.mkdir(parents=True, exist_ok=True)
-        app.mount("/api/ai-param-test/output", StaticFiles(directory=str(ai_param_output)), name="ai_param_output")
-    except Exception as e:
-        print("[WARN] failed to mount ai-param-test static output:", e)
-    try:
-        ai_routes = [getattr(r, "path", str(r)) for r in app.routes if "/ai-param-test" in getattr(r, "path", "")]
-        print("[ai-param-test] registered routes:")
-        for p in sorted(ai_routes):
-            print("   ", p)
-    except Exception as e:
-        print("[WARN] failed to enumerate ai-param-test routes:", e)
-else:
-    print("[WARN] ai_param_router not loaded:", globals().get('_AI_PARAM_IMPORT_ERROR'))
-
-# Include AI render test router
-if _AI_RENDER_AVAILABLE and ai_render_router:
-    app.include_router(ai_render_router, prefix="/api")
-    try:
-        ai_render_output = Path(__file__).parent / "tests" / "ai-render-test" / "output"
-        ai_render_output.mkdir(parents=True, exist_ok=True)
-        app.mount("/api/ai-render-test/output", StaticFiles(directory=str(ai_render_output)), name="ai_render_output")
-    except Exception as e:
-        print("[WARN] failed to mount ai-render-test static output:", e)
-    try:
-        ar_routes = [getattr(r, "path", str(r)) for r in app.routes if "/ai-render-test" in getattr(r, "path", "")]
-        print("[ai-render-test] registered routes:")
-        for p in sorted(ar_routes):
-            print("   ", p)
-    except Exception as e:
-        print("[WARN] failed to enumerate ai-render-test routes:", e)
-else:
-    print("[WARN] ai_render_router not loaded:", globals().get('_AI_RENDER_IMPORT_ERROR'))
-
-# (end of ai-render-test import definition)
-
 # Mount param-generation router and its static outputs
 if _PARAM_GEN_AVAILABLE and param_generation_router:
     app.include_router(param_generation_router, prefix="/api")
@@ -336,72 +169,6 @@ if _RENDER_AVAILABLE and render_router:
         print("[WARN] failed to mount render static output:", e)
 else:
     print("[WARN] render_router not loaded:", globals().get('_RENDER_IMPORT_ERROR'))
-
-
-# MUSIC TEST ENDPOINTS - dodane bezpośrednio
-def run_test_script(script_name: str):
-    """Uruchamia skrypt testowy"""
-    try:
-        tests_dir = Path(__file__).parent / "tests" / "simple-sample-test"
-        script_path = tests_dir / script_name
-
-        if not script_path.exists():
-            return {"success": False, "error": f"Skrypt {script_name} nie istnieje"}
-
-        result = subprocess.run(
-            [sys.executable, str(script_path)],
-            cwd=str(tests_dir),
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
-
-        return {
-            "success": result.returncode == 0,
-            "output": result.stdout,
-            "error": result.stderr,
-            "script": script_name
-        }
-
-    except subprocess.TimeoutExpired:
-        return {"success": False, "output": "", "error": "Timeout (30s)", "script": script_name}
-    except Exception as e:
-        return {"success": False, "output": "", "error": str(e), "script": script_name}
-
-
-@app.post("/api/music-tests/run-midi")
-def run_midi_test():
-    return run_test_script("midi_generator.py")
-
-
-@app.post("/api/music-tests/run-samples")
-def run_samples_test():
-    return run_test_script("sample_fetcher.py")
-
-
-@app.post("/api/music-tests/run-audio")
-def run_audio_test():
-    return run_test_script("audio_synthesizer.py")
-
-
-@app.post("/api/music-tests/run-full")
-def run_full_test():
-    return run_test_script("test_basic_generation.py")
-
-
-@app.get("/api/music-tests/list-files")
-def list_files():
-    files = {"midi": [], "audio": [], "samples": []}
-    tests_dir = Path(__file__).parent / "tests" / "simple-sample-test"
-    output_dir = tests_dir / "output"
-
-    if output_dir.exists():
-        for file_type in ["midi", "audio", "samples"]:
-            type_dir = output_dir / file_type
-            if type_dir.exists():
-                files[file_type] = [f.name for f in type_dir.glob("*") if f.is_file()]
-
-    return files
 
 
 @app.get("/")

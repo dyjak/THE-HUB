@@ -15,6 +15,9 @@ OUTPUT_ROOT = Path(__file__).parent / "output"
 OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 
 log = logging.getLogger("air.render")
+log.setLevel(logging.DEBUG)
+if not logging.getLogger().handlers:
+    logging.basicConfig(level=logging.DEBUG)
 
 # Base reference frequency for pitch-shifting (assume C4 for raw samples),
 # kept in sync conceptually with the experimental audio_renderer.
@@ -24,6 +27,17 @@ _BASE_FREQ = 261.63 # C4
 
 def _note_freq(midi_note: int) -> float:
     return 440.0 * (2 ** ((midi_note - 69) / 12.0))
+
+
+def _freq_to_midi(freq: float) -> Optional[int]:
+    """Approximate MIDI note number from frequency.
+
+    Returns None for non-positive frequencies.
+    """
+
+    if freq <= 0.0:
+        return None
+    return int(round(69 + 12 * math.log(freq / 440.0, 2.0)))
 
 
 def _db_to_gain(db: float) -> float:
@@ -41,6 +55,24 @@ def _pan_gains(pan: float) -> Tuple[float, float]:
     left = math.cos(angle)
     right = math.sin(angle)
     return left, right
+
+
+def _clamp_note_near_base(base_midi: int, target_midi: int, max_semitones: int) -> int:
+    """Clamp target_midi to stay within a window around base_midi.
+
+    This keeps a given sample playing roughly in its natural register
+    while preserving the direction and relative size of MIDI intervals.
+    """
+
+    if max_semitones <= 0:
+        return target_midi
+    lo = base_midi - max_semitones
+    hi = base_midi + max_semitones
+    if target_midi < lo:
+        return lo
+    if target_midi > hi:
+        return hi
+    return target_midi
 
 
 def _read_wav_mono(path: Path) -> List[float] | None:
@@ -334,14 +366,15 @@ def render_audio(req: RenderRequest) -> RenderResponse:
         else:
             layer = global_layers.get(instrument, [])
 
-        # Znormalizuj indeksy taktów tak, aby najwcześniejszy takt
-        # zaczynał się od 0. Dzięki temu, jeśli generator MIDI
-        # rozpoczyna pattern od bar=1 (lub większego), nie pojawi
-        # się sztuczna cisza na początku wyrenderowanego stema.
+        # Historycznie MIDI z generatora miało pierwszy takt ustawiony na 1,
+        # co powodowało kilka sekund ciszy na początku renderu.
+        # Zamiast przesuwać cały pattern do lewej (min_bar), odejmujemy
+        # tylko "jednostkowe" przesunięcie, jeśli pierwszy bar to dokładnie 1.
         min_bar = 0
         try:
             if layer:
-                min_bar = min(int(b.get("bar", 0)) for b in layer)
+                raw_min_bar = min(int(b.get("bar", 0)) for b in layer)
+                min_bar = 1 if raw_min_bar == 1 else 0
         except Exception:
             min_bar = 0
         total_events = sum(len((b.get("events") or [])) for b in (layer or []))
@@ -357,12 +390,19 @@ def render_audio(req: RenderRequest) -> RenderResponse:
         # If inventory provided a numeric root_midi from FFT analysis,
         # use it; otherwise fall back to global _BASE_FREQ.
         base_freq = _BASE_FREQ
+        base_midi: Optional[int] = None
         try:
             rm = getattr(sample, "root_midi", None)
             if rm is not None:
-                base_freq = _note_freq(int(round(float(rm))))
+                base_midi = int(round(float(rm)))
+                base_freq = _note_freq(base_midi)
         except Exception:
             base_freq = _BASE_FREQ
+            base_midi = None
+        if base_midi is None:
+            # Approximate MIDI from fallback base frequency so that
+            # melodic mapping still behaves reasonably.
+            base_midi = _freq_to_midi(base_freq) or 60
         for bar in (layer or []):
             try:
                 b = int(bar.get("bar", 0)) - int(min_bar)
@@ -381,12 +421,100 @@ def render_audio(req: RenderRequest) -> RenderResponse:
                 try:
                     key = str(instrument).strip().lower()
                     if isinstance(note, int) and key not in perc_set:
-                        # Global clamp on pitch shift to avoid extreme octave jumps.
+                        #
+                        # Uniwersalny mechanizm pitchowania melodii:
+                        #
+                        # 1) Nutę docelową bierzemy wprost z MIDI (target_midi),
+                        #    dzięki czemu zachowujemy matematycznie poprawną tonację
+                        #    w całym utworze.
+                        # 2) Nie "przyciskamy" target_midi do sztywnego okna
+                        #    wokół base_midi (brak twardego clampa na samą nutę),
+                        #    żeby uniknąć sytuacji w której wiele odległych nut
+                        #    brzmi jak jedna i ta sama wysokość.
+                        # 3) Zamiast tego liczymy różnicę w półtonach względem
+                        #    naturalnego rejestru sampla (base_midi) i tę różnicę
+                        #    miękko kompresujemy funkcją tanh. Małe interwały
+                        #    (typowo używane w muzyce) przechodzą praktycznie
+                        #    bez zmian, natomiast bardzo duże skoki są coraz
+                        #    silniej "spłaszczane" do rozsądnego zakresu.
+                        #
+                        #    raw_semi = target_midi - base_midi
+                        #    x        = raw_semi / max_semi
+                        #    compressed = tanh(x) * max_semi
+                        #
+                        #    Dla |raw_semi| << max_semi => tanh(x) ~ x,
+                        #    więc compressed ~ raw_semi (dokładne pitchowanie
+                        #    jak w MIDI, zachowane interwały).
+                        #    Dla bardzo dużych |raw_semi| => tanh(x) -> ±1,
+                        #    więc compressed zbliża się gładko do ±max_semi,
+                        #    dzięki czemu sample nigdy nie odlatuje o wiele
+                        #    oktaw od swojego naturalnego rejestru, ale jednocześnie
+                        #    każda różna nuta dostaje inną (choć coraz mniej różną)
+                        #    wysokość.
+                        #
+                        # 4) Ograniczamy w ten sposób "siłę" pitch-shiftu (ratio)
+                        #    zamiast brutalnie korygować nutę. To daje efekt,
+                        #    który jest jednocześnie muzycznie spójny, zgodny z MIDI
+                        #    i odporny na ekstremalne przypadki (wysokie / niskie
+                        #    dźwięki, nietypowe base_freq w samplach).
+
+                        target_midi = int(note)
+
+                        # interwał względem naturalnego rejestru sampla
+                        raw_semi = target_midi - base_midi
+
+                        # Maksymalny "efektywny" zakres, w którym pitch-shift
+                        # może się jeszcze rozciągać liniowo. Poza nim
+                        # interwał jest coraz mocniej kompresowany.
+                        #
+                        # Ustawiamy ten zakres per-instrument, żeby:
+                        # - dla basów ograniczyć transpozycję (brzmienie szybko
+                        #   robi się nienaturalne w skrajnych rejestrach),
+                        # - dla instrumentów harmonicznych / leadowych (piano,
+                        #   pads, strings, sax, itp.) pozwolić na większy
+                        #   zakres pracy, tak aby wyższe nuty faktycznie
+                        #   różniły się wysokością, a nie były "przyklejone"
+                        #   do sufitu tanh.
+                        instrument_max_semi = {
+                            "bass": 7,
+                            "bass guitar": 7,
+                            "piano": 24,
+                            "pads": 24,
+                            "strings": 24,
+                            "sax": 24,
+                            "acoustic guitar": 24,
+                            "electric guitar": 24,
+                        }
+                        max_semi = instrument_max_semi.get(key, 18)
+
+                        if max_semi > 0:
+                            x = raw_semi / float(max_semi)
+                            compressed = math.tanh(x) * float(max_semi)
+                        else:
+                            compressed = 0.0
+
+                        # Z powrotem do współczynnika częstotliwości (ratio).
+                        ratio = 2.0 ** (compressed / 12.0)
+                        target_freq_eff = base_freq * ratio
+
+                        log.debug(
+                            "[pitch] inst=%s note=%s base_midi=%s raw_semi=%s "
+                            "compressed=%.3f ratio=%.4f base_freq=%.2f target_freq=%.2f",
+                            instrument,
+                            note,
+                            base_midi,
+                            raw_semi,
+                            compressed,
+                            ratio,
+                            base_freq,
+                            target_freq_eff,
+                        )
+
                         pitched = _pitch_shift_resample(
                             base_wave,
                             base_freq,
-                            _note_freq(int(note)),
-                            max_semitones=7.0,
+                            target_freq_eff,
+                            max_semitones=None,
                         )
                 except Exception:
                     pitched = base_wave

@@ -6,6 +6,7 @@
 ### normalizacja pitchungu względem klucza
 ### ogarnąć końcową klasyfikację inventory
 ### wywalić endpointy testowe
+### ogarnąć przesunięcie w renderze - teraz wszystko jest zapychane do lewej nawet jeśli w aranżacji jest przerwa
 
 # general
 ### WYWALIĆ ostrzeżenie przy powrocie do danego kroku o możliwości i utraty postępu
