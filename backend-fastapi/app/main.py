@@ -60,6 +60,13 @@ except Exception as e:
     render_router = None  # type: ignore
     _RENDER_AVAILABLE = False
     _RENDER_IMPORT_ERROR = str(e)
+try:
+    from .air.user_projects_router import router as user_projects_router  # type: ignore
+    _USER_PROJECTS_AVAILABLE = True
+except Exception as e:
+    user_projects_router = None  # type: ignore
+    _USER_PROJECTS_AVAILABLE = False
+    _USER_PROJECTS_IMPORT_ERROR = str(e)
 
 
 app = FastAPI(
@@ -165,6 +172,19 @@ if _RENDER_AVAILABLE and render_router:
         print("[WARN] failed to mount render static output:", e)
 else:
     print("[WARN] render_router not loaded:", globals().get('_RENDER_IMPORT_ERROR'))
+
+# Mount user-projects router (simple listing for current user)
+if _USER_PROJECTS_AVAILABLE and user_projects_router:
+    app.include_router(user_projects_router, prefix="/api")
+    try:
+        up_routes = [getattr(r, "path", str(r)) for r in app.routes if "/air/user-projects" in getattr(r, "path", "")]
+        print("[air-user-projects] registered routes:")
+        for p in sorted(up_routes):
+            print("   ", p)
+    except Exception as e:
+        print("[WARN] failed to enumerate air-user-projects routes:", e)
+else:
+    print("[WARN] user_projects_router not loaded:", globals().get('_USER_PROJECTS_IMPORT_ERROR'))
 
 
 @app.get("/")
