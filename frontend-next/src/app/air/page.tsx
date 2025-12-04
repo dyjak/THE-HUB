@@ -79,7 +79,7 @@ export default function AirPage() {
 			<div className="flex items-center justify-between gap-6">
 				<div className="flex-1" />
 				<div className="flex flex-col items-center gap-2 select-none">
-					<div className="w-full max-w-[90vw] h-[60px] sm:h-[80px] sm:max-w-[450px] md:max-w-[600px] md:h-[120px]">
+					<div className="w-full max-w-[100vw] h-[60px] sm:h-[80px] sm:max-w-[550px] md:max-w-[600px] md:h-[120px]">
 						<ParticleText
 							text="AIR 4.2"
 							font="bold clamp(28px, 8vw, 70px) system-ui"
@@ -184,6 +184,9 @@ export default function AirPage() {
 							}
 						}}
 						onReady={setMidiResult}
+						onNavigateNext={() => {
+							if (midiResult) setStep("midi-export");
+						}}
 					/>
 				)}
 				{step === "midi-export" && (

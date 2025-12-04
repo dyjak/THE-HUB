@@ -1,10 +1,11 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { ParamPanel } from "./ParamPanel";
 import type { ParamPlan, InstrumentConfig, ParamPlanMeta } from "../lib/paramTypes";
 import { ensureInstrumentConfigs, normalizeParamPlan, cloneParamPlan } from "../lib/paramUtils";
 import ElectricBorder from "@/components/ui/ElectricBorder";
 import LoadingOverlay from "@/components/ui/LoadingOverlay";
+import { FaArrowRight } from "react-icons/fa";
 
 type ChatProviderInfo = { id: string; name: string; default_model?: string };
 
@@ -43,6 +44,16 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
   const [selectable, setSelectable] = useState<string[]>([]);
   const [selectedSamples, setSelectedSamples] = useState<Record<string, string | undefined>>({});
   const [showResetWarning, setShowResetWarning] = useState(false);
+
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [shouldScroll, setShouldScroll] = useState(false);
+
+  useEffect(() => {
+    if (shouldScroll && midi && panelRef.current) {
+      panelRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      setShouldScroll(false);
+    }
+  }, [shouldScroll, midi]);
 
   // Synchronize local plan + selected samples to parent AirPanel
   useEffect(() => {
@@ -270,6 +281,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
         if (onMetaReady) onMetaReady(cloned);
         // reset selected samples for a fresh plan; PATCH is handled inside helper
         await updateSelectedSamples({});
+        setShouldScroll(true);
       } else {
         setMidi(null);
         if (onMetaReady) onMetaReady(null);
@@ -292,19 +304,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
     <section className="bg-gray-900/30 border border-purple-700/30 rounded-2xl shadow-lg shadow-purple-900/10 px-6 pt-6 pb-4 space-y-5">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-3xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-purple-100 to-fuchsia-500 animate-pulse">Krok 1 • Generowanie parametrów</h2>
-        {midi && !loading && (
-          <ElectricBorder
-            as="button"
-            type="button"
-            onClick={() => onNavigateNext && onNavigateNext()}
-            className="w-auto px-12 py-3 font-bold text-white bg-black/50 rounded-2xl transition-all duration-300 hover:scale-105 hover:brightness-125 hover:bg-black/70 text-xs"
-            color="#ec48ecff"
-            speed={0.6}
-            chaos={0.4}
-          >
-            Przejdź do kroku 2
-          </ElectricBorder>
-        )}
+        {/* Button moved to panel */}
       </div>
       <p className="text-xs text-gray-400 max-w-2xl">Model generuje <span className="text-purple-300">parametry muzyczne</span> w formacie JSON. Wynik będzie podstawą do późniejszego tworzenia planu MIDI i renderu audio.</p>
       {/* Layout: lewa kolumna 1/4 (provider, model), prawa 3/4 (prompt) */}
@@ -399,8 +399,21 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
       )}
       {/* Panel dostosowania parametrów - widoczny po wygenerowaniu */}
       {midi && (
-        <div className="bg-black/30 border border-purple-800/40 rounded-2xl p-4 space-y-3 text-xs">
-          <div className="text-purple-300 text-xs uppercase tracking-widest">Panel dostosowania parametrów</div>
+        <div ref={panelRef} className="bg-black/30 border border-purple-800/40 rounded-2xl p-4 space-y-3 text-xs">
+          <div className="flex items-center justify-between">
+            <div className="text-purple-300 text-xs uppercase tracking-widest">Panel dostosowania parametrów</div>
+            <ElectricBorder
+              as="button"
+              type="button"
+              onClick={() => onNavigateNext && onNavigateNext()}
+              className="w-auto px-48 py-3 font-bold text-white bg-black/50 rounded-xl transition-all duration-300 hover:scale-105 hover:brightness-125 hover:bg-black/70 text-[14px]"
+              color="#ec48ecff"
+              speed={0.6}
+              chaos={0.4}
+            >
+              Przejdź do generowania sekwencji MIDI
+            </ElectricBorder>
+          </div>
           <ParamPanel
             midi={midi}
             availableInstruments={available}

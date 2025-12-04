@@ -6,6 +6,8 @@ import type { ParamPlanMeta } from "../lib/paramTypes";
 import type { MidiPlanResult } from "./MidiPlanStep";
 import { SampleSelector } from "./SampleSelector";
 import { SimpleAudioPlayer } from "./SimpleAudioPlayer";
+import ElectricBorder from "@/components/ui/ElectricBorder";
+import LoadingOverlay from "@/components/ui/LoadingOverlay";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
 const API_PREFIX = "/api";
@@ -53,29 +55,29 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
 
   const canRender = !!meta && !!midi && !loading && !!projectName.trim();
 
-const backendAudioBase = useMemo(() => {
-  // Backend: app.mount("/api/audio", StaticFiles(directory=render_output))
-  // => pliki siedzą w: output/<run_id>/<file>, URL: /api/audio/<run_id>/<file>
-  return `${API_BASE}/api/audio/`;
-}, []);
+  const backendAudioBase = useMemo(() => {
+    // Backend: app.mount("/api/audio", StaticFiles(directory=render_output))
+    // => pliki siedzą w: output/<run_id>/<file>, URL: /api/audio/<run_id>/<file>
+    return `${API_BASE}/api/audio/`;
+  }, []);
 
-const resolveRenderUrl = useCallback(
-  (rel: string) => {
-    if (!rel) return backendAudioBase;
+  const resolveRenderUrl = useCallback(
+    (rel: string) => {
+      if (!rel) return backendAudioBase;
 
-    const marker = "output\\";
-    const idx = rel.indexOf(marker);
-    const tail = idx >= 0 ? rel.slice(idx + marker.length) : rel;
+      const marker = "output\\";
+      const idx = rel.indexOf(marker);
+      const tail = idx >= 0 ? rel.slice(idx + marker.length) : rel;
 
-    const finalUrl = `${backendAudioBase}${tail}`;
-    if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
-      console.log("[RenderStep] resolveRenderUrl", { rel, tail, finalUrl });
-    }
-    return finalUrl;
-  },
-  [backendAudioBase],
-);
+      const finalUrl = `${backendAudioBase}${tail}`;
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.log("[RenderStep] resolveRenderUrl", { rel, tail, finalUrl });
+      }
+      return finalUrl;
+    },
+    [backendAudioBase],
+  );
 
   const handleTrackChange = (index: number, patch: Partial<(typeof tracks)[number]>) => {
     setTracks(prev => prev.map((t, i) => (i === index ? { ...t, ...patch } : t)));
@@ -146,7 +148,7 @@ const resolveRenderUrl = useCallback(
         project_name: projectName.trim() || meta.style || "air_demo",
         run_id: midi.run_id,
         midi: midi.midi,
-        midi_per_instrument: midi.midi_per_instrument ?? undefined,
+        // midi_per_instrument removed as it's not in MidiPlanResult type
         tracks,
         selected_samples: selectedSamples,
         fadeout_seconds: Math.max(0, Math.min(100, fadeoutMs)) / 1000,
@@ -178,12 +180,12 @@ const resolveRenderUrl = useCallback(
       }
 
       // Zapisz do parameter_plan.json przez PATCH selected-samples,
-      // jeśli mamy run_id z kroku parametrów.
-      if (meta.run_id) {
+      // jeśli mamy run_id (używamy midi.run_id jako identyfikatora sesji)
+      if (midi.run_id) {
         try {
           await fetch(
             `${API_BASE}${API_PREFIX}/air/param-generation/plan/${encodeURIComponent(
-              meta.run_id,
+              midi.run_id,
             )}/selected-samples`,
             {
               method: "PATCH",
@@ -233,95 +235,76 @@ const resolveRenderUrl = useCallback(
   }, [initialRunId, result, onRunIdChange]);
 
   return (
-    <section className="bg-gray-900/30 border border-purple-700/40 rounded-2xl shadow-lg shadow-purple-900/20 px-6 pt-6 pb-4 space-y-5">
-      <h2 className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
-        Export MIDI & Render Audio
-      </h2>
+    <section className="bg-gray-900/40 border border-emerald-700/40 rounded-2xl shadow-lg shadow-emerald-900/10 px-6 pt-6 pb-4 space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-3xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-emerald-100 to-green-600 animate-pulse">
+          Krok 3 • Export & Render
+        </h2>
+      </div>
       <p className="text-xs text-gray-400 max-w-2xl">
-        Nazwij projekt, dopasuj poziomy instrumentów i wygeneruj miks razem z osobnymi ścieżkami audio.
+        Nazwij projekt, dopasuj poziomy instrumentów i wygeneruj <span className="text-emerald-300">miks audio</span> razem z osobnymi ścieżkami (stems).
       </p>
 
       {!meta || !midi ? (
-        <div className="text-xs text-gray-500 border border-gray-800 rounded-xl p-4">
+        <div className="text-xs text-gray-500 border border-gray-800/50 rounded-xl p-4 bg-black/30 text-center">
           Ten krok wymaga ukończonych kroków 1 i 2 (parametry + MIDI).
         </div>
       ) : (
-        <>
-          <div className="grid md:grid-cols-4 gap-4 items-start">
-            <div className="space-y-3 md:col-span-1">
-              <div>
-                <label className="block text-xs uppercase tracking-widest text-purple-300 mb-1">Nazwa projektu</label>
-                <input
-                  value={projectName}
-                  onChange={e => setProjectName(e.target.value)}
-                  placeholder="np. ambient_sunset_v1"
-                  className="w-full bg-black/60 border border-purple-800/60 rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={handleRecommendSamples}
-                disabled={!meta || !midi || recommending}
-                className={`w-full px-3 py-2 rounded-lg text-xs font-semibold mt-3 ${
-                  !meta || !midi || recommending
-                    ? "bg-black/40 text-gray-500 border border-gray-700 cursor-not-allowed"
-                    : "bg-gradient-to-r from-emerald-500 to-teal-500 text-black hover:brightness-110"
-                }`}
-              >
-                {recommending ? "Dobieranie sampli…" : "Dobierz rekomendowane sample"}
-              </button>
-              <div className="space-y-1 mt-2">
-                <div className="flex items-center justify-between gap-2">
-                  <label className="text-[10px] uppercase tracking-widest text-purple-300">Fade-out (ms)</label>
-                  <span className="text-[10px] text-gray-400">{fadeoutMs.toFixed(0)} ms</span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={30}
-                  step={1}
-                  value={fadeoutMs}
-                  onChange={e => setFadeoutMs(Number(e.target.value))}
-                  className="w-full"
-                />
-                <p className="text-[10px] text-gray-500">
-                  0 ms = twarde ucięcie, 10 ms (domyślnie) = krótki, gładki fade-out.
-                </p>
-              </div>
-              <button
-                onClick={handleRender}
-                disabled={!canRender}
-                className={`w-full px-3 py-2 rounded-lg text-xs font-semibold mt-2 ${
-                  canRender
-                    ? "bg-gradient-to-r from-purple-500 to-pink-500 text-black hover:brightness-110"
-                    : "bg-black/40 text-gray-500 border border-gray-700 cursor-not-allowed"
-                }`}
-              >
-                {loading ? "Renderowanie…" : "Renderuj mix + ścieżki"}
-              </button>
-            </div>
+        <div className="space-y-6">
 
-            <div className="md:col-span-3 space-y-3 max-h-64 overflow-y-auto scroll-container-purple text-[11px]">
+          {/* 1. Recommend Samples */}
+          <div className="flex flex-col sm:flex-row gap-4 items-start bg-black/80 p-5 rounded-xl border border-emerald-900/40">
+            <button
+              type="button"
+              onClick={handleRecommendSamples}
+              disabled={!meta || !midi || recommending}
+              className={`flex-1 px-4 py-5 rounded-lg text-ss font-semibold transition-all duration-300 border ${!meta || !midi || recommending
+                ? "bg-black/40 text-gray-500 border-gray-700 cursor-not-allowed"
+                : "bg-white/10 text-emerald-100 border-emerald-600/50 hover:bg-emerald-900/40 hover:border-emerald-500 hover:shadow-lg hover:shadow-emerald-900/20"
+                }`}
+            >
+              {recommending ? "Dobieranie sampli…" : "Dobierz rekomendowane sample"}
+            </button>
+            <div className="flex-1 flex gap-3 items-start text-[14px] text-gray-400 bg-black/40 p-3 rounded-lg border border-emerald-900/80">
+              <div className="text-emerald-500 mt-0.5">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 scale-120">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM8.94 6.94a.75.75 0 11-1.061-1.061 3 3 0 112.871 5.026v.345a.75.75 0 01-1.5 0v-.5c0-.72.57-1.172 1.081-1.287A1.5 1.5 0 108.94 6.94zM10 15a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <p>
+                Algorytm wyliczy zrównoważoną proporcję oktaw na których grają poszczególne instrumenty na ścieżce MIDI i odpowiednio dobierze sample biorąc pod uwagę ich bazową skalę.
+              </p>
+            </div>
+          </div>
+
+          {/* 2. Track Configuration */}
+          <div className="space-y-3">
+            <div className="space-y-2 max-h-[500px] overflow-y-auto scroll-container-emerald pr-2 border border-emerald-500/30 rounded-2xl p-4 bg-black/40">
+              <label className="block text-xs uppercase tracking-widest text-emerald-300 mb-1 pl-1">Konfiguracja ścieżek</label>
+
               {tracks.map((t, idx) => (
                 <div
                   key={t.instrument || idx}
-                  className="border border-purple-800/40 rounded-xl px-3 py-2 bg-black/40 space-y-1"
+                  className="border border-emerald-800/30 rounded-xl px-4 py-3 bg-black/40 hover:bg-black/50 transition-colors grid grid-cols-1 sm:grid-cols-12 gap-6 items-center"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="font-semibold text-purple-200 text-xs">{t.instrument}</div>
-                    <label className="flex items-center gap-1 text-[10px] text-gray-300">
-                      <input
-                        type="checkbox"
-                        checked={t.enabled}
-                        onChange={e => handleTrackChange(idx, { enabled: e.target.checked })}
-                        className="rounded border-purple-700 bg-black"
-                      />
-                      Włączona
-                    </label>
+                  {/* Left: Instrument Name + Dot Checkbox */}
+                  <div className="sm:col-span-3 flex items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleTrackChange(idx, { enabled: !t.enabled })}
+                      className={`w-4 h-4 rounded-full shadow-md transition-all duration-300 ${t.enabled ? 'bg-emerald-500 shadow-emerald-500/50 scale-110' : 'bg-red-500/50 shadow-red-500/30 scale-90 hover:bg-red-500 hover:scale-100'}`}
+                      title={t.enabled ? "Wyłącz ścieżkę" : "Włącz ścieżkę"}
+                    />
+                    <div className={`font-semibold text-sm transition-colors ${t.enabled ? 'text-emerald-200' : 'text-gray-500'}`}>
+                      {t.instrument}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 items-center mt-1">
-                    <div>
-                      <div className="text-[10px] text-gray-400">Głośność (dB)</div>
+
+                  {/* Middle: Volume and Pan Sliders Stacked */}
+                  <div className="sm:col-span-5 flex flex-col gap-2">
+                    {/* Volume */}
+                    <div className="flex items-center gap-2 text-[11px] text-gray-400">
+                      <span className="w-6 shrink-0">Vol</span>
                       <input
                         type="range"
                         min={-24}
@@ -329,12 +312,14 @@ const resolveRenderUrl = useCallback(
                         step={1}
                         value={t.volume_db}
                         onChange={e => handleTrackChange(idx, { volume_db: Number(e.target.value) })}
-                        className="w-full"
+                        disabled={!t.enabled}
+                        className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer ${t.enabled ? 'accent-emerald-500 bg-gray-700 hover:bg-gray-600' : 'accent-gray-600 bg-gray-800 cursor-not-allowed'}`}
                       />
-                      <div className="text-[10px] text-gray-300">{t.volume_db.toFixed(0)} dB</div>
+                      <span className="w-12 text-right text-gray-300 font-mono shrink-0">{t.volume_db > 0 ? `+${t.volume_db}` : t.volume_db} dB</span>
                     </div>
-                    <div>
-                      <div className="text-[10px] text-gray-400">Pan</div>
+                    {/* Pan */}
+                    <div className="flex items-center gap-2 text-[11px] text-gray-400">
+                      <span className="w-6 shrink-0">Pan</span>
                       <input
                         type="range"
                         min={-1}
@@ -342,73 +327,146 @@ const resolveRenderUrl = useCallback(
                         step={0.1}
                         value={t.pan}
                         onChange={e => handleTrackChange(idx, { pan: Number(e.target.value) })}
-                        className="w-full"
+                        disabled={!t.enabled}
+                        className={`flex-2 h-1 rounded-lg appearance-none cursor-pointer ${t.enabled ? 'accent-emerald-500 bg-gray-700 hover:bg-gray-600' : 'accent-gray-600 bg-gray-800 cursor-not-allowed'}`}
                       />
-                      <div className="text-[10px] text-gray-300">
-                        {t.pan < 0 ? `L ${Math.abs(t.pan).toFixed(1)}` : t.pan > 0 ? `R ${t.pan.toFixed(1)}` : "Center"}
-                      </div>
+                      <span className="w-10 text-right text-gray-300 font-mono shrink-0">
+                        {t.pan < 0 ? `L${Math.abs(t.pan).toFixed(1)}` : t.pan > 0 ? `R${t.pan.toFixed(1)}` : "Center"}
+                      </span>
                     </div>
-                    <div>
-                      <SampleSelector
-                        apiBase={API_BASE}
-                        apiPrefix={API_PREFIX}
-                        modulePrefix={"/air/param-generation"}
-                        instrument={t.instrument}
-                        selectedId={selectedSamples[t.instrument] || null}
-                        onChange={handleSampleChange}
-                      />
-                    </div>
+                  </div>
+
+                  {/* Right: Sample Selector */}
+                  <div className="sm:col-span-4">
+                    <div className="text-[9px] text-gray-400 mb-1">Sample</div>
+                    <SampleSelector
+                      apiBase={API_BASE}
+                      apiPrefix={API_PREFIX}
+                      modulePrefix={"/air/param-generation"}
+                      instrument={t.instrument}
+                      selectedId={selectedSamples[t.instrument] || null}
+                      onChange={handleSampleChange}
+                    />
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
+          {/* 3. Fade-out */}
+          <div className="flex flex-col sm:flex-row gap-10 items-start bg-black/20 p-4 rounded-xl border border-emerald-900/20">
+            <div className="flex-1 space-y-2 w-full">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-[10px] uppercase tracking-widest text-emerald-300">Fade-out (ms)</label>
+                <span className="text-[12px] text-gray-400 font-mono">{fadeoutMs.toFixed(0)} ms</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={30}
+                step={1}
+                value={fadeoutMs}
+                onChange={e => setFadeoutMs(Number(e.target.value))}
+                className="w-full scale-y-120 accent-emerald-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer hover:bg-gray-600 transition-colors"
+              />
+            </div>
+            <div className="flex-1 flex justify-center gap-3 items-start text-[12px] text-gray-400 bg-black/40 p-3 rounded-lg border border-emerald-900/80 h-full">
+              <div className="text-emerald-500 mt-0.5">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 scale-150">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM8.94 6.94a.75.75 0 11-1.061-1.061 3 3 0 112.871 5.026v.345a.75.75 0 01-1.5 0v-.5c0-.72.57-1.172 1.081-1.287A1.5 1.5 0 108.94 6.94zM10 15a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <p>
+                Zapobiega nakładaniu się grających sampli na siebie. 0 ms = twarde ucięcie, 10 ms = gładki fade-out.
+              </p>
+            </div>
+          </div>
+
+          {/* 4. Project Name */}
+          <div className="flex flex-col items-center gap-2">
+            <label className="block text-l uppercase tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-emerald-200 via-green-400 to-emerald-200 animate-pulse font-bold">
+              Nazwij swój projekt
+            </label>
+            <input
+              value={projectName}
+              onChange={e => setProjectName(e.target.value)}
+              placeholder="np. ambient_sunset_v1"
+              className="w-full max-w-6xl bg-black/50 border border-emerald-800/40 rounded-2xl px-6 py-6 text-2xl text-center focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-500 transition-all placeholder-gray-700 shadow-inner shadow-black/50"
+            />
+          </div>
+
+          {/* 5. Render Button */}
+          <div>
+            <ElectricBorder
+              as="button"
+              onClick={handleRender}
+              disabled={!canRender}
+              className={`w-full py-4 text-base font-bold text-white bg-black/50 rounded-xl transition-all duration-300 ${!canRender ? 'opacity-30 cursor-not-allowed scale-[0.98] grayscale' : 'scale-[0.98] hover:scale-100 hover:brightness-125 hover:bg-black/70 hover:shadow-lg hover:shadow-emerald-400/20'}`}
+              color="#10b981"
+              speed={0.1}
+              chaos={0.3}
+            >
+              {loading ? (
+                'Renderowanie…'
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  Renderuj mix
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                    <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                    <path fillRule="evenodd" d="M1.323 11.447C2.811 6.976 7.028 3.75 12.001 3.75c4.97 0 9.185 3.223 10.675 7.69.12.362.12.752 0 1.113-1.487 4.471-5.705 7.697-10.677 7.697-4.97 0-9.186-3.223-10.675-7.69a1.762 1.762 0 010-1.113zM17.25 12a5.25 5.25 0 11-10.5 0 5.25 5.25 0 0110.5 0z" clipRule="evenodd" />
+                  </svg>
+                </span>
+              )}
+            </ElectricBorder>
+          </div>
+
           {error && (
-            <div className="bg-red-900/30 border border-red-800/70 text-red-200 text-xs rounded-xl px-3 py-2">
+            <div className="bg-red-900/30 border border-red-800/70 text-red-200 text-xs rounded-xl px-4 py-3">
               {error}
             </div>
           )}
 
           {history.length > 0 && (
-            <div className="bg-black/40 border border-purple-800/50 rounded-2xl p-4 space-y-3 text-xs">
-              <div className="text-purple-300 text-[11px] uppercase tracking-widest mb-1">
+            <div className="bg-black/40 border border-emerald-800/40 rounded-2xl p-5 space-y-4 text-xs mt-4">
+              <div className="text-emerald-300 text-xs uppercase tracking-widest border-b border-emerald-900/40 pb-2">
                 Historia renderów
               </div>
-              <div className="space-y-3 text-gray-200 max-h-64 overflow-y-auto pr-1">
-                {[...history].map((h, idx) => {
-                  const versionLabel = `Wersja ${idx + 1}`;
+              <div className="space-y-3 text-gray-200 max-h-80 overflow-y-auto pr-2 scroll-container-emerald">
+                {[...history].reverse().map((h, idx) => {
+                  const versionLabel = `Wersja ${history.length - idx}`;
                   return (
                     <div
                       key={`${h.run_id}-${h.mix_wav_rel}-${idx}`}
-                      className="border border-purple-800/40 rounded-xl px-3 py-2 bg-black/40 space-y-2"
+                      className="border border-emerald-800/30 rounded-xl px-4 py-3 bg-black/30 space-y-3 hover:bg-black/40 transition-colors"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <div className="font-semibold text-purple-200 text-[11px]">
+                        <div className="font-semibold text-emerald-200 text-sm">
                           {versionLabel}
                         </div>
                         {typeof h.duration_seconds === "number" && h.duration_seconds > 0 && (
-                          <div className="text-[10px] text-gray-400">
+                          <div className="text-[10px] text-gray-400 bg-black/40 px-2 py-1 rounded-full border border-gray-800">
                             {h.duration_seconds.toFixed(1)} s
                           </div>
                         )}
                       </div>
                       <div className="space-y-1">
-                        <div className="text-[11px] text-gray-300 mb-1">Mix</div>
+                        <div className="text-[10px] text-gray-400 uppercase tracking-wider">Mix</div>
                         <SimpleAudioPlayer
                           src={resolveRenderUrl(h.mix_wav_rel)}
                           className="w-full"
-                          height={36}
+                          height={40}
                           variant="compact"
                         />
                       </div>
                       {h.stems.length > 0 && (
-                        <div className="space-y-1">
-                          <div className="mt-1 text-gray-400 text-[11px]">Stemy</div>
-                          <ul className="pl-3 space-y-1">
+                        <details className="group">
+                          <summary className="cursor-pointer text-[10px] text-emerald-400/70 hover:text-emerald-300 transition-colors py-1 select-none">
+                            Pokaż {h.stems.length} osobnych ścieżek (stems)
+                          </summary>
+                          <ul className="pl-2 space-y-2 mt-2 border-l border-emerald-900/30 ml-1">
                             {h.stems.map(stem => (
-                              <li key={`${stem.instrument}-${stem.audio_rel}`} className="space-y-0.5">
-                                <div className="text-[11px] text-gray-300">{stem.instrument}</div>
+                              <li key={`${stem.instrument}-${stem.audio_rel}`} className="space-y-1">
+                                <div className="text-[10px] text-gray-300 font-medium">{stem.instrument}</div>
                                 <SimpleAudioPlayer
                                   src={resolveRenderUrl(stem.audio_rel)}
                                   className="w-full"
@@ -418,7 +476,7 @@ const resolveRenderUrl = useCallback(
                               </li>
                             ))}
                           </ul>
-                        </div>
+                        </details>
                       )}
                     </div>
                   );
@@ -426,8 +484,14 @@ const resolveRenderUrl = useCallback(
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
+
+      {/* Loading overlay */}
+      <LoadingOverlay
+        isVisible={loading}
+        message="Renderuję Twój utwór... To już akurat potrwa bardzo niedługo!"
+      />
     </section>
   );
 }

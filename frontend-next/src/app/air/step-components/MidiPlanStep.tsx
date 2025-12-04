@@ -31,9 +31,10 @@ type Props = {
   // run_id z backendu do odtwarzania/śledzenia kroku 2
   initialRunId?: string | null;
   onRunIdChange?: (runId: string | null) => void;
+  onNavigateNext?: () => void;
 };
 
-export default function MidiPlanStep({ meta, onReady, initialRunId, onRunIdChange }: Props) {
+export default function MidiPlanStep({ meta, onReady, initialRunId, onRunIdChange, onNavigateNext }: Props) {
   const pianorollScrollRef = useRef<HTMLDivElement | null>(null);
   const [providers, setProviders] = useState<{ id: string; name: string; default_model?: string }[]>([]);
   const [provider, setProvider] = useState<string>("gemini");
@@ -46,6 +47,16 @@ export default function MidiPlanStep({ meta, onReady, initialRunId, onRunIdChang
   const [userPrompt, setUserPrompt] = useState<string | null>(null);
   const [normalized, setNormalized] = useState<any | null>(null);
   const [rawText, setRawText] = useState<string | null>(null);
+
+  const resultRef = useRef<HTMLDivElement>(null);
+  const [shouldScroll, setShouldScroll] = useState(false);
+
+  useEffect(() => {
+    if (shouldScroll && result && resultRef.current) {
+      resultRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      setShouldScroll(false);
+    }
+  }, [shouldScroll, result]);
 
   const pretty = useCallback((v: unknown) => {
     try { return JSON.stringify(v, null, 2); } catch { return String(v); }
@@ -149,6 +160,7 @@ export default function MidiPlanStep({ meta, onReady, initialRunId, onRunIdChang
       if (onRunIdChange && typeof data.run_id === "string") {
         onRunIdChange(data.run_id);
       }
+      setShouldScroll(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -312,14 +324,24 @@ export default function MidiPlanStep({ meta, onReady, initialRunId, onRunIdChang
       )}
 
       {result && (
-        <div className="space-y-3 border border-orange-800/30 rounded-2xl p-5 bg-black/30 shadow-inner shadow-black/50">
+        <div ref={resultRef} className="space-y-3 border border-orange-800/30 rounded-2xl p-5 bg-black/30 shadow-inner shadow-black/50">
           <div className="text-xs text-gray-400 flex flex-wrap gap-4 items-center justify-between border-b border-orange-900/30 pb-2 mb-2">
             <div className="flex gap-4">
               <span>run_id: <span className="text-gray-200 font-mono">{result.run_id}</span></span>
               {result.provider && <span>provider: <span className="text-orange-300">{result.provider}</span></span>}
               {result.model && <span>model: <span className="text-orange-300">{result.model}</span></span>}
             </div>
-            <div className="text-[10px] uppercase tracking-widest text-orange-500/70 font-bold">Midi Preview</div>
+            <ElectricBorder
+              as="button"
+              type="button"
+              onClick={() => onNavigateNext && onNavigateNext()}
+              className="w-auto px-48 py-3 font-bold text-white bg-black/50 rounded-xl transition-all duration-300 hover:scale-105 hover:brightness-125 hover:bg-black/70 text-[14px]"
+              color="#f97316"
+              speed={0.6}
+              chaos={0.4}
+            >
+              Przejdź do renderowania ścieżek audio
+            </ElectricBorder>
           </div>
           {/* Pianoroll frontendowy na bazie JSON-a z backendu */}
           <div className="relative">
@@ -368,7 +390,7 @@ export default function MidiPlanStep({ meta, onReady, initialRunId, onRunIdChang
 
       <LoadingOverlay
         isVisible={loading}
-        message="Komponowanie sekwencji MIDI..."
+        message="Komponowanie sekwencji MIDI... To już może potrwać trochę dłużej. Ale nadzieja umiera ostatnia :)"
       />
     </section>
   );
