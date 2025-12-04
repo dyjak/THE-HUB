@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from .database.connection import Base, engine
 from .auth.router import router as auth_router
 from .users import router as users_router
-from .database.seeder import seed_users
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 import os
@@ -97,11 +96,8 @@ try:
 except Exception as e:
     print("[WARN] failed to mount local_samples:", e)
 
-# Upewnij się, że tabele są utworzone
+# Upewnij się, że tabele są utworzone (bez automatycznego seedowania użytkowników)
 Base.metadata.create_all(bind=engine)
-
-# Wywołaj seeder przy starcie aplikacji
-seed_users()
 
 # Dodaj routery
 app.include_router(auth_router, prefix="/api")

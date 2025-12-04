@@ -18,6 +18,8 @@ class RenderRequest(BaseModel):
 
     project_name: str = Field(..., min_length=1, max_length=200)
     run_id: str = Field(..., min_length=1)
+    # Opcjonalnie: identyfikator użytkownika przekazywany z frontendu (NextAuth)
+    user_id: Optional[int] = None
     midi: Dict[str, Any]
     # Opcjonalnie pełny podział MIDI per instrument z modułu midi_generation.
     midi_per_instrument: Dict[str, Dict[str, Any]] | None = None

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import type { ParamPlanMeta } from "../lib/paramTypes";
 import type { MidiPlanResult } from "./MidiPlanStep";
 import { SampleSelector } from "./SampleSelector";
@@ -31,6 +32,7 @@ type Props = {
 };
 
 export default function RenderStep({ meta, midi, selectedSamples, initialRunId, onRunIdChange, onSelectedSamplesChange }: Props) {
+  const { data: session } = useSession();
   const [projectName, setProjectName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -103,6 +105,7 @@ const resolveRenderUrl = useCallback(
       const body = {
         project_name: projectName.trim(),
         run_id: midi.run_id,
+        user_id: session?.user && (session.user as any).id ? Number((session.user as any).id) : null,
         midi: midi.midi,
         tracks,
         selected_samples: selectedSamples,

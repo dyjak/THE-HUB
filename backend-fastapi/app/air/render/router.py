@@ -10,7 +10,9 @@ from .schemas import (
     RecommendedSample,
 )
 from .engine import render_audio, OUTPUT_ROOT, recommend_sample_for_instrument
-from app.auth.dependencies import get_current_user
+from app.database import get_db
+from sqlalchemy.orm import Session
+from app.auth.models import Proj
 
 
 router = APIRouter(
@@ -21,7 +23,10 @@ router = APIRouter(
 
 
 @router.post("/render-audio", response_model=RenderResponse)
-def render_endpoint(req: RenderRequest) -> RenderResponse:
+def render_endpoint(
+    req: RenderRequest,
+    db: Session = Depends(get_db),
+) -> RenderResponse:
     """Render mix + per-instrument stems for a given MIDI plan.
 
     This endpoint is intentionally self-contained and does not import
@@ -30,6 +35,14 @@ def render_endpoint(req: RenderRequest) -> RenderResponse:
 
     try:
         resp = render_audio(req)
+        # Po udanym renderze spróbuj zapisać prosty rekord projektu powiązany z run_id.
+        try:
+            proj = Proj(user_id=req.user_id, render=req.run_id)
+            db.add(proj)
+            db.commit()
+        except Exception:
+            # Nie blokujemy odpowiedzi renderu błędem DB.
+            db.rollback()
         # Zapisz ostatni stan renderu dla danego run_id, aby frontend mógł go później odtworzyć.
         try:
             run_dir = OUTPUT_ROOT / req.run_id

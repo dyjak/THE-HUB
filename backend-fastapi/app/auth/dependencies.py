@@ -34,6 +34,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 security = HTTPBearer(auto_error=True)
 
+# Wersja opcjonalna: nie rzuca 401, tylko zwraca None gdy brak/niepoprawny token.
+security_optional = HTTPBearer(auto_error=False)
+
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -52,4 +55,30 @@ def get_current_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=401, detail="Nieautoryzowany")
+    return user
+
+
+def get_optional_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_optional),
+    db: Session = Depends(get_db),
+) -> User | None:
+    """Zwraca zalogowanego użytkownika lub None, jeśli brak poprawnego tokena.
+
+    Używane w publicznych endpointach, gdzie auth jest tylko dodatkową informacją.
+    """
+
+    if credentials is None:
+        return None
+
+    token = credentials.credentials
+    secret = os.getenv("AUTH_SECRET_KEY", SECRET_KEY)
+    try:
+        payload = jwt.decode(token, secret, algorithms=[ALGORITHM])
+        user_id: Optional[int] = payload.get("sub")
+        if user_id is None:
+            return None
+    except JWTError:
+        return None
+
+    user = db.query(User).filter(User.id == user_id).first()
     return user
