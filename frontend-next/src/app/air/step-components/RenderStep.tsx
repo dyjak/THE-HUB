@@ -79,6 +79,88 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
     [backendAudioBase],
   );
 
+  // Resolve MIDI file URL from midi artifacts
+  const resolveMidiUrl = useCallback(
+    (rel: string | null | undefined) => {
+      if (!rel) return null;
+      // MIDI files are also served from /api/audio/ endpoint
+      // Handle both forward slashes and backslashes
+      const markerBack = "output\\";
+      const markerFwd = "output/";
+      let idx = rel.indexOf(markerBack);
+      let marker = markerBack;
+      if (idx < 0) {
+        idx = rel.indexOf(markerFwd);
+        marker = markerFwd;
+      }
+      const tail = idx >= 0 ? rel.slice(idx + marker.length) : rel;
+      // Normalize path separators to forward slashes for URL
+      const normalizedTail = tail.replace(/\\/g, '/');
+      const finalUrl = `${backendAudioBase}${normalizedTail}`;
+      if (process.env.NODE_ENV === "development") {
+        console.log("[RenderStep] resolveMidiUrl", { rel, tail: normalizedTail, finalUrl });
+      }
+      return finalUrl;
+    },
+    [backendAudioBase],
+  );
+
+  // Download a single file - returns true on success, false on failure
+  const downloadFile = useCallback(async (url: string, filename: string, silentOn404 = false): Promise<boolean> => {
+    try {
+      if (process.env.NODE_ENV === "development") {
+        console.log("[RenderStep] downloadFile attempting:", { url, filename });
+      }
+      const response = await fetch(url);
+      if (!response.ok) {
+        if (response.status === 404 && silentOn404) {
+          console.warn(`[RenderStep] File not found (404), skipping: ${url}`);
+          return false;
+        }
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+      return true;
+    } catch (e) {
+      console.error('Download failed:', e);
+      setError(`Błąd pobierania ${filename}: ${e instanceof Error ? e.message : String(e)}`);
+      return false;
+    }
+  }, []);
+
+  // Download all files (mix, stems, and midi)
+  const downloadAll = useCallback(async (h: RenderResult) => {
+    const projectNameClean = h.project_name.replace(/[^a-zA-Z0-9_-]/g, '_');
+    setError(null); // Clear any previous errors
+
+    // Download mix
+    const mixUrl = resolveRenderUrl(h.mix_wav_rel);
+    await downloadFile(mixUrl, `${projectNameClean}_mix.wav`);
+
+    // Download stems
+    for (const stem of h.stems) {
+      const stemUrl = resolveRenderUrl(stem.audio_rel);
+      const instrumentClean = stem.instrument.replace(/[^a-zA-Z0-9_-]/g, '_');
+      await downloadFile(stemUrl, `${projectNameClean}_${instrumentClean}.wav`);
+    }
+
+    // Download MIDI files if available - silently skip if 404
+    if (midi?.artifacts?.midi_mid_rel) {
+      const midiUrl = resolveMidiUrl(midi.artifacts.midi_mid_rel);
+      if (midiUrl) {
+        await downloadFile(midiUrl, `${projectNameClean}.mid`, true);
+      }
+    }
+  }, [resolveRenderUrl, resolveMidiUrl, downloadFile, midi]);
+
   const handleTrackChange = (index: number, patch: Partial<(typeof tracks)[number]>) => {
     setTracks(prev => prev.map((t, i) => (i === index ? { ...t, ...patch } : t)));
   };
@@ -439,15 +521,43 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
                       key={`${h.run_id}-${h.mix_wav_rel}-${idx}`}
                       className="border border-emerald-800/30 rounded-xl px-4 py-3 bg-black/30 space-y-3 hover:bg-black/40 transition-colors"
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="font-semibold text-emerald-200 text-sm">
-                          {versionLabel}
-                        </div>
-                        {typeof h.duration_seconds === "number" && h.duration_seconds > 0 && (
-                          <div className="text-[10px] text-gray-400 bg-black/40 px-2 py-1 rounded-full border border-gray-800">
-                            {h.duration_seconds.toFixed(1)} s
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-3">
+                          <div className="font-semibold text-emerald-200 text-sm">
+                            {versionLabel}
                           </div>
-                        )}
+                          {typeof h.duration_seconds === "number" && h.duration_seconds > 0 && (
+                            <div className="text-[10px] text-gray-400 bg-black/40 px-2 py-1 rounded-full border border-gray-800">
+                              {h.duration_seconds.toFixed(1)} s
+                            </div>
+                          )}
+                        </div>
+                        {/* Download buttons */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => downloadFile(resolveRenderUrl(h.mix_wav_rel), `${h.project_name.replace(/[^a-zA-Z0-9_-]/g, '_')}_mix.wav`)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium text-emerald-300 bg-emerald-900/30 hover:bg-emerald-800/40 border border-emerald-700/40 hover:border-emerald-600/60 rounded-lg transition-all duration-200 hover:scale-105"
+                            title="Pobierz tylko mix audio"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                              <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" />
+                              <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
+                            </svg>
+                            Mix
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => downloadAll(h)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium text-white bg-gradient-to-r from-emerald-600/60 to-green-600/60 hover:from-emerald-500/70 hover:to-green-500/70 border border-emerald-500/40 hover:border-emerald-400/60 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm shadow-emerald-900/20"
+                            title="Pobierz wszystko: mix, stems i MIDI"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                              <path fillRule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5A.75.75 0 012 10z" clipRule="evenodd" />
+                            </svg>
+                            Wszystko
+                          </button>
+                        </div>
                       </div>
                       <div className="space-y-1">
                         <div className="text-[10px] text-gray-400 uppercase tracking-wider">Mix</div>

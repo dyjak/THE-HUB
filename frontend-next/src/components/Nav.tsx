@@ -12,25 +12,23 @@ export default function Nav() {
 
     return (
         <nav className="shade p-2 bg-black flex justify-around items-center relative z-10">
-            <div className="flex gap-4">
+            <div className="flex gap-4 items-center">
                 {/*<Link href="/" className="text-m hover:text-gray-300">🏠 Home</Link>*/}
                 {/*<Link href="/app1" className="text-m hover:text-gray-300">🎵 App1</Link>*/}
                 {/*<Link href="/app2" className="text-m hover:text-gray-300">🎶 App2</Link>*/}
                 {/*<Link href="/air" className="text-m hover:text-gray-300">🚀 AIR</Link>*/}
                 <Link href="/air" className="text-xl hover:text-gray-300"> <FaHome />  </Link>
-                <Link href="/air" className="text-xl hover:text-gray-300"><FaGithub /> </Link>
-                <Link href="/air" className="text-xl hover:text-gray-300"> <FaBrain /></Link>
-                <Link href="/air/inventory" className="text-s hover:text-gray-300"> Inventory </Link>
+                <Link href="/air/inventory" className="text-sm hover:text-gray-300 px-4 py-1 border border-grey-500/30 rounded-lg hover:bg-grey-800/20 transition-colors"> Archiwum </Link>
 
             </div>
             <div>
                 {session ? (
                     <div className="flex items-center gap-4">
-                        <Link href="air/me" className="text-l hover:text-gray-300">Witaj, {session.user?.name} </Link>
-                        <Link href="air/me" className="text-l hover:text-gray-300"> <FaUser /> </Link>
+                        <Link href="/air/me" className="text-l hover:text-gray-300">Witaj, {session.user?.name} </Link>
+                        <Link href="/air/me" className="text-l hover:text-gray-300"> <FaUser /> </Link>
                         <button
                             onClick={() => signOut({ callbackUrl: '/' })}
-                            className="px-4 py-2 border border-red-500/50 rounded-lg hover:bg-red-800/20 transition-colors"
+                            className="px-4 py-2 border border-red-500/30 rounded-lg hover:bg-red-800/20 transition-colors"
                         >
                             Wyloguj
                         </button>
@@ -43,6 +41,10 @@ export default function Nav() {
                         Log In
                     </Link>
                 )}
+            </div>
+            <div className="flex gap-4">
+                <Link href="/air" className="text-xl hover:text-gray-300"><FaGithub /> </Link>
+                <Link href="/air" className="text-xl hover:text-gray-300"> <FaBrain /></Link>
             </div>
         </nav>
     );
