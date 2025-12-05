@@ -6,6 +6,7 @@ import type { ParamPlanMeta } from "../lib/paramTypes";
 import type { MidiPlanResult } from "./MidiPlanStep";
 import { SampleSelector } from "./SampleSelector";
 import { SimpleAudioPlayer } from "./SimpleAudioPlayer";
+import { VisualAudioPlayer } from "./VisualAudioPlayer";
 import ElectricBorder from "@/components/ui/ElectricBorder";
 import LoadingOverlay from "@/components/ui/LoadingOverlay";
 
@@ -559,13 +560,13 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
                           </button>
                         </div>
                       </div>
-                      <div className="space-y-1">
-                        <div className="text-[10px] text-gray-400 uppercase tracking-wider">Mix</div>
-                        <SimpleAudioPlayer
+                      <div className="px-2 py-3 bg-emerald-900/20 rounded-lg">
+                        <VisualAudioPlayer
                           src={resolveRenderUrl(h.mix_wav_rel)}
+                          title={h.project_name || "Mix"}
+                          accentColor="#55ff6fff"
+                          accentColor2="#005f31ff"
                           className="w-full"
-                          height={40}
-                          variant="compact"
                         />
                       </div>
                       {h.stems.length > 0 && (
