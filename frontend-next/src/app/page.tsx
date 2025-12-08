@@ -7,6 +7,9 @@ import AnimatedHeading from '../components/ui/AnimatedHeading';
 import TypedText from '../components/ui/TypedText';
 import AnimatedCard from "@/components/ui/AnimatedCard";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+
+redirect("/air");
 
 const apps = [
     { name: "AIR 4.2", path: "/air" },

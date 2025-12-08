@@ -2,11 +2,11 @@
 ### normalizacja głośności poszczególnych instrumentów w renderze
 ### ucięcie renderu jeśli sucho
 ### dopracowujemy system prompt
-### wywalamy FX z payload !!
 ### normalizacja pitchungu względem klucza
-### ogarnąć końcową klasyfikację inventory
-### wywalić endpointy testowe
-### ogarnąć przesunięcie w renderze - teraz wszystko jest zapychane do lewej nawet jeśli w aranżacji jest przerwa
+### dokladny review inventory
+### podpowiedź dla uzytkownika co do parametrow
+
+
 
 # general
 ### WYWALIĆ ostrzeżenie przy powrocie do danego kroku o możliwości i utraty postępu
