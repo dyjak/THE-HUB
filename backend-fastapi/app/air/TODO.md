@@ -5,8 +5,15 @@
 ### normalizacja pitchungu względem klucza
 ### dokladny review inventory
 ### podpowiedź dla uzytkownika co do parametrow
+### wyraźne ostrzeżenie jak zła odpowiedz
+### dokumnetacja promptów
 
-
+# dokumantacja
+### wstep, cel i zakres porownanie modeli, porownanie aplikacji
+### architektura
+### stryktura
+### interfejsu
+### testy
 
 # general
 ### WYWALIĆ ostrzeżenie przy powrocie do danego kroku o możliwości i utraty postępu
