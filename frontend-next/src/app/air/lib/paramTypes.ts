@@ -11,6 +11,9 @@ export interface InstrumentConfig {
 }
 
 export interface ParamPlan {
+  // Original natural-language prompt provided by the user in step 1.
+  // Optional so existing saved plans and model outputs remain compatible.
+  user_prompt?: string;
   style: string;
   genre: string;
   mood: string;

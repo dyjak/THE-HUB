@@ -21,6 +21,8 @@ class MidiMetaIn(BaseModel):
     dynamic_profile: str = Field(default="moderate")
     arrangement_density: str = Field(default="balanced")
     harmonic_color: str = Field(default="diatonic")
+    # Optional: original user prompt from step 1, forwarded for better grounding.
+    user_prompt: Optional[str] = None
     instruments: List[str] = Field(default_factory=list)
     instrument_configs: List[Dict[str, Any]] = Field(default_factory=list)
     seed: Optional[int] = None

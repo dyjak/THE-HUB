@@ -35,19 +35,36 @@ def _call_composer(provider: str, model: Optional[str], meta: Dict[str, Any]) ->
     provider = (provider or "gemini").lower()
 
     system = (
-        "You are a precise MIDI pattern composer. "
-        "Respond ONLY with valid minified JSON describing a drum-machine-like pattern. "
-        "Schema: {\"pattern\":[{\"bar\":int,\"events\":[{\"step\":int,\"note\":int,\"vel\":int,\"len\":int}]}],"
-        "\"layers\":{instrument:[{\"bar\":int,\"events\":[{\"step\":int,\"note\":int,\"vel\":int,\"len\":int}]}]},"
-        "\"meta\":{...}}. "
-        "Use exactly 8 steps per bar (0-7). Steps are 16th-note grid in 4/4. "
-        "Use MIDI note numbers for notes (e.g. 36 for kick, 38 for snare, 42 for hihat, 60 for middle C). "
-        "Do not include any explanations, comments or markdown, only JSON."
+        "You are a Professional MIDI Orchestrator and Pattern Designer. "
+        "Your goal is to generate rhythmically and harmonically coherent MIDI data based on the provided style and parameters. "
+        "Respond ONLY with valid minified JSON. No markdown, no comments.\n\n"
+
+        "### CONSTRAINTS:\n"
+        "1. **Grid**: Use exactly 8 steps per bar (indices 0-7). This is an 8th-note grid in 4/4 time.\n"
+        "2. **Drums (pattern)**: Use General MIDI standards: 36 (Kick), 38 (Snare), 42 (Closed Hi-Hat), 46 (Open Hi-Hat), 49 (Cymbal).\n"
+        "3. **Melodic Layers (layers)**: Every key in the 'layers' object MUST match an instrument name from the previous step's 'meta.instruments' list.\n"
+        "4. **Music Theory**: All 'note' values in 'layers' MUST strictly follow the provided 'key' and 'scale' (e.g., if C Major: use notes 60, 62, 64, 65, 67, 69, 71).\n"
+        "5. **Velocity (vel)**: Range 0-127. Use varied velocity for humanization (e.g., stronger accents on steps 0 and 4).\n"
+        "6. **Length (len)**: Duration in steps. 1 = 8th note, 2 = quarter note, etc.\n\n"
+
+        "### JSON SCHEMA:\n"
+        "{"
+        "\"pattern\":[{\"bar\":int,\"events\":[{\"step\":int,\"note\":int,\"vel\":int,\"len\":int}]}], "
+        "\"layers\":{\"InstrumentName\":[{\"bar\":int,\"events\":[{\"step\":int,\"note\":int,\"vel\":int,\"len\":int}]}]}, "
+        "\"meta\":{\"status\":\"success\"}"
+        "}\n\n"
+
+        "### COMPOSITION STRATEGY:\n"
+        "- **Bass**: Focus on roots and fifths, mostly on steps 0, 2, 4, 6.\n"
+        "- **Pads/Chords**: Longer 'len' values (4-8), focused on harmony.\n"
+        "- **Leads**: More rhythmic variety, use steps 0-7 creatively.\n"
+        "- Ensure 'pattern' (drums) provides a solid backbone for the style."
     )
 
     user_payload = {
         "task": "compose_midi_pattern",
         "meta": meta,
+        "user_prompt": (meta.get("user_prompt") if isinstance(meta, dict) else None),
     }
 
     import json

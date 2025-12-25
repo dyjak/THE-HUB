@@ -91,29 +91,36 @@ def _parameter_plan_system(plan: ParameterPlanIn) -> tuple[str, str]:
     """
     allowed = _allowed_instruments_hint()
     system = (
-        "You are a precise music parameter planner, NOT a MIDI composer. "
-        "Respond ONLY with valid minified JSON in the exact schema:"
-        " {\"meta\":{"
+        "You are an Expert Music Theorist and Orchestrator. Your role is to translate natural language descriptions "
+        "into technical musical specifications for an AI backend. "
+        "Respond ONLY with valid minified JSON. No markdown, no conversational filler.\n\n"
+        
+        "### JSON SCHEMA:\n"
+        "{\"meta\":{"
         "\"style\":string,\"mood\":string,\"tempo\":number,\"key\":string,\"scale\":string,"
         "\"meter\":string,\"bars\":number,\"length_seconds\":number,"
         "\"dynamic_profile\":string,\"arrangement_density\":string,\"harmonic_color\":string,"
         "\"instruments\":[string],"
         "\"instrument_configs\":[{"
         "\"name\":string,\"role\":string,\"register\":string,\"articulation\":string,\"dynamic_range\":string"
-        "}]}}."
-        " Choose all values based on the natural-language description from the user."
-        " For every instrument listed in meta.instruments you MUST include exactly one matching entry in meta.instrument_configs"
-        " with the same name and your best guess for its role (Lead, Accompaniment, Bass, Percussion, Pad, etc.),"
-        " register (Low, Mid, High, Full or similar), articulation (e.g. Sustain, Legato, Staccato, Percussive, etc.)"
-        " and dynamic_range (e.g. Delicate, Moderate, Intense or similar)."
-        " You are free to change tempo, bar count, form and instrument choices to best match the request."
-        " This module plans parameters only. Do NOT output any MIDI notes,"
-        " patterns, bars with steps, or note/velocity/length grids."
-        " No markdown, no comments."
-        " IMPORTANT: Allowed instrument names are strictly: [" + allowed + "]."
-        " Always use only these names in meta.instruments (case preserved as listed)."
-        " Never use a generic instrument named 'FX' in meta.instruments;"
-        " instead choose more specific instruments (e.g. pads, textures, drums, bass, leads)."
+        "}]}}\n\n"
+
+        "### CONSTRAINTS & LOGIC:\n"
+        "1. **Instrument Strictness**: You MUST ONLY use instrument names from this allowed list: [" + allowed + "]. "
+        "If a user requests an instrument NOT in the list, substitute it with the closest available alternative (e.g., if 'Violin' is requested but not allowed, use 'Strings' or 'Lead Synth').\n"
+        "2. **Consistency**: The number of items in 'instruments' must exactly match 'instrument_configs'. The 'name' field in both must be identical.\n"
+        "3. **Musical Theory**: Ensure that 'tempo', 'scale', 'meter', and 'harmonic_color' are stylistically consistent (e.g., Techno usually has 120-130 BPM, 4/4 meter). "
+        "Choose 'key' and 'scale' to match the 'mood' (e.g., Minor for sad/tense, Major for happy/bright).\n"
+        "4. **Parameter Standards**:\n"
+        "   - Role: [Lead, Accompaniment, Bass, Percussion, Pad, Texture, Harmony]\n"
+        "   - Register: [Sub, Low, Mid, High, Very High, Full]\n"
+        "   - Dynamic Range: [Pianissimo, Delicate, Moderate, Intense, Fortissimo]\n"
+        "   - Articulation: [Sustain, Legato, Staccato, Pizzicato, Percussive, Muted, Tremolo]\n\n"
+        
+        "### TASK:\n"
+        "Analyze the user's request for genre, energy, and instrumentation. "
+        "Plan a professional arrangement that is coherent and mix-ready. "
+        "Never use generic 'FX' names. Focus on the provided allowed list."
     )
     # For generative behavior we only send the high-level natural language
     # description from the user. All concrete parameter values are chosen by
@@ -493,6 +500,14 @@ def generate_parameter_plan(body: ParameterPlanRequest):
     parsed, errors = _safe_parse_json(raw)
     if errors:
         run.log("parse", "json_error", {"error": errors[0]})
+
+    # Persist the original user prompt alongside model output.
+    # Keep it top-level (not inside meta) so later PATCH /meta does not overwrite it.
+    if isinstance(parsed, dict):
+        try:
+            parsed.setdefault("user_prompt", getattr(plan, "prompt", "") or "")
+        except Exception:
+            parsed.setdefault("user_prompt", "")
 
     # Persist outputs
     from datetime import datetime

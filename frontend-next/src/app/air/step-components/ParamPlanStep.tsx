@@ -76,6 +76,11 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
         const rawMeta = (payload.plan.meta || payload.plan) as any;
         if (!rawMeta || typeof rawMeta !== "object") return;
 
+        const savedUserPrompt = typeof payload.plan.user_prompt === "string" ? payload.plan.user_prompt : undefined;
+        if (savedUserPrompt && savedUserPrompt.trim()) {
+          setPrompt(savedUserPrompt);
+        }
+
         let cloned: ParamPlan;
         try {
           const normalizedMidi = normalizeParamPlan(rawMeta);
@@ -102,6 +107,10 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
           };
         }
         setMidi(cloned);
+        if (savedUserPrompt && savedUserPrompt.trim()) {
+          // Keep it on the plan so downstream steps (MIDI) can use it.
+          (cloned as any).user_prompt = savedUserPrompt;
+        }
         setRunId(initialRunId);
         if (onMetaReady) onMetaReady(cloned);
         const sel = (payload.plan.meta?.selected_samples || payload.plan.selected_samples || {}) as Record<string, string>;
@@ -276,7 +285,10 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
       const midiPart = norm?.midi ?? null;
       if (midiPart && typeof midiPart === 'object') {
         const normalizedMidi = normalizeParamPlan(midiPart as any);
-        const cloned = cloneParamPlan(normalizedMidi);
+        const cloned = cloneParamPlan({
+          ...normalizedMidi,
+          user_prompt: prompt,
+        });
         setMidi(cloned);
         if (onMetaReady) onMetaReady(cloned);
         // reset selected samples for a fresh plan; PATCH is handled inside helper

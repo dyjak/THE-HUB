@@ -138,6 +138,7 @@ export const ensureInstrumentConfigs = (instruments: string[], existing: Instrum
 };
 
 export const normalizeParamPlan = (input: Partial<ParamPlan> | Record<string, unknown>): ParamPlan => {
+  const user_prompt = typeof (input as any).user_prompt === "string" ? ((input as any).user_prompt as string) : undefined;
   const style = normalizeWithSuggestions(input.style ?? (input as any).genre, STYLE_OPTIONS, STYLE_OPTIONS[0] ?? "Ambient");
   const mood = normalizeWithSuggestions(input.mood, MOOD_OPTIONS, MOOD_OPTIONS[0] ?? "Calm");
   const key = normalizeWithSuggestions(input.key, KEY_OPTIONS, "C");
@@ -169,6 +170,7 @@ export const normalizeParamPlan = (input: Partial<ParamPlan> | Record<string, un
   }
 
   return {
+    user_prompt,
     style,
     genre: style,
     mood,
