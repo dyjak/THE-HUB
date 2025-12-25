@@ -7,6 +7,8 @@
 ### podpowiedź dla uzytkownika co do parametrow
 ### wyraźne ostrzeżenie jak zła odpowiedz
 ### dokumnetacja promptów
+### export files
+### przesył user payload również w system prompt midi_gen
 
 # dokumantacja
 ### wstep, cel i zakres porownanie modeli, porownanie aplikacji

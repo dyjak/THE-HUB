@@ -262,27 +262,6 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
         }
       }
 
-      // Zapisz do parameter_plan.json przez PATCH selected-samples,
-      // jeśli mamy run_id (używamy midi.run_id jako identyfikatora sesji)
-      if (midi.run_id) {
-        try {
-          await fetch(
-            `${API_BASE}${API_PREFIX}/air/param-generation/plan/${encodeURIComponent(
-              midi.run_id,
-            )}/selected-samples`,
-            {
-              method: "PATCH",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ selected_samples: merged }),
-            },
-          );
-        } catch {
-          // zapis do param-plan nie jest krytyczny dla UX renderu
-        }
-      }
-
       if (onSelectedSamplesChange) {
         onSelectedSamplesChange(merged);
       }
