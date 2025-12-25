@@ -439,9 +439,12 @@ def render_audio(req: RenderRequest) -> RenderResponse:
         # nowego eventu (krótki fade-out zamiast twardego ucięcia).
         last_event_end = 0
         # Wybór warstwy MIDI: preferujemy midi_per_instrument, fallback na globalne layers.
+        # Uwaga: dla perkusji per-instrument MIDI może mieć puste `layers` i używać tylko `pattern`.
         if req.midi_per_instrument and instrument in req.midi_per_instrument:
             inst_midi = req.midi_per_instrument[instrument] or {}
-            layer = (inst_midi.get("layers") or {}).get(instrument, [])
+            layer = inst_midi.get("pattern")
+            if not isinstance(layer, list) or layer is None:
+                layer = (inst_midi.get("layers") or {}).get(instrument, [])
         else:
             layer = global_layers.get(instrument, [])
 

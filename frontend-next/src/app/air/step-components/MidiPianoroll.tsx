@@ -48,6 +48,45 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
 
     if (!midi) return { lanes: [] as { instrument: string; events: MidiEvent[] }[], mergedLane: null, minNote: 60, maxNote: 72, totalSteps: 0, minAbsStep: 0, colorMap, laneNoteRanges };
 
+    const canon = (name: unknown) => String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
+
+    const notesForPercussionInstrument = (name: string): number[] | null => {
+      const n = canon(name);
+      const direct: Record<string, number[]> = {
+        "kick": [36],
+        "snare": [38],
+        "clap": [39],
+        "rim": [37],
+        "rimshot": [37],
+        "side stick": [37],
+        "hat": [42, 46],
+        "hihat": [42, 46],
+        "hi hat": [42, 46],
+        "closed hat": [42],
+        "open hat": [46],
+        "crash": [49],
+        "ride": [51],
+        "splash": [55],
+        "shake": [82],
+        "shaker": [82],
+        "808": [35],
+        "low tom": [45],
+        "mid tom": [47],
+        "high tom": [50],
+        "tom": [45, 47, 50],
+      };
+      if (direct[n]) return direct[n];
+      if (n.includes("hat")) return [42, 46];
+      if (n.includes("clap")) return [39];
+      if (n.includes("rim") || n.includes("side")) return [37];
+      if (n.includes("crash")) return [49];
+      if (n.includes("ride")) return [51];
+      if (n.includes("splash")) return [55];
+      if (n.includes("shake") || n.includes("shaker")) return [82];
+      if (n.includes("tom")) return [45, 47, 50];
+      return null;
+    };
+
     const pushLayer = (instrument: string, layers?: MidiLayer[]) => {
       if (!Array.isArray(layers)) return;
       for (const layer of layers) {
@@ -91,6 +130,103 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
       for (const key of Object.keys(midi.layers)) {
         pushLayer(key, midi.layers[key]);
       }
+    }
+
+    // pattern (perkusja) -> rozbijamy na lane per instrument na podstawie nut GM.
+    // Bez placeholderów: jeśli instrument nie ma eventów, nie pojawi się jako lane.
+    if (Array.isArray(midi.pattern) && midi.pattern.length > 0) {
+      const meta = (midi.meta && typeof midi.meta === "object") ? midi.meta : {};
+      const configsRaw = Array.isArray((meta as any).instrument_configs) ? (meta as any).instrument_configs as any[] : [];
+
+      const percSet = new Set<string>();
+      for (const cfg of configsRaw) {
+        if (!cfg || typeof cfg !== "object") continue;
+        const role = canon((cfg as any).role);
+        const name = String((cfg as any).name || "").trim();
+        if (role === "percussion" && name) percSet.add(name);
+      }
+
+      // If instrument_configs are missing/empty, fall back to meta.instruments.
+      const instrumentsRaw = Array.isArray((meta as any).instruments) ? (meta as any).instruments as any[] : [];
+      for (const inst of instrumentsRaw) {
+        const name = String(inst || "").trim();
+        if (!name) continue;
+        if (notesForPercussionInstrument(name)) percSet.add(name);
+      }
+
+      // Last resort: standard GM drum set names.
+      if (percSet.size === 0) {
+        ["Kick", "Snare", "Hat", "Crash", "Ride", "Tom"].forEach(n => percSet.add(n));
+      }
+
+      const percNames = Array.from(percSet);
+
+      // Build note->instrument mapping with priority for more specific instruments.
+      const percMap = percNames
+        .map(name => {
+          const notes = notesForPercussionInstrument(name);
+          return { name, notes: notes || [] };
+        })
+        .filter(x => x.notes.length > 0)
+        .sort((a, b) => a.notes.length - b.notes.length); // 1-note instruments first
+
+      const byInst: Record<string, MidiLayer[]> = {};
+      const fallbackName = "Drums";
+
+      for (const barObj of midi.pattern) {
+        const bar = typeof (barObj as any)?.bar === "number" ? (barObj as any).bar : 0;
+        const evs = Array.isArray((barObj as any)?.events) ? (barObj as any).events as any[] : [];
+        for (const ev of evs) {
+          const note = typeof ev?.note === "number" ? ev.note : null;
+          if (note === null) continue;
+          const step = typeof ev?.step === "number" ? ev.step : 0;
+          const vel = typeof ev?.vel === "number" ? ev.vel : 80;
+          const len = typeof ev?.len === "number" ? ev.len : 1;
+
+          let instName: string | null = null;
+          for (const cand of percMap) {
+            if (cand.notes.includes(note)) {
+              instName = cand.name;
+              break;
+            }
+          }
+          const target = instName || fallbackName;
+          if (!byInst[target]) byInst[target] = [];
+          let layer = byInst[target].find(l => l.bar === bar);
+          if (!layer) {
+            layer = { bar, events: [] };
+            byInst[target].push(layer);
+          }
+          layer.events.push({ bar, step, note, vel, len, instrument: target });
+        }
+      }
+
+      for (const inst of Object.keys(byInst)) {
+        // sort bars for stability
+        byInst[inst].sort((a, b) => (a.bar || 0) - (b.bar || 0));
+        pushLayer(inst, byInst[inst]);
+      }
+    }
+
+    // Ensure we always expose lanes for every requested instrument from meta,
+    // even if the model produced no events for some of them.
+    try {
+      const meta = (midi.meta && typeof midi.meta === "object") ? midi.meta : {};
+      const requested = Array.isArray((meta as any).instruments) ? ((meta as any).instruments as any[]) : [];
+      for (const instRaw of requested) {
+        const inst = String(instRaw || "").trim();
+        if (!inst) continue;
+        if (lanes.some(l => l.instrument === inst)) continue;
+        lanes.push({ instrument: inst, events: [] });
+        if (!colorMap[inst]) {
+          const hue = Math.floor(Math.random() * 360);
+          const sat = 60 + Math.floor(Math.random() * 20);
+          const light = 50 + Math.floor(Math.random() * 10);
+          colorMap[inst] = `hsl(${hue} ${sat}% ${light}%)`;
+        }
+      }
+    } catch {
+      // best-effort only
     }
 
     const flatEvents = (mergedEvents.length ? mergedEvents : lanes.flatMap(l => l.events));

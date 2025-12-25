@@ -128,7 +128,7 @@ def _parameter_plan_system(plan: ParameterPlanIn) -> tuple[str, str]:
     user = json.dumps({
         "task": "plan_music_parameters",
         "user_prompt": getattr(plan, "prompt", None),
-    }, separators=(",", ":"))
+    }, separators=(",", ":"), ensure_ascii=False)
     return system, user
 
 
@@ -525,7 +525,7 @@ def generate_parameter_plan(body: ParameterPlanRequest):
     if isinstance(parsed, dict):
         try:
             with json_path.open("w", encoding="utf-8") as f:
-                json.dump(parsed, f)
+                json.dump(parsed, f, ensure_ascii=False)
             run.log("persist", "json_saved", {"file": str(json_path)})
         except Exception as e:
             run.log("persist", "json_failed", {"error": str(e)})
@@ -719,7 +719,7 @@ def update_selected_samples(run_id: str, body: SelectedSamplesUpdate):
         meta["selected_samples"] = cleaned
 
         try:
-            json_path.write_text(json.dumps(doc), encoding="utf-8")
+            json_path.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
         except Exception as e:  # noqa: PERF203
             raise HTTPException(status_code=500, detail={"error": "plan_write_failed", "message": str(e)})
 
@@ -807,7 +807,7 @@ def update_meta(run_id: str, body: MetaUpdate):
         doc["meta"] = incoming_meta
 
         try:
-            json_path.write_text(json.dumps(doc), encoding="utf-8")
+            json_path.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
         except Exception as e:  # noqa: PERF203
             raise HTTPException(status_code=500, detail={"error": "plan_write_failed", "message": str(e)})
 

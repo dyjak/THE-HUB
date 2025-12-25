@@ -43,7 +43,7 @@ def _auto_update_selected_samples(param_run_dir: Path) -> None:
         return
     meta["selected_samples"] = selected
     try:
-        json_path.write_text(json.dumps(doc), encoding="utf-8")
+        json_path.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
     except Exception:
         return
 

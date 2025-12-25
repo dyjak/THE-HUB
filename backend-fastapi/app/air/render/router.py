@@ -52,7 +52,7 @@ def render_endpoint(
                 "request": req.dict(),
                 "response": resp.dict(),
             }
-            state_path.write_text(json.dumps(payload), encoding="utf-8")
+            state_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
         except Exception:
             # Render ma priorytet – jeśli zapis stanu się nie powiedzie, nie blokujemy odpowiedzi.
             pass
@@ -113,9 +113,12 @@ def recommend_samples_endpoint(req: RenderRequest) -> RecommendSamplesResponse:
         instrument = track.instrument
 
         # Wybór odpowiedniej warstwy MIDI dla danego instrumentu.
+        # Per-instrument MIDI może używać `pattern` (zwłaszcza dla perkusji).
         if req.midi_per_instrument and instrument in (req.midi_per_instrument or {}):
             inst_midi = req.midi_per_instrument[instrument] or {}
-            midi_layer = (inst_midi.get("layers") or {}).get(instrument, [])
+            midi_layer = inst_midi.get("pattern")
+            if not isinstance(midi_layer, list) or midi_layer is None:
+                midi_layer = (inst_midi.get("layers") or {}).get(instrument, [])
         else:
             midi_layer = global_layers.get(instrument, [])
 

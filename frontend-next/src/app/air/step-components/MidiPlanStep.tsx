@@ -20,6 +20,15 @@ export type MidiPlanResult = {
     midi_mid_rel?: string | null;
     midi_image_rel?: string | null;
   };
+  midi_per_instrument?: Record<string, any> | null;
+  artifacts_per_instrument?: Record<
+    string,
+    {
+      midi_json_rel?: string | null;
+      midi_mid_rel?: string | null;
+      midi_image_rel?: string | null;
+    }
+  > | null;
   provider?: string | null;
   model?: string | null;
   errors?: string[] | null;
@@ -27,6 +36,8 @@ export type MidiPlanResult = {
 
 type Props = {
   meta: ParamPlanMeta | null;
+  // Optional: run_id from Param Generation step (used only to link exports)
+  paramRunId?: string | null;
   onReady?: (result: MidiPlanResult) => void;
   // run_id z backendu do odtwarzania/śledzenia kroku 2
   initialRunId?: string | null;
@@ -34,7 +45,7 @@ type Props = {
   onNavigateNext?: () => void;
 };
 
-export default function MidiPlanStep({ meta, onReady, initialRunId, onRunIdChange, onNavigateNext }: Props) {
+export default function MidiPlanStep({ meta, paramRunId, onReady, initialRunId, onRunIdChange, onNavigateNext }: Props) {
   const pianorollScrollRef = useRef<HTMLDivElement | null>(null);
   const [providers, setProviders] = useState<{ id: string; name: string; default_model?: string }[]>([]);
   const [provider, setProvider] = useState<string>("gemini");
@@ -139,6 +150,9 @@ export default function MidiPlanStep({ meta, onReady, initialRunId, onRunIdChang
     setError(null);
     try {
       const body: any = { meta, provider, model: model || null };
+      if (paramRunId) {
+        body.param_run_id = paramRunId;
+      }
       const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/compose`, {
         method: "POST",
         headers: {

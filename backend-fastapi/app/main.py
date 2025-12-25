@@ -68,6 +68,14 @@ except Exception as e:
     _USER_PROJECTS_AVAILABLE = False
     _USER_PROJECTS_IMPORT_ERROR = str(e)
 
+try:
+    from .air.export.router import router as export_router  # type: ignore
+    _EXPORT_AVAILABLE = True
+except Exception as e:
+    export_router = None  # type: ignore
+    _EXPORT_AVAILABLE = False
+    _EXPORT_IMPORT_ERROR = str(e)
+
 
 app = FastAPI(
     title="AIR 4.0 API",
@@ -185,6 +193,12 @@ if _USER_PROJECTS_AVAILABLE and user_projects_router:
         print("[WARN] failed to enumerate air-user-projects routes:", e)
 else:
     print("[WARN] user_projects_router not loaded:", globals().get('_USER_PROJECTS_IMPORT_ERROR'))
+
+# Mount export router (manifest for downloading all project artifacts)
+if _EXPORT_AVAILABLE and export_router:
+    app.include_router(export_router, prefix="/api")
+else:
+    print("[WARN] export_router not loaded:", globals().get('_EXPORT_IMPORT_ERROR'))
 
 
 @app.get("/")

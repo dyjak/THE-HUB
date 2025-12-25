@@ -34,18 +34,23 @@ def _call_composer(provider: str, model: Optional[str], meta: Dict[str, Any]) ->
 
     provider = (provider or "gemini").lower()
 
+    key = str(meta.get("key") or "C")
+    scale = str(meta.get("scale") or "Major")
+
     system = (
-        "You are a Professional MIDI Orchestrator and Pattern Designer. "
-        "Your goal is to generate rhythmically and harmonically coherent MIDI data based on the provided style and parameters. "
+        "You are a Professional MIDI Orchestrator. Your task is to generate MIDI data for ALL requested instruments without exception. "
         "Respond ONLY with valid minified JSON. No markdown, no comments.\n\n"
 
+        "### SEGREGATION LOGIC:\n"
+        "1. **Percussion (pattern)**: Every instrument in `meta.instruments` with a role of 'Percussion' (e.g., Kick, Snare, Hat, Tom, Ride, Crash) MUST have its own events within the 'pattern' array using standard MIDI notes.\n"
+        "2. **Melodic (layers)**: Every instrument in `meta.instruments` with roles like 'Lead', 'Bass', 'Pad', 'Accompaniment' MUST have a dedicated key in the 'layers' object.\n\n"
+
         "### CONSTRAINTS:\n"
-        "1. **Grid**: Use exactly 8 steps per bar (indices 0-7). This is an 8th-note grid in 4/4 time.\n"
-        "2. **Drums (pattern)**: Use General MIDI standards: 36 (Kick), 38 (Snare), 42 (Closed Hi-Hat), 46 (Open Hi-Hat), 49 (Cymbal).\n"
-        "3. **Melodic Layers (layers)**: Every key in the 'layers' object MUST match an instrument name from the previous step's 'meta.instruments' list.\n"
-        "4. **Music Theory**: All 'note' values in 'layers' MUST strictly follow the provided 'key' and 'scale' (e.g., if C Major: use notes 60, 62, 64, 65, 67, 69, 71).\n"
-        "5. **Velocity (vel)**: Range 0-127. Use varied velocity for humanization (e.g., stronger accents on steps 0 and 4).\n"
-        "6. **Length (len)**: Duration in steps. 1 = 8th note, 2 = quarter note, etc.\n\n"
+        "1. **Exhaustive Coverage**: You MUST NOT skip any instrument listed in `meta.instruments`. Even if an instrument (like 'Tom' or 'Ride') plays only once, it must be present in the JSON.\n"
+        "2. **Grid**: Use exactly 8 steps per bar (0-7). 8th-note grid.\n"
+        "3. **Drum Mapping**: Kick: 36, Snare: 38, Clap: 39, Rim: 37, Closed Hat: 42, Open Hat: 46, Crash: 49, Ride: 51, Splash: 55, Shake: 82, 808: 35, Low Tom: 45, Mid Tom: 47, High Tom: 50.\n"
+        f"4. **Music Theory**: All notes in 'layers' MUST be in the scale of {key} {scale}. For Rock, use power chords (root + fifth) for guitars.\n"
+        "5. **Velocity & Length**: Use velocity (0-127) to create groove. 'len' 1 = 8th note, 2 = quarter note.\n\n"
 
         "### JSON SCHEMA:\n"
         "{"
@@ -55,21 +60,18 @@ def _call_composer(provider: str, model: Optional[str], meta: Dict[str, Any]) ->
         "}\n\n"
 
         "### COMPOSITION STRATEGY:\n"
-        "- **Bass**: Focus on roots and fifths, mostly on steps 0, 2, 4, 6.\n"
-        "- **Pads/Chords**: Longer 'len' values (4-8), focused on harmony.\n"
-        "- **Leads**: More rhythmic variety, use steps 0-7 creatively.\n"
-        "- Ensure 'pattern' (drums) provides a solid backbone for the style."
+        "- **Full Arrangement**: Ensure the interaction between 'Electric Guitar' and 'Bass Guitar' is tight.\n"
+        "- **Drums**: Use all requested percussion types. If 'Ride' is requested, use it for steady rhythms; if 'Crash' is requested, use it on step 0 of new sections."
     )
 
     user_payload = {
         "task": "compose_midi_pattern",
         "meta": meta,
-        "user_prompt": (meta.get("user_prompt") if isinstance(meta, dict) else None),
     }
 
     import json
 
-    user = json.dumps(user_payload, separators=(",", ":"))
+    user = json.dumps(user_payload, separators=(",", ":"), ensure_ascii=False)
 
     # OpenAI
     if provider == "openai":
@@ -187,6 +189,18 @@ def compose(req: MidiGenerationIn) -> MidiGenerationOut:
         midi_per_instrument,
         artifacts_per_instrument,
     ) = generate_midi_and_artifacts(meta, raw_midi_json)
+
+    # Best-effort link: render_run_id == midi run_id in this app.
+    # Store the param_run_id separately (outside step outputs) so later
+    # we can export param+midi+render artifacts together.
+    try:
+        if getattr(req, "param_run_id", None):
+            from app.air.export.links import link_param_to_render
+
+            link_param_to_render(run_id, str(req.param_run_id))
+    except Exception:
+        # Linking is optional; do not affect MIDI generation.
+        pass
 
     return MidiGenerationOut(
         run_id=run_id,

@@ -9,6 +9,7 @@
 ### dokumnetacja promptów
 ### export files
 ### przesył user payload również w system prompt midi_gen
+### aktualizacja dostępnych modeli AI
 
 # dokumantacja
 ### wstep, cel i zakres porownanie modeli, porownanie aplikacji

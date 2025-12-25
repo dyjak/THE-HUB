@@ -39,6 +39,9 @@ class MidiGenerationIn(BaseModel):
     meta: MidiMetaIn
     provider: Optional[str] = Field(default=None)
     model: Optional[str] = Field(default=None)
+    # Optional link to the Param Generation run_id, used only for export discovery.
+    # This does NOT affect MIDI output file structure.
+    param_run_id: Optional[str] = Field(default=None)
     # Opcjonalnie pozwalamy podać gotowe midi_json (np. do debugowania)
     ai_midi: Optional[Dict[str, Any]] = None
 

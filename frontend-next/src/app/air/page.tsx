@@ -175,6 +175,7 @@ export default function AirPage() {
 				{step === "midi-plan" && (
 					<MidiPlanStep
 						meta={paramPlan as ParamPlanMeta | null}
+						paramRunId={runIdParam}
 						initialRunId={runIdMidi}
 						onRunIdChange={(rid) => {
 							setRunIdMidi(rid);

@@ -97,7 +97,7 @@ def rename_project(
     payload["response"] = resp
 
     try:
-        state_path.write_text(json.dumps(payload), encoding="utf-8")
+        state_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     except Exception:
         raise HTTPException(status_code=500, detail="state_write_failed")
 

@@ -23,6 +23,14 @@ type UserProjectItem = RenderResult & {
   project_id?: number;
 };
 
+type ExportManifest = {
+  render_run_id: string;
+  midi_run_id?: string | null;
+  param_run_id?: string | null;
+  files: { step: string; rel_path: string; url: string; bytes?: number | null }[];
+  missing: string[];
+};
+
 function useBackendAudioBase(): string {
   return useMemo(() => {
     return `${API_BASE}/api/audio/`;
@@ -45,6 +53,7 @@ export default function UserProjectsPage() {
   const [items, setItems] = useState<UserProjectItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingAllRunId, setDownloadingAllRunId] = useState<string | null>(null);
   const resolveRenderUrl = useResolveRenderUrl();
 
   const refresh = async (userId: number | string) => {
@@ -148,22 +157,58 @@ export default function UserProjectsPage() {
     }
   }, []);
 
-  // Download all files for a project
+  // Download all files for a project (render + midi + param artifacts)
   const downloadAll = useCallback(async (item: UserProjectItem) => {
     const projectNameClean = (item.project_name || 'projekt').replace(/[^a-zA-Z0-9_-]/g, '_');
     setError(null);
 
-    // Download mix
-    const mixUrl = resolveRenderUrl(item.mix_wav_rel);
-    await downloadFile(mixUrl, `${projectNameClean}_mix.wav`);
+    try {
+      setDownloadingAllRunId(item.run_id);
 
-    // Download stems
-    for (const stem of item.stems) {
-      const stemUrl = resolveRenderUrl(stem.audio_rel);
-      const instrumentClean = stem.instrument.replace(/[^a-zA-Z0-9_-]/g, '_');
-      await downloadFile(stemUrl, `${projectNameClean}_${instrumentClean}.wav`);
+      // 1) Prefer ZIP (single download)
+      const zipUrl = `${API_BASE}${API_PREFIX}/air/export/zip/${encodeURIComponent(item.run_id)}`;
+      const zipRes = await fetch(zipUrl);
+      if (zipRes.ok) {
+        const blob = await zipRes.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `${projectNameClean}__export.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+        return;
+      }
+
+      // 2) Fallback: manifest-based downloads
+      const url = `${API_BASE}${API_PREFIX}/air/export/list/${encodeURIComponent(item.run_id)}`;
+      const res = await fetch(url);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.detail?.message || data?.detail || `HTTP ${res.status}`);
+      }
+
+      const manifest = data as ExportManifest;
+      const files = Array.isArray(manifest?.files) ? manifest.files : [];
+      if (!files.length) {
+        throw new Error('Brak plików do pobrania (manifest pusty).');
+      }
+
+      for (const f of files) {
+        if (!f?.url) continue;
+        const basename = String(f.rel_path || '').split('/').pop() || 'file';
+        const step = String(f.step || 'step').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const filename = `${projectNameClean}__${step}__${basename}`;
+        const fileUrl = String(f.url).startsWith('http') ? String(f.url) : `${API_BASE}${f.url}`;
+        await downloadFile(fileUrl, filename);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDownloadingAllRunId(prev => (prev === item.run_id ? null : prev));
     }
-  }, [resolveRenderUrl, downloadFile]);
+  }, [downloadFile]);
 
   if (status === "loading") {
     return (
@@ -303,13 +348,23 @@ export default function UserProjectsPage() {
                       <button
                         type="button"
                         onClick={() => downloadAll(item)}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-medium text-white bg-gradient-to-r from-cyan-600/60 to-sky-600/60 hover:from-cyan-500/70 hover:to-sky-500/70 border border-cyan-500/40 hover:border-cyan-400/60 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm shadow-cyan-900/20"
+                        disabled={downloadingAllRunId === item.run_id}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-medium text-white bg-gradient-to-r from-cyan-600/60 to-sky-600/60 hover:from-cyan-500/70 hover:to-sky-500/70 border border-cyan-500/40 hover:border-cyan-400/60 rounded-lg transition-all duration-200 shadow-sm shadow-cyan-900/20 ${downloadingAllRunId === item.run_id ? 'opacity-60 cursor-not-allowed' : 'hover:scale-105'}`}
                         title="Pobierz wszystko"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
-                          <path fillRule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5A.75.75 0 012 10z" clipRule="evenodd" />
-                        </svg>
-                        Wszystko
+                        {downloadingAllRunId === item.run_id ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-white/70 border-t-transparent rounded-full animate-spin" />
+                            Pobieranie…
+                          </>
+                        ) : (
+                          <>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                              <path fillRule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5A.75.75 0 012 10z" clipRule="evenodd" />
+                            </svg>
+                            Wszystko
+                          </>
+                        )}
                       </button>
                       <button
                         type="button"

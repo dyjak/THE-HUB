@@ -23,6 +23,14 @@ export type RenderResult = {
   duration_seconds?: number | null;
 };
 
+type ExportManifest = {
+  render_run_id: string;
+  midi_run_id?: string | null;
+  param_run_id?: string | null;
+  files: { step: string; rel_path: string; url: string; bytes?: number | null }[];
+  missing: string[];
+};
+
 type Props = {
   meta: ParamPlanMeta | null;
   midi: MidiPlanResult | null;
@@ -39,6 +47,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
   const [projectName, setProjectName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingAllRunId, setDownloadingAllRunId] = useState<string | null>(null);
   const [result, setResult] = useState<RenderResult | null>(null);
   const [history, setHistory] = useState<RenderResult[]>([]);
   const [fadeoutMs, setFadeoutMs] = useState(10);
@@ -137,30 +146,56 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
     }
   }, []);
 
-  // Download all files (mix, stems, and midi)
+  // Download all files (render + midi + param artifacts)
   const downloadAll = useCallback(async (h: RenderResult) => {
     const projectNameClean = h.project_name.replace(/[^a-zA-Z0-9_-]/g, '_');
-    setError(null); // Clear any previous errors
+    setError(null);
+    try {
+      setDownloadingAllRunId(h.run_id);
 
-    // Download mix
-    const mixUrl = resolveRenderUrl(h.mix_wav_rel);
-    await downloadFile(mixUrl, `${projectNameClean}_mix.wav`);
-
-    // Download stems
-    for (const stem of h.stems) {
-      const stemUrl = resolveRenderUrl(stem.audio_rel);
-      const instrumentClean = stem.instrument.replace(/[^a-zA-Z0-9_-]/g, '_');
-      await downloadFile(stemUrl, `${projectNameClean}_${instrumentClean}.wav`);
-    }
-
-    // Download MIDI files if available - silently skip if 404
-    if (midi?.artifacts?.midi_mid_rel) {
-      const midiUrl = resolveMidiUrl(midi.artifacts.midi_mid_rel);
-      if (midiUrl) {
-        await downloadFile(midiUrl, `${projectNameClean}.mid`, true);
+      // 1) Prefer ZIP (single download)
+      const zipUrl = `${API_BASE}${API_PREFIX}/air/export/zip/${encodeURIComponent(h.run_id)}`;
+      const zipRes = await fetch(zipUrl);
+      if (zipRes.ok) {
+        const blob = await zipRes.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `${projectNameClean}__export.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+        return;
       }
+
+      // 2) Fallback: manifest-based downloads
+      const url = `${API_BASE}${API_PREFIX}/air/export/list/${encodeURIComponent(h.run_id)}`;
+      const res = await fetch(url);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.detail?.message || `HTTP ${res.status}`);
+      }
+      const manifest = data as ExportManifest;
+      const files = Array.isArray(manifest?.files) ? manifest.files : [];
+      if (!files.length) {
+        throw new Error('Brak plików do pobrania (manifest pusty).');
+      }
+
+      for (const f of files) {
+        if (!f?.url) continue;
+        const relFlat = String(f.rel_path || 'file').replace(/\\/g, '/').replace(/\//g, '__');
+        const step = String(f.step || 'step').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const filename = `${projectNameClean}__${step}__${relFlat}`;
+        const fileUrl = String(f.url).startsWith('http') ? String(f.url) : `${API_BASE}${f.url}`;
+        await downloadFile(fileUrl, filename);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDownloadingAllRunId(prev => (prev === h.run_id ? null : prev));
     }
-  }, [resolveRenderUrl, resolveMidiUrl, downloadFile, midi]);
+  }, [downloadFile]);
 
   const handleTrackChange = (index: number, patch: Partial<(typeof tracks)[number]>) => {
     setTracks(prev => prev.map((t, i) => (i === index ? { ...t, ...patch } : t)));
@@ -192,6 +227,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
         run_id: midi.run_id,
         user_id: session?.user && (session.user as any).id ? Number((session.user as any).id) : null,
         midi: midi.midi,
+        midi_per_instrument: (midi as any).midi_per_instrument ?? null,
         tracks,
         selected_samples: selectedSamples,
         // Umożliwiamy delikatne dostrojenie długości fade-outu poprzedniej
@@ -231,7 +267,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
         project_name: projectName.trim() || meta.style || "air_demo",
         run_id: midi.run_id,
         midi: midi.midi,
-        // midi_per_instrument removed as it's not in MidiPlanResult type
+        midi_per_instrument: (midi as any).midi_per_instrument ?? null,
         tracks,
         selected_samples: selectedSamples,
         fadeout_seconds: Math.max(0, Math.min(100, fadeoutMs)) / 1000,
@@ -529,13 +565,23 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
                           <button
                             type="button"
                             onClick={() => downloadAll(h)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium text-white bg-gradient-to-r from-emerald-600/60 to-green-600/60 hover:from-emerald-500/70 hover:to-green-500/70 border border-emerald-500/40 hover:border-emerald-400/60 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm shadow-emerald-900/20"
+                            disabled={downloadingAllRunId === h.run_id}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium text-white bg-gradient-to-r from-emerald-600/60 to-green-600/60 hover:from-emerald-500/70 hover:to-green-500/70 border border-emerald-500/40 hover:border-emerald-400/60 rounded-lg transition-all duration-200 shadow-sm shadow-emerald-900/20 ${downloadingAllRunId === h.run_id ? 'opacity-60 cursor-not-allowed' : 'hover:scale-105'}`}
                             title="Pobierz wszystko: mix, stems i MIDI"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
-                              <path fillRule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5A.75.75 0 012 10z" clipRule="evenodd" />
-                            </svg>
-                            Wszystko
+                            {downloadingAllRunId === h.run_id ? (
+                              <>
+                                <div className="w-3.5 h-3.5 border-2 border-white/70 border-t-transparent rounded-full animate-spin" />
+                                Pobieranie…
+                              </>
+                            ) : (
+                              <>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                                  <path fillRule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5A.75.75 0 012 10z" clipRule="evenodd" />
+                                </svg>
+                                Wszystko
+                              </>
+                            )}
                           </button>
                         </div>
                       </div>

@@ -311,7 +311,7 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
     }
     try:
         with INVENTORY_FILE.open("w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2)
+            json.dump(payload, f, indent=2, ensure_ascii=False)
     except Exception:
         pass
     return payload

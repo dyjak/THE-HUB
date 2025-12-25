@@ -17,6 +17,99 @@ except Exception:  # pragma: no cover - środowiska bez mido
 BASE_OUTPUT_DIR = Path(__file__).parent / "output"
 BASE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+
+def _canon_inst_name(name: Any) -> str:
+    return " ".join(str(name or "").strip().lower().split())
+
+
+def _notes_for_percussion_instrument(name: str) -> Optional[List[int]]:
+    """Map common drum instrument names to General MIDI note numbers.
+
+    Important: for ambiguous names like "Hat" we accept both closed (42) and open (46)
+    so that model outputs using either representation still get attributed.
+    """
+
+    n = _canon_inst_name(name)
+    direct: Dict[str, List[int]] = {
+        # Core kit
+        "kick": [36],
+        "snare": [38],
+        # Additional common kit pieces
+        "clap": [39],
+        "rim": [37],
+        "rimshot": [37],
+        "side stick": [37],
+        "hat": [42, 46],
+        "hihat": [42, 46],
+        "hi hat": [42, 46],
+        "closed hat": [42],
+        "open hat": [46],
+        "crash": [49],
+        "ride": [51],
+        "splash": [55],
+        "shake": [82],
+        "shaker": [82],
+        # 808: keep distinct from kick (36) by using 35 by default.
+        "808": [35],
+        "low tom": [45],
+        "mid tom": [47],
+        "high tom": [50],
+        "tom": [45, 47, 50],
+    }
+    if n in direct:
+        return direct[n]
+    # light heuristics
+    if "hat" in n:
+        return [42, 46]
+    if "clap" in n:
+        return [39]
+    if "rim" in n or "side" in n:
+        return [37]
+    if "crash" in n:
+        return [49]
+    if "ride" in n:
+        return [51]
+    if "splash" in n:
+        return [55]
+    if "shake" in n or "shaker" in n:
+        return [82]
+    if "tom" in n:
+        return [45, 47, 50]
+    return None
+
+
+def _filter_pattern_by_notes(pattern: List[Dict[str, Any]], allowed_notes: List[int], bars: int | None = None) -> List[Dict[str, Any]]:
+    allowed = set(int(x) for x in (allowed_notes or []) if isinstance(x, int) or str(x).isdigit())
+    if not allowed:
+        return []
+
+    out: List[Dict[str, Any]] = []
+    for bar in (pattern or []):
+        try:
+            b = int(bar.get("bar", 0) or 0)
+        except Exception:
+            b = 0
+        evs: List[Dict[str, Any]] = []
+        for ev in bar.get("events", []) or []:
+            try:
+                note = int(ev.get("note", -1))
+            except Exception:
+                continue
+            if note in allowed:
+                evs.append(ev)
+        if evs:
+            out.append({"bar": b, "events": evs})
+
+    # If desired, make sure we have a deterministic bar range (for UI friendliness).
+    if bars and bars > 0:
+        existing = {int(b.get("bar", 0) or 0): b for b in out}
+        normalized: List[Dict[str, Any]] = []
+        for i in range(1, bars + 1):
+            normalized.append(existing.get(i, {"bar": i, "events": []}))
+        return normalized
+
+    return out
+
 #debug
 # class _DummyRun:
 #     def __init__(self) -> None:
@@ -264,7 +357,7 @@ def generate_midi_and_artifacts(
 
     midi_json_path = run_dir / "midi.json"
     with midi_json_path.open("w", encoding="utf-8") as f:
-        json.dump(midi_data, f)
+        json.dump(midi_data, f, ensure_ascii=False)
 
     midi_mid_path: Optional[Path] = None
     tempo = int(midi_data.get("meta", {}).get("tempo", meta.get("tempo", 80)))
@@ -319,7 +412,7 @@ def generate_midi_and_artifacts(
             safe_inst = str(inst).replace("/", "_").replace("\\", "_")
             inst_json_path = run_dir / f"midi_{safe_inst}.json"
             with inst_json_path.open("w", encoding="utf-8") as f:
-                json.dump(inst_midi, f)
+                json.dump(inst_midi, f, ensure_ascii=False)
 
             inst_mid_path: Optional[Path] = None
             try:
@@ -340,12 +433,97 @@ def generate_midi_and_artifacts(
                 "midi_image_rel": _rel(inst_svg_path) if inst_svg_path else None,
             }
 
+    # --- Perkusja: budujemy per-instrument na podstawie globalnego pattern ---
+    try:
+        midi_meta = midi_data.get("meta") if isinstance(midi_data.get("meta"), dict) else {}
+        requested_instruments = (midi_meta.get("instruments") or meta.get("instruments") or [])
+        if not isinstance(requested_instruments, list):
+            requested_instruments = []
+
+        instrument_configs = (midi_meta.get("instrument_configs") or meta.get("instrument_configs") or [])
+        if not isinstance(instrument_configs, list):
+            instrument_configs = []
+
+        percussion_names: set[str] = set()
+        for cfg in instrument_configs:
+            if not isinstance(cfg, dict):
+                continue
+            role = str(cfg.get("role") or "").strip().lower()
+            name = str(cfg.get("name") or "").strip()
+            if role == "percussion" and name:
+                percussion_names.add(name)
+
+        global_pattern = midi_data.get("pattern") or []
+        if not isinstance(global_pattern, list):
+            global_pattern = []
+
+        bars_count: Optional[int] = None
+        try:
+            bars_count = int(midi_meta.get("bars") or meta.get("bars") or 0) or None
+        except Exception:
+            bars_count = None
+
+        for inst in requested_instruments:
+            if not isinstance(inst, str) or not inst.strip():
+                continue
+            if inst in midi_per_instrument:
+                continue
+
+            # Only handle percussion here.
+            if percussion_names and inst not in percussion_names:
+                continue
+            allowed_notes = _notes_for_percussion_instrument(inst)
+            if not allowed_notes:
+                continue
+
+            inst_pattern = _filter_pattern_by_notes(global_pattern, allowed_notes, bars=bars_count)
+            has_any = any((b.get("events") or []) for b in (inst_pattern or []))
+            if not has_any:
+                # No repair/placeholder events: if the model produced no notes for this
+                # percussion instrument, we keep an empty pattern.
+                if bars_count and bars_count >= 1:
+                    inst_pattern = [{"bar": i, "events": []} for i in range(1, bars_count + 1)]
+                else:
+                    inst_pattern = []
+
+            inst_meta = dict(midi_meta or {})
+            inst_meta["instrument"] = inst
+            inst_midi = {"meta": inst_meta, "layers": {}, "pattern": inst_pattern}
+            midi_per_instrument[inst] = inst_midi
+
+            safe_inst = str(inst).replace("/", "_").replace("\\", "_")
+            inst_json_path = run_dir / f"midi_{safe_inst}.json"
+            with inst_json_path.open("w", encoding="utf-8") as f:
+                json.dump(inst_midi, f, ensure_ascii=False)
+
+            inst_mid_path: Optional[Path] = None
+            try:
+                if mido is not None:
+                    inst_mid_path = _export_pattern_to_mid(inst_pattern, tempo, run_dir / f"midi_{safe_inst}.mid")
+            except Exception:
+                inst_mid_path = None
+
+            inst_svg_path: Optional[Path] = None
+            try:
+                inst_svg_path = _render_pianoroll_svg(inst_midi, run_dir / f"pianoroll_{safe_inst}.svg")
+            except Exception:
+                inst_svg_path = None
+
+            artifacts_per_instrument[inst] = {
+                "midi_json_rel": _rel(inst_json_path),
+                "midi_mid_rel": _rel(inst_mid_path) if inst_mid_path else None,
+                "midi_image_rel": _rel(inst_svg_path) if inst_svg_path else None,
+            }
+    except Exception:
+        # Per-instrument export is best-effort; global MIDI should still succeed.
+        pass
+
     # Zapisujemy zbiorczy opis podziału per instrument w jednym JSON-ie ułatwiającym
     # późniejsze testowe pipeline'y (np. mini_pipeline_test).
     try:
         per_inst_path = run_dir / "midi_per_instrument.json"
         with per_inst_path.open("w", encoding="utf-8") as f:
-            json.dump(midi_per_instrument, f)
+            json.dump(midi_per_instrument, f, ensure_ascii=False)
     except Exception:
         pass
 

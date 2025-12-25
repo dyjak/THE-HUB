@@ -142,7 +142,7 @@ def main() -> None:
 
     out_path = Path(__file__).parent / "pitch_analysis.json"
     try:
-        out_path.write_text(json.dumps({"root": str(root), "results": results}, indent=2), encoding="utf-8")
+        out_path.write_text(json.dumps({"root": str(root), "results": results}, indent=2, ensure_ascii=False), encoding="utf-8")
     except Exception:
         pass
 
