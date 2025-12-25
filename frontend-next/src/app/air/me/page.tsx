@@ -21,6 +21,24 @@ type RenderResult = {
 
 type UserProjectItem = RenderResult & {
   project_id?: number;
+  created_at?: string | null;
+  param_run_id?: string | null;
+  prompt?: string | null;
+  param_meta?: any | null;
+  midi_meta?: any | null;
+  selected_samples?: Record<string, string> | null;
+  selected_samples_info?: Record<
+    string,
+    {
+      id: string;
+      name: string;
+      url?: string | null;
+      pitch?: string | null;
+      subtype?: string | null;
+      family?: string | null;
+      category?: string | null;
+    }
+  > | null;
 };
 
 type ExportManifest = {
@@ -46,6 +64,36 @@ function useResolveRenderUrl() {
     const tail = idx >= 0 ? rel.slice(idx + marker.length) : rel;
     return `${backendAudioBase}${tail}`;
   };
+}
+
+function formatCreatedAt(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return String(iso);
+    return new Intl.DateTimeFormat("pl-PL", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(d);
+  } catch {
+    return String(iso);
+  }
+}
+
+function extractPrompt(item: any): string | null {
+  try {
+    const direct = item?.prompt;
+    if (typeof direct === "string" && direct.trim()) return direct.trim();
+    const pm = item?.param_meta;
+    const fromParam = pm?.user_prompt ?? pm?.prompt;
+    if (typeof fromParam === "string" && fromParam.trim()) return fromParam.trim();
+  } catch {
+    // ignore
+  }
+  return null;
 }
 
 export default function UserProjectsPage() {
@@ -322,6 +370,11 @@ export default function UserProjectsPage() {
                         </div>
                         <div className="flex gap-3 text-[10px] text-gray-500">
                           <span className="font-mono">ID: {item.project_id}</span>
+                          {formatCreatedAt(item.created_at) && (
+                            <span className="bg-cyan-900/30 px-1.5 py-0.5 rounded text-cyan-300">
+                              {formatCreatedAt(item.created_at)}
+                            </span>
+                          )}
                           {typeof item.duration_seconds === "number" && item.duration_seconds > 0 && (
                             <span className="bg-cyan-900/30 px-1.5 py-0.5 rounded text-cyan-400">
                               {item.duration_seconds.toFixed(1)}s
@@ -399,6 +452,96 @@ export default function UserProjectsPage() {
                       className="w-full"
                     />
                   </div>
+
+                  {/* Prompt Panel */}
+                  <details className="group border-t border-cyan-900/20">
+                    <summary className="cursor-pointer px-4 py-2.5 text-[11px] text-cyan-400/70 hover:text-cyan-300 transition-colors select-none flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 transition-transform group-open:rotate-90">
+                        <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                      </svg>
+                      Prompt
+                    </summary>
+                    <div className="px-4 pb-4 pt-1 border-l-2 border-cyan-900/30 ml-4">
+                      {extractPrompt(item) ? (
+                        <div className="text-[11px] text-gray-200 whitespace-pre-wrap break-words">
+                          {extractPrompt(item)}
+                        </div>
+                      ) : (
+                        <div className="text-[11px] text-gray-500">
+                          Brak zapisanego prompta dla tego projektu.
+                        </div>
+                      )}
+                    </div>
+                  </details>
+
+                  {/* Parameters Panel */}
+                  <details className="group border-t border-cyan-900/20">
+                    <summary className="cursor-pointer px-4 py-2.5 text-[11px] text-cyan-400/70 hover:text-cyan-300 transition-colors select-none flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 transition-transform group-open:rotate-90">
+                        <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                      </svg>
+                      Parametry
+                    </summary>
+                    <div className="px-4 pb-4 pt-1 border-l-2 border-cyan-900/30 ml-4 space-y-3">
+                      {item.param_run_id && (
+                        <div className="text-[10px] text-gray-500">param_run_id: <span className="font-mono text-gray-300">{item.param_run_id}</span></div>
+                      )}
+
+                      {/* Compact meta overview (prefer param_meta, fallback midi_meta) */}
+                      {(() => {
+                        const meta = item.param_meta || item.midi_meta;
+                        if (!meta) return null;
+                        return (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-1 text-[11px] text-gray-300">
+                            {typeof meta.style === 'string' && <div><span className="text-gray-500">Style:</span> {meta.style}</div>}
+                            {typeof meta.mood === 'string' && <div><span className="text-gray-500">Mood:</span> {meta.mood}</div>}
+                            {typeof meta.tempo === 'number' && <div><span className="text-gray-500">Tempo:</span> {meta.tempo}</div>}
+                            {typeof meta.key === 'string' && <div><span className="text-gray-500">Key:</span> {meta.key}</div>}
+                            {typeof meta.scale === 'string' && <div><span className="text-gray-500">Scale:</span> {meta.scale}</div>}
+                            {typeof meta.meter === 'string' && <div><span className="text-gray-500">Meter:</span> {meta.meter}</div>}
+                            {typeof meta.bars === 'number' && <div><span className="text-gray-500">Bars:</span> {meta.bars}</div>}
+                            {typeof meta.length_seconds === 'number' && <div><span className="text-gray-500">Len:</span> {meta.length_seconds}s</div>}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Instruments */}
+                      {(() => {
+                        const meta = item.param_meta || item.midi_meta;
+                        const instruments = meta?.instruments;
+                        if (!Array.isArray(instruments) || instruments.length === 0) return null;
+                        return (
+                          <div className="text-[11px] text-gray-300">
+                            <div className="text-[10px] uppercase tracking-widest text-cyan-300/80 mb-1">Instrumenty</div>
+                            <div className="text-gray-200">{instruments.join(", ")}</div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Selected samples names */}
+                      {item.selected_samples_info && Object.keys(item.selected_samples_info).length > 0 && (
+                        <div className="text-[11px] text-gray-300">
+                          <div className="text-[10px] uppercase tracking-widest text-cyan-300/80 mb-1">Wybrane sample</div>
+                          <div className="space-y-1">
+                            {Object.entries(item.selected_samples_info).map(([inst, info]) => (
+                              <div key={inst} className="flex flex-wrap gap-2 items-center">
+                                <span className="text-gray-200 font-semibold">{inst}:</span>
+                                <span className="text-gray-100">{info?.name || info?.id}</span>
+                                {info?.pitch && <span className="text-[10px] text-gray-500">• {info.pitch}</span>}
+                                {info?.subtype && <span className="text-[10px] text-gray-500">• {info.subtype}</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Full JSON (always visible inside panel) */}
+                      <div className="bg-black/20 border border-cyan-900/30 rounded-lg px-3 py-2">
+                        <div className="text-[10px] text-cyan-300/70">Pełna lista parametrów (JSON)</div>
+                        <pre className="mt-2 whitespace-pre-wrap break-words text-[10px] max-h-72 overflow-auto bg-black/40 rounded-lg px-2 py-2 border border-cyan-900/40 text-gray-200">{JSON.stringify(item.param_meta || item.midi_meta || {}, null, 2)}</pre>
+                      </div>
+                    </div>
+                  </details>
 
                   {/* Stems Expandable */}
                   {item.stems.length > 0 && (
