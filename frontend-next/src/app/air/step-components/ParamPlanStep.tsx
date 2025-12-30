@@ -6,6 +6,7 @@ import { ensureInstrumentConfigs, normalizeParamPlan, cloneParamPlan } from "../
 import ElectricBorder from "@/components/ui/ElectricBorder";
 import LoadingOverlay from "@/components/ui/LoadingOverlay";
 import { FaArrowRight } from "react-icons/fa";
+import ProblemDialog from "./ProblemDialog";
 
 type ChatProviderInfo = { id: string; name: string; default_model?: string };
 
@@ -44,6 +45,11 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
   const [selectable, setSelectable] = useState<string[]>([]);
   const [selectedSamples, setSelectedSamples] = useState<Record<string, string | undefined>>({});
   const [showResetWarning, setShowResetWarning] = useState(false);
+
+  const [problemOpen, setProblemOpen] = useState(false);
+  const [problemTitle, setProblemTitle] = useState<string>("Wykryto problem");
+  const [problemDescription, setProblemDescription] = useState<string | null>(null);
+  const [problemDetails, setProblemDetails] = useState<string[]>([]);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const [shouldScroll, setShouldScroll] = useState(false);
@@ -236,6 +242,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
     setLoading(true); setError(null); setRaw(null); setParsed(null); setNormalized(null); setRunId(null); setWarnings([]);
     setSystemPrompt(null); setUserPrompt(null);
     if (onMetaReady) onMetaReady(null);
+    setProblemOpen(false);
     try {
       const parameters = {
         prompt: prompt,
@@ -302,10 +309,33 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
       const warn: string[] = [];
       const hasMeta = !!(parsed && parsed.meta && typeof parsed.meta === 'object');
       if (!hasMeta) warn.push("Brak pełnych danych z modelu.");
-      if (errorsArr.length) warn.push(...errorsArr.map((e: string) => `parse: ${e}`));
-      setWarnings(Array.from(new Set(warn)));
+      if (errorsArr.length) warn.push(...errorsArr.map((e: string) => (e.trim().toLowerCase().startsWith("parse:") ? e : `parse: ${e}`)));
+
+      // Inventory mismatch warning (same concept as ParamPanel banner)
+      if (Array.isArray(available) && available.length > 0) {
+        const instRaw = (midiPart && typeof midiPart === 'object') ? (midiPart as any).instruments : null;
+        const inst = Array.isArray(instRaw) ? instRaw.filter((x: any) => typeof x === 'string' && x.trim()) : [];
+        const missing = inst.filter((i: string) => !available.includes(i));
+        if (missing.length > 0) {
+          warn.push(`Instrumenty poza lokalną bazą sampli: ${missing.join(", ")}`);
+        }
+      }
+      const uniqWarn = Array.from(new Set(warn));
+      setWarnings(uniqWarn);
+
+      if (uniqWarn.length > 0) {
+        setProblemTitle("Wykryto problem w odpowiedzi modelu (Parametry)");
+        setProblemDescription("Możesz kontynuować z aktualnym wynikiem lub ponowić generowanie.");
+        setProblemDetails(uniqWarn);
+        setProblemOpen(true);
+      }
     } catch (e: any) {
-      setError(e?.message || String(e));
+      const msg = e?.message || String(e);
+      setError(msg);
+      setProblemTitle("Nie udało się wygenerować parametrów");
+      setProblemDescription(msg);
+      setProblemDetails([]);
+      setProblemOpen(true);
     } finally {
       setLoading(false);
     }
@@ -314,6 +344,28 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
   return (
 
     <section className="bg-gray-900/30 border border-purple-700/30 rounded-2xl shadow-lg shadow-purple-900/10 px-6 pt-6 pb-4 space-y-5">
+      <ProblemDialog
+        open={problemOpen && !showResetWarning}
+        title={problemTitle}
+        description={problemDescription}
+        details={problemDetails}
+        accentClassName="border-purple-700"
+        retryClassName="bg-purple-700 hover:bg-purple-600"
+        provider={provider}
+        model={model}
+        availableProviders={providers}
+        onProviderChange={(next) => {
+          setProvider(next);
+          setModel("");
+        }}
+        availableModels={models}
+        onModelChange={(next) => setModel(next)}
+        onContinue={() => setProblemOpen(false)}
+        onRetry={() => {
+          setProblemOpen(false);
+          void send();
+        }}
+      />
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-3xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-purple-100 to-fuchsia-500 animate-pulse">Krok 1 • Generowanie parametrów</h2>
         {/* Button moved to panel */}

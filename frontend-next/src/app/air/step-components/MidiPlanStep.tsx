@@ -5,12 +5,14 @@ import type { ParamPlanMeta } from "../lib/paramTypes";
 import MidiPianoroll from "./MidiPianoroll";
 import ElectricBorder from "@/components/ui/ElectricBorder";
 import LoadingOverlay from "@/components/ui/LoadingOverlay";
+import ProblemDialog from "./ProblemDialog";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
 const API_PREFIX = "/api";
 const MODULE_PREFIX = "/air/midi-generation";
 const PROVIDERS_URL = `${API_BASE}/api/air/param-generation/providers`;
 const MODELS_URL = (p: string) => `${API_BASE}/api/air/param-generation/models/${encodeURIComponent(p)}`;
+const AVAILABLE_INSTRUMENTS_URL = `${API_BASE}/api/air/param-generation/available-instruments`;
 
 export type MidiPlanResult = {
   run_id: string;
@@ -58,6 +60,12 @@ export default function MidiPlanStep({ meta, paramRunId, onReady, initialRunId, 
   const [userPrompt, setUserPrompt] = useState<string | null>(null);
   const [normalized, setNormalized] = useState<any | null>(null);
   const [rawText, setRawText] = useState<string | null>(null);
+  const [availableInstruments, setAvailableInstruments] = useState<string[]>([]);
+
+  const [problemOpen, setProblemOpen] = useState(false);
+  const [problemTitle, setProblemTitle] = useState<string>("Wykryto problem");
+  const [problemDescription, setProblemDescription] = useState<string | null>(null);
+  const [problemDetails, setProblemDetails] = useState<string[]>([]);
 
   const resultRef = useRef<HTMLDivElement>(null);
   const [shouldScroll, setShouldScroll] = useState(false);
@@ -94,6 +102,26 @@ export default function MidiPlanStep({ meta, paramRunId, onReady, initialRunId, 
       } catch { }
     })();
     return () => { mounted = false; };
+  }, []);
+
+  // Load available instruments (via param-generation proxy backed by inventory)
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch(AVAILABLE_INSTRUMENTS_URL);
+        if (!res.ok) return;
+        const data = await res.json().catch(() => null);
+        const list = Array.isArray(data?.available) ? (data.available as string[]) : [];
+        if (!mounted) return;
+        setAvailableInstruments(list);
+      } catch {
+        // inventory is optional; do not block MIDI step
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Fetch models
@@ -148,6 +176,7 @@ export default function MidiPlanStep({ meta, paramRunId, onReady, initialRunId, 
     if (!meta || loading) return;
     setLoading(true);
     setError(null);
+    setProblemOpen(false);
     try {
       const body: any = { meta, provider, model: model || null };
       if (paramRunId) {
@@ -161,7 +190,10 @@ export default function MidiPlanStep({ meta, paramRunId, onReady, initialRunId, 
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+        const payload = await res.json().catch(() => null);
+        const detailMsg = payload?.detail?.message;
+        const msg = typeof detailMsg === "string" && detailMsg.trim() ? detailMsg : `HTTP ${res.status}`;
+        throw new Error(msg);
       }
       const data: any = await res.json();
       setResult(data as MidiPlanResult);
@@ -174,9 +206,44 @@ export default function MidiPlanStep({ meta, paramRunId, onReady, initialRunId, 
       if (onRunIdChange && typeof data.run_id === "string") {
         onRunIdChange(data.run_id);
       }
+
+      // Detect non-fatal problems worth surfacing to the user.
+      const warn: string[] = [];
+      const errorsArr = Array.isArray(data?.errors) ? data.errors.filter((e: any) => typeof e === "string" && e.trim()) : [];
+      if (errorsArr.length) warn.push(...errorsArr);
+
+      // Inventory mismatch: instruments requested but missing in local sample base.
+      const reqInstrumentsRaw = (data?.midi?.meta?.instruments ?? meta?.instruments ?? []) as any;
+      const reqInstruments = Array.isArray(reqInstrumentsRaw) ? reqInstrumentsRaw.filter((x: any) => typeof x === "string" && x.trim()) : [];
+      if (availableInstruments.length > 0 && reqInstruments.length > 0) {
+        const missing = reqInstruments.filter((inst: string) => !availableInstruments.includes(inst));
+        if (missing.length > 0) {
+          warn.push(`Instrumenty poza lokalną bazą sampli: ${missing.join(", ")}`);
+        }
+      }
+
+      const artifacts = data?.artifacts || null;
+      const midRel = artifacts?.midi_mid_rel;
+      const svgRel = artifacts?.midi_image_rel;
+      if (!midRel) warn.push("Nie wygenerowano pliku .mid (brak mido albo błąd eksportu).");
+      if (!svgRel) warn.push("Nie wygenerowano pianoroll SVG (pusty pattern lub błąd renderowania).");
+
+      const uniqWarn = Array.from(new Set(warn));
+      if (uniqWarn.length > 0) {
+        setProblemTitle("Wykryto problem w kroku MIDI");
+        setProblemDescription("Możesz kontynuować z aktualnym wynikiem lub ponowić generowanie.");
+        setProblemDetails(uniqWarn);
+        setProblemOpen(true);
+      }
+
       setShouldScroll(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      setProblemTitle("Nie udało się wygenerować planu MIDI");
+      setProblemDescription(msg);
+      setProblemDetails([]);
+      setProblemOpen(true);
     } finally {
       setLoading(false);
     }
@@ -184,6 +251,28 @@ export default function MidiPlanStep({ meta, paramRunId, onReady, initialRunId, 
 
   return (
     <section className="bg-gray-900/30 border border-orange-700/30 rounded-2xl shadow-lg shadow-orange-900/10 px-6 pt-6 pb-4 space-y-5">
+      <ProblemDialog
+        open={problemOpen}
+        title={problemTitle}
+        description={problemDescription}
+        details={problemDetails}
+        accentClassName="border-orange-700"
+        retryClassName="bg-orange-600 hover:bg-orange-500"
+        provider={provider}
+        model={model}
+        availableProviders={providers}
+        onProviderChange={(next) => {
+          setProvider(next);
+          setModel("");
+        }}
+        availableModels={models}
+        onModelChange={(next) => setModel(next)}
+        onContinue={() => setProblemOpen(false)}
+        onRetry={() => {
+          setProblemOpen(false);
+          void handleRun();
+        }}
+      />
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-3xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-orange-100 to-amber-600 animate-pulse">Krok 2 • Plan MIDI</h2>
       </div>

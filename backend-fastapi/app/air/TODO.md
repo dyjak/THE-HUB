@@ -8,6 +8,8 @@
 ### wyraźne ostrzeżenie jak zła odpowiedz
 ### dokumnetacja promptów
 ### aktualizacja dostępnych modeli AI
+### wyraźne oznakowanie instrumentu FX (info)
+### info o wydajności modeli w kontekście większej ilosci inbstrumentów
 
 # dokumantacja
 ### wstep, cel i zakres porownanie modeli, porownanie aplikacji
