@@ -35,23 +35,67 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
     audio_exts = {".wav", ".mp3", ".aif", ".aiff", ".flac", ".ogg", ".m4a", ".wvp"}
 
     def _tokenize_path(parts: List[str], filename: str) -> set[str]:
-        """Tokenize directory parts and filename into lowercase identifier-like tokens,
-        adding simple singular forms for plural tokens (trailing 's')."""
+        """Tokenize directory parts and filename into lowercase identifier-like tokens.
+
+        Notes:
+        - We keep this intentionally simple and robust (no hard dependency on a sample-pack naming scheme).
+        - We enrich tokens with substring matches for common instrument keywords so files like
+          "DNC_ClubKick.wav" (token "clubkick") still match "kick".
+        """
         raw = "/".join(parts + [filename])
-        toks = re.split(r"[^A-Za-z0-9#]+", raw.lower())
+        raw_low = raw.lower()
+        toks = re.split(r"[^A-Za-z0-9#]+", raw_low)
         out: set[str] = set()
+
+        # Keywords we want to detect even when they appear as part of a larger token.
+        # Keep this list small and high-signal; it directly influences classification.
+        substr_keywords = {
+            # drums
+            "kick",
+            "snare",
+            "clap",
+            "hat",
+            "hihat",
+            "crash",
+            "ride",
+            "splash",
+            "tom",
+            "rim",
+            "shaker",
+            "shake",
+            # percs / misc
+            "perc",
+            "percs",
+            "guiro",
+            "tamb",
+            "tambourine",
+            "cowbell",
+            "clave",
+            # generic
+            "fx",
+            "hit",
+            "hits",
+            # common short variants
+            "snap",  # e.g. "Snaph" -> treat as snare-ish
+        }
+
         for t in toks:
             if not t:
                 continue
             out.add(t)
             if len(t) > 3 and t.endswith("s"):
                 out.add(t[:-1])
+            # Add keyword sub-tokens if they are substrings of the token
+            for kw in substr_keywords:
+                if kw in t:
+                    out.add(kw)
+
         # normalize common variants
         if "hi" in out and "hat" in out:
             out.add("hihat")
-        if "hi-hat" in raw.lower():
+        if "hi-hat" in raw_low:
             out.add("hihat")
-        if "808s" in raw.lower():
+        if "808s" in raw_low:
             out.add("808")
         return out
 
@@ -79,6 +123,9 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
         """
         tokens = _tokenize_path(rel_parts, file_name)
         family = rel_parts[0] if rel_parts else None
+        container = family.lower() if family else None
+        # Common layout: root/Instruments/<pack>/... and root/Drums/<pack>/...
+        pack = rel_parts[1] if len(rel_parts) > 1 and container in {"instruments", "drums"} else None
         pitch = _detect_pitch(file_name)
 
         name_upper = file_name.upper()
@@ -105,13 +152,15 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
             return "Piano", family, None, None, pitch
 
         # 2) Folder-based high-level families
-        # Top-level folders are already reflected in `family` from rel_parts[0]
+        # Support both direct layout (root/Piano/...) and grouped layout (root/Instruments/Piano/...)
         if family:
             fam_low = family.lower()
+            pack_low = pack.lower() if isinstance(pack, str) else None
+
+            # Direct root-level categories
             if fam_low == "choirs":
                 return "Choirs", family, None, None, pitch
             if fam_low == "fx":
-                # FX without subcategories
                 return "FX", family, "FX", None, pitch
             if fam_low == "pads":
                 return "Pads", family, None, None, pitch
@@ -124,6 +173,44 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
             if fam_low == "piano":
                 return "Piano", family, None, None, pitch
 
+            # Grouped under Instruments
+            if fam_low == "instruments" and pack_low:
+                if pack_low == "choirs":
+                    return "Choirs", family, None, None, pitch
+                if pack_low == "pads":
+                    return "Pads", family, None, None, pitch
+                if pack_low == "strings":
+                    return "Strings", family, None, None, pitch
+                if pack_low == "piano":
+                    return "Piano", family, None, None, pitch
+                if pack_low == "bass":
+                    return "Bass", family, None, None, pitch
+                if pack_low == "sax":
+                    return "Sax", family, None, None, pitch
+                if pack_low == "trombone":
+                    return "Trombone", family, None, None, pitch
+                if pack_low == "orchestral":
+                    # In this library orchestral samples are mostly strings/brass/woodwinds.
+                    # We keep it simple and map to Strings (frontend already understands it).
+                    return "Strings", family, None, None, pitch
+                if pack_low == "hits":
+                    # Impacts / hits behave more like FX than Pads.
+                    return "FX", family, "FX", None, pitch
+                if pack_low in {"perc", "percs"}:
+                    # If a dedicated Percs instrument is desired later, change this.
+                    return "Shake", family, None, None, pitch
+                if pack_low == "guitar":
+                    # Prefer directory-based guitar classification when present.
+                    # root/Instruments/Guitar/<Bass|Acoustic|Electric>/...
+                    sub = rel_parts[2].lower() if len(rel_parts) > 2 else ""
+                    if sub == "bass" or "bass" in tokens:
+                        return "Bass Guitar", family, None, None, pitch
+                    if sub == "acoustic" or "acoustic" in tokens:
+                        return "Acoustic Guitar", family, None, None, pitch
+                    if sub == "electric" or "electric" in tokens:
+                        return "Electric Guitar", family, None, None, pitch
+                    # If unknown, do not force into Pads; fall through to token rules.
+
         # 3) Drums with detailed subtypes
         # We treat all of them under category "Drums" with subtypes
         drum_subs = {
@@ -132,6 +219,7 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
             "hihat": "Hat",
             "kick": "Kick",
             "snare": "Snare",
+            "snap": "Snare",
             "crash": "Crash",
             "ride": "Ride",
             "splash": "Splash",
@@ -144,6 +232,15 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
             if kw in tokens:
                 return sub, family or "Drums", "Drums", sub, pitch
 
+        # Extra percussion-ish tokens that should never end up in Pads.
+        # If the file lives under /Drums, prefer Shake.
+        if container == "drums":
+            for kw in ("guiro", "tamb", "tambourine", "cowbell", "clave", "perc", "percs"):
+                if kw in tokens:
+                    return "Shake", family or "Drums", "Drums", "Shake", pitch
+            if "fx" in tokens or "hit" in tokens:
+                return "FX", family or "Drums", "Drums", "FX", pitch
+
         # 4) Remaining broader instrument categories
         # Uwaga: nie dodajemy ogólnego fallbacku "guitar" tutaj, żeby nie mylić Electric/Acoustic.
         single_map = [
@@ -154,6 +251,8 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
             ("pad", "Pads"),
             ("piano", "Piano"),
             ("bass", "Bass"),
+            ("fx", "FX"),
+            ("hit", "FX"),
         ]
         for kw, inst in single_map:
             if kw in tokens:
@@ -164,6 +263,12 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
             return "FX", family, "FX", None, pitch
 
         # Neutral melodic default
+        # Avoid overfilling Pads: only default to Pads when the path/name suggests it.
+        if "pad" in tokens or (container == "instruments" and isinstance(pack, str) and pack.lower() == "pads"):
+            return "Pads", family, None, None, pitch
+        # Otherwise treat as FX (one-shots) when under Drums, or Pads as last resort.
+        if container == "drums":
+            return "FX", family, "Drums", "FX", pitch
         return "Pads", family, None, None, pitch
 
     instruments: Dict[str, Any] = {}

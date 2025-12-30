@@ -1,14 +1,12 @@
 # pilne
 ### normalizacja głośności poszczególnych instrumentów w renderze
 ### ucięcie renderu jeśli sucho
-### dopracowujemy system prompt
+### dopracowujemy system prompt (?done)
 ### normalizacja pitchungu względem klucza
 ### dokladny review inventory
 ### podpowiedź dla uzytkownika co do parametrow
 ### wyraźne ostrzeżenie jak zła odpowiedz
 ### dokumnetacja promptów
-### export files
-### przesył user payload również w system prompt midi_gen
 ### aktualizacja dostępnych modeli AI
 
 # dokumantacja

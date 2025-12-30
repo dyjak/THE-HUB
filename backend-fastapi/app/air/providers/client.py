@@ -122,9 +122,16 @@ def list_providers() -> list[dict[str, str]]:
     return [
         {"id": "openai", "name": "OpenAI", "default_model": os.getenv("OPENAI_MODEL", "gpt-4o-mini")},
         {"id": "anthropic", "name": "Anthropic Claude", "default_model": os.getenv("ANTHROPIC_MODEL", "claude-3-5-haiku-latest")},
-        {"id": "gemini", "name": "Google Gemini", "default_model": os.getenv("GOOGLE_MODEL", "gemini-2.5-flash")},
+        {"id": "gemini", "name": "Google Gemini", "default_model": os.getenv("GOOGLE_MODEL", "gemini-3-pro-preview")},
         {"id": "openrouter", "name": "OpenRouter (OpenAI-compatible)", "default_model": os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")},
     ]
+
+
+def _looks_like_image_model(model_id: str) -> bool:
+    mid = (model_id or "").lower()
+    # Conservative heuristic: filter out models clearly meant for image generation.
+    # We intentionally do NOT filter "vision" models (they are still chat/generative-text).
+    return ("imagen" in mid) or ("image" in mid)
 
 
 def _env_list(var_name: str) -> list[str]:
@@ -185,7 +192,7 @@ def list_models(provider: str) -> list[str]:
     if p == "gemini":
         override = _env_list("GOOGLE_MODELS")
         if override:
-            return override
+            return [m for m in override if m and not _looks_like_image_model(m)]
         try:
             g = get_gemini_client()
             found: list[str] = []
@@ -196,8 +203,9 @@ def list_models(provider: str) -> list[str]:
                 methods = set(getattr(m, "supported_generation_methods", []) or [])
                 if "generateContent" in methods:
                     # model names can include versions; expose plain id
-                    found.append(mid)
-            defaults = [os.getenv("GOOGLE_MODEL", "gemini-2.5-flash")]
+                    if mid and not _looks_like_image_model(mid):
+                        found.append(mid)
+            defaults = [os.getenv("GOOGLE_MODEL", "gemini-3-pro-preview")]
             uniq: list[str] = []
             for x in defaults + found:
                 if x and x not in uniq:
@@ -205,10 +213,12 @@ def list_models(provider: str) -> list[str]:
             return uniq[:50]
         except Exception:  # pragma: no cover - fallback
             return [
-                os.getenv("GOOGLE_MODEL", "gemini-2.5-flash"),
+                os.getenv("GOOGLE_MODEL", "gemini-3-pro-preview"),
+                "gemini-3-pro-preview",
                 "gemini-2.5-pro",
-                "gemini-1.5-flash",
+                "gemini-2.5-flash",
                 "gemini-1.5-pro",
+                "gemini-1.5-flash",
                 "gemini-2.0-flash",
             ]
 

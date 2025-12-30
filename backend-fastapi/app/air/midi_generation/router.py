@@ -108,7 +108,7 @@ def _call_composer(provider: str, model: Optional[str], meta: Dict[str, Any]) ->
     # Gemini
     if provider == "gemini":
         g = _get_gemini_client()
-        use_model = model or os.getenv("GOOGLE_MIDI_MODEL", os.getenv("GOOGLE_MODEL", "gemini-2.5-flash"))
+        use_model = model or os.getenv("GOOGLE_MIDI_MODEL", os.getenv("GOOGLE_MODEL", "gemini-3-pro-preview"))
         try:
             m = g.GenerativeModel(use_model, system_instruction=system)
         except TypeError:

@@ -176,7 +176,7 @@ def _call_model(provider: str, model: Optional[str], system: str, user: str) -> 
     # Gemini / Google Generative AI
     if provider == "gemini":
         g = _get_gemini_client()
-        use_model = model or os.getenv("GOOGLE_MODEL", "gemini-2.5-flash")
+        use_model = model or os.getenv("GOOGLE_MODEL", "gemini-3-pro-preview")
 
         # Newer SDKs expect system instruction as list of parts; fall back to old style.
         try:
