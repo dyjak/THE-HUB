@@ -26,6 +26,9 @@ export default function AirPage() {
 	const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 	const [pendingStep, setPendingStep] = useState<StepId | null>(null);
 
+	const stepOrder: StepId[] = ["param-plan", "midi-plan", "midi-export", "render"];
+	const getStepIndex = (stepId: StepId) => stepOrder.indexOf(stepId);
+
 	const steps: { id: StepId; name: string; ready: boolean }[] = useMemo(() => ([
 		{ id: "param-plan", name: "Krok 1 • Parametry (AI)", ready: true },
 		{ id: "midi-plan", name: "Krok 2 • Plan MIDI (AI)", ready: !!paramPlan },
@@ -57,8 +60,18 @@ export default function AirPage() {
 
 	const handleStepChange = (newStep: StepId) => {
 		if (newStep === step) return;
-		setPendingStep(newStep);
-		setShowConfirmDialog(true);
+
+		const currentIndex = getStepIndex(step);
+		const nextIndex = getStepIndex(newStep);
+
+		// Warning only when going back to an earlier step.
+		if (nextIndex !== -1 && currentIndex !== -1 && nextIndex < currentIndex) {
+			setPendingStep(newStep);
+			setShowConfirmDialog(true);
+			return;
+		}
+
+		setStep(newStep);
 	};
 
 	const confirmStepChange = () => {
