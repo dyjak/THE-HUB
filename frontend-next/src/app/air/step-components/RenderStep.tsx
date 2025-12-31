@@ -58,7 +58,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
     return instruments.map((name, idx) => ({
       instrument: name,
       enabled: true,
-      volume_db: idx === 0 ? 0 : -3,
+      volume_db: String(name).trim().toLowerCase() === "piano" ? -8 : (idx === 0 ? 0 : -3),
       pan: 0,
     }));
   });
