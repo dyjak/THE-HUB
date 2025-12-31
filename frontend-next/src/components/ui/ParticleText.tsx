@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect } from "react";
+import React, { useLayoutEffect, useMemo, useRef, useEffect, useState } from "react";
 
 interface ParticleTextProps {
   text?: string;
@@ -33,13 +33,95 @@ export default function ParticleText({
   mouseStrength = 20,
   font = "bold 120px system-ui",
 }: ParticleTextProps) {
+  const [usePlainText, setUsePlainText] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const measureRef = useRef<HTMLSpanElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const particlesRef = useRef<Particle[]>([]);
   const mouseRef = useRef({ x: 0, y: 0, active: false });
   const animationRef = useRef<number | null>(null);
   const timeRef = useRef(0);
 
+  const fallbackTextStyle = useMemo(() => {
+    const base: React.CSSProperties = {
+      lineHeight: 1,
+      whiteSpace: "nowrap",
+      textAlign: "center",
+      width: "100%",
+    };
+
+    // Handle common patterns used in this repo:
+    // - "bold 74px system-ui"
+    // - "bold clamp(28px, 8vw, 64px) system-ui" (not valid as canvas font, but usable as CSS fontSize)
+    if (font.includes("clamp(")) {
+      const clampStart = font.indexOf("clamp(");
+      const weightPart = font.slice(0, clampStart).trim();
+      const closeIdx = font.indexOf(")", clampStart);
+      const sizePart = closeIdx === -1 ? font.slice(clampStart) : font.slice(clampStart, closeIdx + 1);
+      const familyPart = closeIdx === -1 ? "system-ui" : font.slice(closeIdx + 1).trim();
+
+      return {
+        ...base,
+        fontWeight: weightPart || "bold",
+        fontSize: sizePart,
+        fontFamily: familyPart || "system-ui",
+      };
+    }
+
+    const match = font.match(/^(\w+|\d{3})\s+(\d+(?:\.\d+)?)px\s+(.+)$/);
+    if (match) {
+      return {
+        ...base,
+        fontWeight: match[1],
+        fontSize: `${match[2]}px`,
+        fontFamily: match[3],
+      };
+    }
+
+    return {
+      ...base,
+      font: font,
+    };
+  }, [font]);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const measureEl = measureRef.current;
+    if (!container || !measureEl) return;
+
+    const update = () => {
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+
+      // If we have no room, fall back to plain text.
+      if (containerWidth <= 0 || containerHeight <= 0) {
+        setUsePlainText(true);
+        return;
+      }
+
+      // Measure the natural one-line width of the text using DOM (supports clamp() fontSize).
+      // Use scrollWidth so it ignores container width constraints.
+      const textWidth = measureEl.scrollWidth;
+
+      // Small padding to avoid edge clipping.
+      const fits = textWidth <= containerWidth * 0.98;
+      setUsePlainText(!fits);
+    };
+
+    update();
+
+    const ro = new ResizeObserver(() => update());
+    ro.observe(container);
+    window.addEventListener("resize", update);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [text, fallbackTextStyle]);
+
   useEffect(() => {
+    if (usePlainText) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -59,8 +141,11 @@ export default function ParticleText({
       height = canvas.height;
 
       // Draw text to get coordinates
+      ctx.clearRect(0, 0, width, height);
       ctx.fillStyle = "white";
-      ctx.font = font;
+      // Prefer computed CSS font from our measure element (handles clamp() etc.)
+      const measuredCssFont = measureRef.current ? window.getComputedStyle(measureRef.current).font : "";
+      ctx.font = measuredCssFont || font;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(text, width / 2, height / 2);
@@ -105,6 +190,7 @@ export default function ParticleText({
         let dx = mouseRef.current.x - particle.x;
         let dy = mouseRef.current.y - particle.y;
         let distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance === 0) distance = 0.0001;
         let forceDirectionX = dx / distance;
         let forceDirectionY = dy / distance;
 
@@ -171,13 +257,55 @@ export default function ParticleText({
       canvas.removeEventListener("mouseleave", handleMouseLeave);
       window.removeEventListener("resize", init);
     };
-  }, [text, colors, font, mouseRadius, mouseStrength, particleSize]);
+  }, [usePlainText, text, colors, font, mouseRadius, mouseStrength, particleSize]);
 
   return (
-    <canvas
-      ref={canvasRef}
+    <div
+      ref={containerRef}
       className={className}
-      style={{ width: '100%', height: '100%' }}
-    />
+      style={{ width: "100%", height: "100%", position: "relative" }}
+    >
+      {/* Hidden measurer: determines if the text fits the container at current CSS font */}
+      <span
+        ref={measureRef}
+        aria-hidden="true"
+        style={{
+          ...fallbackTextStyle,
+          position: "absolute",
+          visibility: "hidden",
+          pointerEvents: "none",
+          width: "auto",
+          left: 0,
+          top: 0,
+        }}
+      >
+        {text}
+      </span>
+
+      {usePlainText ? (
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <span
+            style={{
+              ...fallbackTextStyle,
+              display: "inline-block",
+              transform: "scale(0.6)",
+              transformOrigin: "center",
+            }}
+          >
+            {text}
+          </span>
+        </div>
+      ) : (
+        <canvas ref={canvasRef} style={{ width: "100%", height: "100%" }} />
+      )}
+    </div>
   );
 }

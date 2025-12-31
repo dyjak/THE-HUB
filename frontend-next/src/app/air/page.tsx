@@ -91,15 +91,15 @@ export default function AirPage() {
 		<div className="min-h-[500px] w-full bg-transparent from-black via-gray-950 to-black text-white px-6 py-6 pb-4 space-y-6">
 			<div className="flex items-center justify-between gap-6">
 				<div className="flex-1" />
-				<div className="flex flex-col items-center gap-2 select-none">
-					<div className="w-full max-w-[100vw] h-[60px] sm:h-[80px] sm:max-w-[550px] md:max-w-[600px] md:h-[120px]">
+				<div className="flex-[1.4] flex flex-col items-center gap-2 select-none">
+					<div className="w-full max-w-none h-[60px] sm:h-[80px] md:h-[120px]">
 						<ParticleText
-							text="AIR 4.2"
-							font="bold clamp(28px, 8vw, 70px) system-ui"
+							text="PROJEKT AIR 4.2"
+							font="bold clamp(28px, 8vw, 68px) system-ui"
 							colors={["#ffffffff", "#ffffffff"]}
 							// colors={["#ab51e3", "#bd68ee", "#dc97ff", "#d283ff"]}
 							mouseRadius={20}
-							particleSize={1.2}
+							particleSize={1.7}
 						/>
 					</div>
 				</div>
