@@ -42,8 +42,8 @@ export default function Nav() {
             </div>
             <div className="flex gap-4 items-center">
                 <Link href="/air/gallery" className="rainbow-hover text-sm text-gray-200 px-4 py-1 border border-grey-500/30 rounded-lg hover:bg-grey-800/20 transition-colors"> Gallery </Link>
-                <Link href="/air" className="text-xl hover:text-gray-300"><FaGithub /> </Link>
-                <Link href="/air" className="text-xl hover:text-gray-300"> <FaBrain /></Link>
+                <Link target="_blank" href="https://github.com/dyjak/THE-HUB" className="text-xl hover:text-gray-300"><FaGithub /> </Link>
+                <Link href="/air/docs" className="text-xl hover:text-gray-300" title="Dokumentacja"> <FaBrain /></Link>
             </div>
         </nav>
     );
