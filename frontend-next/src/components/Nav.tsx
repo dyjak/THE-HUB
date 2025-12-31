@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { FaHome, FaGithub, FaBrain, FaUser } from "react-icons/fa";
-import { red } from "next/dist/lib/picocolors";
-import ParticleText from "./ui/ParticleText";
 
 
 export default function Nav() {
@@ -42,7 +40,8 @@ export default function Nav() {
                     </Link>
                 )}
             </div>
-            <div className="flex gap-4">
+            <div className="flex gap-4 items-center">
+                <Link href="/air/gallery" className="rainbow-hover text-sm text-gray-200 px-4 py-1 border border-grey-500/30 rounded-lg hover:bg-grey-800/20 transition-colors"> Gallery </Link>
                 <Link href="/air" className="text-xl hover:text-gray-300"><FaGithub /> </Link>
                 <Link href="/air" className="text-xl hover:text-gray-300"> <FaBrain /></Link>
             </div>

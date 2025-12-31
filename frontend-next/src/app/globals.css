@@ -214,3 +214,55 @@ select option:hover {
     box-shadow: 0px 0px 30px 20px #000000;
     z-index: -1;
 }
+
+/* Rainbow hover (candy) */
+@keyframes rainbow-shift {
+    0% {
+        background-position: 0% 50%;
+        filter: hue-rotate(0deg);
+    }
+    50% {
+        background-position: 100% 50%;
+        filter: hue-rotate(180deg);
+    }
+    100% {
+        background-position: 0% 50%;
+        filter: hue-rotate(360deg);
+    }
+}
+
+.rainbow-hover {
+    position: relative;
+    transition: color 150ms ease, border-color 150ms ease;
+}
+
+.rainbow-hover:hover {
+    background-image: linear-gradient(90deg,
+        #ff0080,
+        #ff8c00,
+        #ffee00,
+        #00ff85,
+        #00c3ff,
+        #7a00ff,
+        #ff0080
+    );
+    background-size: 300% 100%;
+    animation: rainbow-shift 1.8s linear infinite;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.rainbow-text {
+    background-image: linear-gradient(90deg,
+        #ff0080,
+        #ff8c00,
+        #ffee00,
+        #00ff85,
+        #00c3ff,
+        #7a00ff
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}

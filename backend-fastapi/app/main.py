@@ -76,6 +76,14 @@ except Exception as e:
     _EXPORT_AVAILABLE = False
     _EXPORT_IMPORT_ERROR = str(e)
 
+try:
+    from .air.gallery.router import router as gallery_router  # type: ignore
+    _GALLERY_AVAILABLE = True
+except Exception as e:
+    gallery_router = None  # type: ignore
+    _GALLERY_AVAILABLE = False
+    _GALLERY_IMPORT_ERROR = str(e)
+
 
 app = FastAPI(
     title="AIR 4.0 API",
@@ -199,6 +207,12 @@ if _EXPORT_AVAILABLE and export_router:
     app.include_router(export_router, prefix="/api")
 else:
     print("[WARN] export_router not loaded:", globals().get('_EXPORT_IMPORT_ERROR'))
+
+# Mount gallery router (portfolio / SoundCloud embeds)
+if _GALLERY_AVAILABLE and gallery_router:
+    app.include_router(gallery_router, prefix="/api")
+else:
+    print("[WARN] gallery_router not loaded:", globals().get('_GALLERY_IMPORT_ERROR'))
 
 
 @app.get("/")
