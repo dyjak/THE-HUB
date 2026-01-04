@@ -2,13 +2,23 @@ from __future__ import annotations
 from pydantic import BaseModel, Field, validator
 from typing import List, Optional, Dict, Any
 
+# ten moduł definiuje schematy danych (pydantic), które opisują wejście i wyjście
+# dla kroku "planowania parametrów".
+#
+# w skrócie:
+# - `ParameterPlanIn` to dane, które frontend wysyła do backendu (prompt + ustawienia bazowe)
+# - walidatory normalizują listę instrumentów i tworzą brakujące `instrument_configs`
+# - `ParameterPlanResult` to wynik zwracany do frontendu (surowa odpowiedź llm + sparsowane json)
+
 
 INSTRUMENT_OPTIONS = [
     "piano","pad","strings","bass","guitar","lead","choir","flute","trumpet","saxophone",
     "kick","snare","hihat","clap","rim","tom","808","perc","drumkit","fx"
 ]
 
-# Dynamically extend instrument list from inventory if available (future-proof for new types)
+# dynamiczne rozszerzenie listy instrumentów na podstawie inventory (jeśli jest dostępne).
+# chodzi o to, aby nowe typy instrumentów dodane w inventory były od razu akceptowane przez api,
+# bez ręcznego dopisywania ich do stałej `INSTRUMENT_OPTIONS`.
 try:  # pragma: no cover runtime presence
     from app.air.inventory.access import list_instruments as _inv_list
     _extra = [i for i in _inv_list() if i not in INSTRUMENT_OPTIONS]
@@ -19,6 +29,8 @@ except Exception:
 
 
 class InstrumentConfig(BaseModel):
+    # konfiguracja jednego instrumentu w aranżacji.
+    # frontend może doprecyzować rolę/brzmienie, a backend przechowuje to razem z planem.
     name: str
     role: str = Field(default="accompaniment")
     register: str = Field(default="mid")
@@ -27,8 +39,8 @@ class InstrumentConfig(BaseModel):
 
 
 class ParameterPlanIn(BaseModel):
-    # Natural-language description from the user, e.g. "cinematic soundtrack with bass guitar".
-    # This is the primary driver for the AI parameter planner.
+    # opis użytkownika w języku naturalnym, np. "filmowa muzyka z gitarą basową".
+    # to jest główne wejście dla llm, które ma zaplanować parametry muzyczne.
     prompt: str = Field(default="")
     style: str = Field(default="ambient")
     mood: str = Field(default="calm")
@@ -46,6 +58,11 @@ class ParameterPlanIn(BaseModel):
 
     @validator("instruments", pre=True)
     def normalize_instruments(cls, v):
+        # normalizacja pola `instruments`:
+        # - wspieramy format string ("piano,pad,strings") i listę
+        # - usuwamy białe znaki, duplikaty i nieprawidłowe wartości
+        # - filtrujemy tylko do instrumentów, które są dozwolone (stała + inventory)
+        # - jeśli po filtracji nic nie zostało, ustawiamy bezpieczne domyślne trio
         if isinstance(v, str):
             v = [x.strip() for x in v.split(",") if x.strip()]
         if not isinstance(v, list):
@@ -58,7 +75,7 @@ class ParameterPlanIn(BaseModel):
             name = item.strip()
             if not name:
                 continue
-            # Allow passthrough if present in dynamic inventory; otherwise require INSTRUMENT_OPTIONS
+            # przepuszczamy tylko instrumenty, które występują w dozwolonej liście
             if name not in INSTRUMENT_OPTIONS:
                 continue
             if name not in seen:
@@ -68,6 +85,9 @@ class ParameterPlanIn(BaseModel):
 
     @validator("instrument_configs", always=True)
     def ensure_configs(cls, v, values):
+        # upewniamy się, że `instrument_configs` jest spójne z listą `instruments`.
+        # jeśli frontend nie przysłał konfiguracji dla któregoś instrumentu,
+        # tworzymy domyślny `InstrumentConfig` (z prostą heurystyką dla roli/rejestru).
         instruments: List[str] = values.get("instruments", [])
         mapped = {c.name: c for c in v} if v else {}
         out: List[InstrumentConfig] = []
@@ -76,17 +96,20 @@ class ParameterPlanIn(BaseModel):
             if existing:
                 out.append(existing)
                 continue
-            # create default
+            # tworzenie konfiguracji domyślnej
             role = "lead" if idx == 0 else "accompaniment"
             register = "low" if inst in ("bass","808") else "mid"
             out.append(InstrumentConfig(name=inst, role=role, register=register))
         return out
 
     def to_payload(self) -> Dict[str, Any]:
+        # pomocnicza serializacja do słownika (np. do przekazania dalej w pipeline)
         return self.dict()
 
 
 class ParameterPlanResult(BaseModel):
+    # wynik kroku planowania parametrów (z backendu do frontendu).
+    # `raw` to surowy tekst z llm, a `parsed` to (jeśli się udało) sparsowany obiekt json.
     run_id: str
     plan: Dict[str, Any]
     raw: str
@@ -95,5 +118,6 @@ class ParameterPlanResult(BaseModel):
     meta: Dict[str, Any] | None = None
     saved_json_rel: str | None = None
     saved_raw_rel: str | None = None
-    # instrument -> inventory sample id (row.id) chosen in UI; not used by LLM
+    # mapowanie: instrument -> id sampla z inventory wybrany w ui.
+    # to nie jest część logiki llm; służy do spięcia instrumentów z konkretnymi plikami audio.
     selected_samples: Dict[str, str] | None = None

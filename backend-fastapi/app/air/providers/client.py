@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-"""Production AI provider client helpers used by air/param_generation.
+"""pomocnicze klienty do providerów ai używane przez `air/param_generation`.
 
-This module is extracted from the previous test-only clients in
-app.tests.ai-render-test / app.tests.ai-param-test so that the
-param_generation router no longer depends on test code.
+założenia:
+- moduł jest wydzielony z wcześniejszych, testowych klientów (z katalogów testów),
+  żeby `param_generation` nie zależało od kodu testowego
+- inicjalizacja jest "best-effort": import sdk może się nie udać (brak zależności),
+  a brak klucza api ma zwrócić czytelny błąd w stylu `ChatError`
+- konfiguracja opiera się o zmienne środowiskowe oraz opcjonalny plik `backend-fastapi/.env`
 """
 
 import os
@@ -13,7 +16,8 @@ from typing import Any
 
 from dotenv import load_dotenv  # type: ignore
 
-# Load env once for local runs and server start, try explicit backend-fastapi/.env
+# ładujemy env jednorazowo przy starcie modułu.
+# najpierw próbujemy jawnie `backend-fastapi/.env`, a jeśli nie istnieje, fallback do domyślnego `load_dotenv()`.
 try:
     here = Path(__file__).resolve()
     backend_root = here.parents[3]  # .../backend-fastapi
@@ -26,7 +30,7 @@ except Exception:
     load_dotenv()
 
 try:
-    # OpenAI python SDK v1.x (new client)
+    # openai python sdk v1.x (nowy klient `OpenAI`)
     from openai import OpenAI  # type: ignore
 except Exception as e:  # pragma: no cover
     OpenAI = None  # type: ignore
@@ -46,10 +50,20 @@ except Exception as e:  # pragma: no cover
 
 
 class ChatError(RuntimeError):
+    """wyjątek warstwy providerów (brak sdk, brak klucza api, itp.)."""
+
     pass
 
 
 def get_openai_client() -> Any:
+    """zwraca klienta openai skonfigurowanego na bazie env.
+
+    wymagane zmienne:
+    - `OPENAI_API_KEY`
+
+    opcjonalnie:
+    - `OPENAI_BASE_URL` (jeśli chcemy użyć proxy / self-hosted kompatybilnego api)
+    """
     global OpenAI, _OPENAI_IMPORT_ERROR
     if OpenAI is None:
         try:
@@ -68,9 +82,11 @@ def get_openai_client() -> Any:
 
 
 def get_openrouter_client() -> Any:
-    """Client for OpenRouter, which speaks the OpenAI-compatible API.
+    """zwraca klienta openrouter (api zgodne z openai).
 
-    We reuse the OpenAI SDK with a different base_url and API key.
+    uwagi:
+    - wykorzystujemy openai sdk, ale z innym `base_url`
+    - wymagany jest `OPENROUTER_API_KEY` (opcjonalnie `OPENROUTER_BASE_URL`)
     """
     global OpenAI, _OPENAI_IMPORT_ERROR
     if OpenAI is None:
@@ -88,6 +104,7 @@ def get_openrouter_client() -> Any:
 
 
 def get_anthropic_client() -> Any:
+    """zwraca klienta anthropic skonfigurowanego na bazie env (`ANTHROPIC_API_KEY`)."""
     global anthropic, _ANTHROPIC_IMPORT_ERROR
     if anthropic is None:
         try:
@@ -103,6 +120,7 @@ def get_anthropic_client() -> Any:
 
 
 def get_gemini_client() -> Any:
+    """zwraca klienta gemini (google generative ai) skonfigurowanego na bazie env (`GOOGLE_API_KEY`)."""
     global genai, _GEMINI_IMPORT_ERROR
     if genai is None:
         try:
@@ -119,6 +137,10 @@ def get_gemini_client() -> Any:
 
 
 def list_providers() -> list[dict[str, str]]:
+    """zwraca listę dostępnych providerów oraz ich domyślne modele.
+
+    uwaga: wartości modeli pochodzą z env, żeby łatwo sterować domyślnym wyborem bez zmian w kodzie.
+    """
     return [
         {"id": "openai", "name": "OpenAI", "default_model": os.getenv("OPENAI_MODEL", "gpt-4o-mini")},
         {"id": "anthropic", "name": "Anthropic Claude", "default_model": os.getenv("ANTHROPIC_MODEL", "claude-3-5-haiku-latest")},
@@ -129,12 +151,13 @@ def list_providers() -> list[dict[str, str]]:
 
 def _looks_like_image_model(model_id: str) -> bool:
     mid = (model_id or "").lower()
-    # Conservative heuristic: filter out models clearly meant for image generation.
-    # We intentionally do NOT filter "vision" models (they are still chat/generative-text).
+    # konserwatywna heurystyka: filtrujemy modele wyraźnie do generowania obrazów.
+    # celowo nie filtrujemy modeli "vision" (to nadal modele czatu / generacji tekstu).
     return ("imagen" in mid) or ("image" in mid)
 
 
 def _env_list(var_name: str) -> list[str]:
+    """parsuje zmienną env jako listę elementów rozdzielonych przecinkami."""
     raw = os.getenv(var_name, "").strip()
     if not raw:
         return []
@@ -143,23 +166,23 @@ def _env_list(var_name: str) -> list[str]:
 
 def list_models(provider: str) -> list[str]:
     p = (provider or "").lower().strip()
-    # Allow overrides via env, e.g., OPENAI_MODELS, ANTHROPIC_MODELS, GOOGLE_MODELS
+    # allow overrides via env, np. OPENAI_MODELS, ANTHROPIC_MODELS, GOOGLE_MODELS
     if p == "openai":
         override = _env_list("OPENAI_MODELS")
         if override:
             return override
-        # Try dynamic discovery
+        # próbujemy dynamicznie odkryć modele przez sdk (jeśli dostępne)
         try:
             client = get_openai_client()
             found: list[str] = []
             for m in client.models.list():
                 mid = getattr(m, "id", "") or ""
-                # filter likely chat models
+                # filtrujemy modele, które wyglądają na chat/llm (odrzucamy embedding/audio/tts/itp.)
                 if any(prefix in mid for prefix in ("gpt-", "o3", "o4")) and not any(
                     skip in mid for skip in ("embedding", "audio", "tts", "whisper", "image")
                 ):
                     found.append(mid)
-            # put defaults first
+            # ustawiamy domyślny model na początku listy
             defaults = [os.getenv("OPENAI_MODEL", "gpt-4o-mini")]
             uniq: list[str] = []
             for x in defaults + found:
@@ -167,7 +190,7 @@ def list_models(provider: str) -> list[str]:
                     uniq.append(x)
             return uniq[:50]
         except Exception:  # pragma: no cover - fallback
-            # Fallback static list
+            # fallback: statyczna lista, gdy sdk/dostęp do endpointu nie działa
             return [
                 os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
                 "gpt-4o",
@@ -180,7 +203,7 @@ def list_models(provider: str) -> list[str]:
         override = _env_list("ANTHROPIC_MODELS")
         if override:
             return override
-        # No public list endpoint; return curated set
+        # brak publicznego endpointu listującego; zwracamy zestaw "ręczny"
         return [
             os.getenv("ANTHROPIC_MODEL", "claude-3-5-haiku-latest"),
             "claude-3-7-sonnet-latest",
@@ -202,7 +225,7 @@ def list_models(provider: str) -> list[str]:
                     mid = mid.split("/", 1)[1]
                 methods = set(getattr(m, "supported_generation_methods", []) or [])
                 if "generateContent" in methods:
-                    # model names can include versions; expose plain id
+                    # nazwy modeli mogą zawierać wersje; wystawiamy "gołe" id
                     if mid and not _looks_like_image_model(mid):
                         found.append(mid)
             defaults = [os.getenv("GOOGLE_MODEL", "gemini-3-pro-preview")]
@@ -223,14 +246,13 @@ def list_models(provider: str) -> list[str]:
             ]
 
     if p == "openrouter":
-        # Allow overrides via env: OPENROUTER_MODELS
+        # allow overrides via env: OPENROUTER_MODELS
         override = _env_list("OPENROUTER_MODELS")
         if override:
             return override
-        # Curated list of models that are generally good for structured JSON
-        # and available on OpenRouter. This is intentionally diverse so the
-        # app can serve as a small playground for different model families.
-        # You can tweak or completely override this in .env.
+        # ręcznie dobrana lista modeli, które zwykle dobrze radzą sobie ze
+        # strukturalnym json i są dostępne na openrouter.
+        # tę listę można w całości nadpisać w `.env`.
         defaults = [
             # Default / primary model (configure in .env; pick a strong general-purpose model)
             os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct"),
@@ -247,12 +269,12 @@ def list_models(provider: str) -> list[str]:
             # Mistral family
             "mistralai/mistral-nemo",
         ]
-        # De-duplicate while preserving order
+        # deduplikacja z zachowaniem kolejności
         uniq: list[str] = []
         for m in defaults:
             if m and m not in uniq:
                 uniq.append(m)
         return uniq
 
-    # Unknown provider
+    # nieznany provider
     return []

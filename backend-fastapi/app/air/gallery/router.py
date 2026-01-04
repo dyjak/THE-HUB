@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+"""endpointy galerii (portfolio/linki).
+
+to proste, publiczne api zwracające listę wpisów do wyświetlenia w ui.
+z założenia to są dane statyczne (placeholdery), łatwe do podmiany.
+"""
+
 from typing import List, Optional
 
 from fastapi import APIRouter
@@ -18,11 +24,11 @@ class GalleryItem(BaseModel):
 router = APIRouter(
     prefix="/air/gallery",
     tags=["air:gallery"],
-    # Public by design; frontend controls access under /air/*
+    # publiczne z założenia; frontend kontroluje dostęp pod /air/*
 )
 
 
-# NOTE: Placeholder demo entries. Replace with your own portfolio links later.
+# uwaga: przykładowe wpisy demo (placeholder). docelowo podmień na własne linki.
 _DEMO_ITEMS: List[GalleryItem] = [
     GalleryItem(
         id="demo-01",
@@ -53,6 +59,7 @@ _DEMO_ITEMS: List[GalleryItem] = [
 
 @router.get("/meta")
 def meta():
+    """zwraca metadane galerii (lista endpointów, liczba wpisów)."""
     return {
         "endpoints": [
             "/air/gallery/meta",
@@ -64,5 +71,9 @@ def meta():
 
 @router.get("/items")
 def list_items():
-    # Wrap in an object to allow future paging without breaking the shape.
+    """zwraca listę wpisów galerii.
+
+    opakowujemy listę w obiekt, żeby w przyszłości dało się dodać paging
+    bez łamania kształtu odpowiedzi.
+    """
     return {"items": [i.model_dump() for i in _DEMO_ITEMS]}

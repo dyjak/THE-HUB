@@ -1,5 +1,16 @@
 from __future__ import annotations
 
+"""endpointy projektów użytkownika.
+
+ten moduł łączy dwa źródła danych:
+- baza (`projs`): mapowanie użytkownik -> render run_id
+- pliki na dysku (`render_state.json` i outputy kroków): szczegóły renderu i metadane
+
+zwracane rekordy są wzbogacane best-effort o:
+- prompt i meta z param_generation (jeśli umiemy rozwiązać param_run_id)
+- informacje o wybranych samplach (nazwa/url/pitch) na podstawie inventory.json
+"""
+
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -29,10 +40,11 @@ _PARAM_DIR_RE = re.compile(r"^\d{8}_\d{6}_(.+)$")
 
 
 def _iso(dt: Any) -> Optional[str]:
+    """formatuje datę na iso (best-effort)."""
     try:
         if dt is None:
             return None
-        # created_at is stored as naive UTC in DB
+        # created_at jest przechowywane jako naive utc w db
         return dt.replace(microsecond=0).isoformat() + "Z"
     except Exception:
         try:
@@ -42,6 +54,7 @@ def _iso(dt: Any) -> Optional[str]:
 
 
 def _load_json_file(path: Path) -> Optional[Dict[str, Any]]:
+    """wczytuje json jako dict (best-effort)."""
     try:
         if not path.exists() or not path.is_file():
             return None
@@ -54,6 +67,10 @@ def _load_json_file(path: Path) -> Optional[Dict[str, Any]]:
 
 
 def _find_param_plan_doc(param_run_id: str) -> Optional[Dict[str, Any]]:
+    """próbuje znaleźć `parameter_plan.json` dla danego `param_run_id`.
+
+    folder param_generation ma zwykle prefix z timestampem, więc szukamy po sufiksie.
+    """
     rid = (param_run_id or "").strip()
     if not rid:
         return None
@@ -68,7 +85,7 @@ def _find_param_plan_doc(param_run_id: str) -> Optional[Dict[str, Any]]:
                 matches.append(p)
         if not matches:
             return None
-        # Prefer newest timestamped folder
+        # preferujemy najnowszy folder z timestampem
         matches.sort(key=lambda x: x.name, reverse=True)
         return _load_json_file(matches[0] / "parameter_plan.json")
     except Exception:
@@ -76,6 +93,7 @@ def _find_param_plan_doc(param_run_id: str) -> Optional[Dict[str, Any]]:
 
 
 def _extract_prompt(plan_doc: Optional[Dict[str, Any]]) -> Optional[str]:
+    """wyciąga prompt użytkownika z dokumentu planu (jeśli jest)."""
     if not isinstance(plan_doc, dict):
         return None
     for key in ("user_prompt", "prompt"):
@@ -92,6 +110,7 @@ def _extract_prompt(plan_doc: Optional[Dict[str, Any]]) -> Optional[str]:
 
 
 def _extract_param_meta(plan_doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """wyciąga pole `meta` z dokumentu planu (jeśli jest dict-em)."""
     if not isinstance(plan_doc, dict):
         return None
     meta = plan_doc.get("meta")
@@ -99,6 +118,7 @@ def _extract_param_meta(plan_doc: Optional[Dict[str, Any]]) -> Optional[Dict[str
 
 
 def _param_run_id_from_dir_name(dir_name: str) -> Optional[str]:
+    """wydobywa run_id z nazwy folderu `<timestamp>_<run_id>` (best-effort)."""
     try:
         m = _PARAM_DIR_RE.match(dir_name or "")
         if not m:
@@ -110,6 +130,7 @@ def _param_run_id_from_dir_name(dir_name: str) -> Optional[str]:
 
 
 def _normalize_selected_samples(selected_samples: Dict[str, str]) -> Dict[str, str]:
+    """normalizuje mapę instrument -> sample_id (strip, filtr typów)."""
     out: Dict[str, str] = {}
     if not isinstance(selected_samples, dict):
         return out
@@ -126,10 +147,10 @@ def _normalize_selected_samples(selected_samples: Dict[str, str]) -> Dict[str, s
 def _infer_param_plan_from_selected_samples(
     selected_samples: Dict[str, str],
 ) -> tuple[Optional[str], Optional[Dict[str, Any]]]:
-    """Best-effort mapping render -> param plan when step_links.json is missing.
+    """best-effort mapowanie render -> param plan, gdy brakuje step_links.json.
 
-    We look for a parameter_plan.json whose meta.selected_samples exactly matches
-    the render request selected_samples.
+    szukamy `parameter_plan.json`, którego `meta.selected_samples` dokładnie pasuje
+    do `selected_samples` z requestu renderu.
     """
 
     target = _normalize_selected_samples(selected_samples)
@@ -141,7 +162,7 @@ def _infer_param_plan_from_selected_samples(
     except Exception:
         return None, None
 
-    # Prefer newest folders first.
+    # preferujemy najnowsze foldery jako pierwsze
     try:
         dirs = [p for p in PARAM_OUTPUT_DIR.iterdir() if p.is_dir() and (p / "parameter_plan.json").exists()]
         dirs.sort(key=lambda p: p.name, reverse=True)
@@ -163,10 +184,10 @@ def _infer_param_plan_from_selected_samples(
 
 
 def _resolve_selected_samples_info(selected_samples: Dict[str, str]) -> Dict[str, Dict[str, Any]]:
-    """Resolve selected sample IDs to user-friendly names using inventory.json.
+    """mapuje wybrane sample_id na czytelne info na podstawie inventory.json.
 
-    Inventory row ids are stable relative paths (file_rel). We return
-    a compact info object per instrument so the UI can display it.
+    `inventory.json` używa stabilnych id opartych o ścieżki względne.
+    zwracamy kompaktowy obiekt per instrument, żeby ui mogło to wyświetlić.
     """
 
     try:
@@ -220,7 +241,7 @@ def _resolve_selected_samples_info(selected_samples: Dict[str, str]) -> Dict[str
                 name = None
 
         if not name:
-            # Fallback: id looks like a rel path
+            # fallback: id wygląda jak ścieżka względna
             try:
                 name = Path(sample_id).name
             except Exception:
@@ -287,7 +308,7 @@ def list_projects_for_user(
             except Exception:
                 midi_meta = None
 
-            # Best-effort: enrich with prompt + param meta if we can resolve param_run_id
+            # best-effort: wzbogacamy o prompt + param meta, jeśli umiemy rozwiązać param_run_id
             param_run_id = None
             prompt = None
             param_meta = None
@@ -301,8 +322,8 @@ def list_projects_for_user(
                 prompt = None
                 param_meta = None
 
-            # Fallback: if links file is missing (or record wasn't created),
-            # try to infer the param plan by matching selected_samples.
+            # fallback: jeśli brakuje linków (albo rekordu), próbujemy wywnioskować plan
+            # przez dopasowanie `selected_samples`.
             plan_doc = None
             if prompt is None or param_meta is None or not param_run_id:
                 try:
@@ -320,7 +341,7 @@ def list_projects_for_user(
                 except Exception:
                     pass
 
-            # Determine selected_samples source: prefer param meta, fallback to render request
+            # źródło selected_samples: preferujemy param meta, a w fallbacku request renderu
             selected_samples: Dict[str, str] | None = None
             try:
                 if isinstance(param_meta, dict) and isinstance(param_meta.get("selected_samples"), dict):
@@ -354,7 +375,7 @@ def list_projects_for_user(
                 **rr.dict(),
             })
         except Exception:
-            # Jeśli pojedynczy projekt ma uszkodzony plik, pomijamy go
+            # jeśli pojedynczy projekt ma uszkodzony plik, pomijamy go
             continue
 
     return results

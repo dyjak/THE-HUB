@@ -6,6 +6,15 @@ from pathlib import Path
 import json
 import os
 
+# ten moduł wystawia endpointy fastapi dla kroku "param_generation".
+#
+# główna idea:
+# - frontend wysyła opis muzyki (prompt) i ewentualne wartości startowe
+# - backend buduje prompt systemowy + userowy i woła wybranego dostawcę llm
+# - wynik (surowy tekst + próba parsowania json) zapisujemy do katalogu output
+# - dodatkowo są endpointy pomocnicze do pracy z inventory (lista instrumentów i sample)
+#   oraz do aktualizacji już wygenerowanego planu (meta i selected_samples)
+
 from .schemas import ParameterPlanIn, ParameterPlanResult
 from urllib.parse import quote
 try:
@@ -37,6 +46,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class ProvidersOut(BaseModel):
+    # prosta odpowiedź: lista dostawców llm, które są dostępne w konfiguracji
     providers: list[dict]
 
 
@@ -48,11 +58,10 @@ def providers() -> ProvidersOut:
 
 @router.get("/models/{provider}")
 def models(provider: str):
-    """List available models for a given provider.
+    """zwraca listę modeli dla wskazanego dostawcy.
 
-    We defensively de-duplicate and sanitize the list so that the
-    frontend can safely use model names as React keys without
-    encountering duplicates (e.g. Anthropic defaults).
+    dodatkowo czyścimy i deduplikujemy listę, żeby frontend mógł bezpiecznie
+    używać nazw modeli jako kluczy (np. w react), bez problemów z duplikatami.
     """
     raw = _models_list(provider) or []
     seen: set[str] = set()
@@ -69,7 +78,7 @@ def models(provider: str):
 
 
 def _allowed_instruments_hint() -> str:
-    # Prefer inventory (canonical list, may include future instruments)
+    # preferujemy inventory (lista kanoniczna, może zawierać przyszłe instrumenty)
     try:
         if callable(_inventory_instruments):  # type: ignore
             inv_list = _inventory_instruments() or []
@@ -77,17 +86,20 @@ def _allowed_instruments_hint() -> str:
                 return ", ".join(inv_list)
     except Exception:
         pass
-    # Final static fallback (no inventory available). Keep it close to
-    # real inventory instrument names so that resolver + inventory stay aligned.
+    # ostateczny fallback (gdy inventory nie jest dostępne).
+    # staramy się trzymać nazw blisko tych z inventory, żeby późniejsze mapowanie działało sensownie.
     return "Piano, Pad, Violin, Lead, Bass, Electric Guitar, Acoustic Guitar, Kick, Snare, Hat, Clap"
 
 
 def _parameter_plan_system(plan: ParameterPlanIn) -> tuple[str, str]:
-    """Build system and user prompts for the *parameter planner*.
+    """buduje teksty promptów (system i user) dla modelu llm.
 
-    This agent is responsible ONLY for high-level musical parameters, not
-    for concrete MIDI note sequences. It should return a JSON object with
-    a single key `meta` that mirrors MidiPlanIn/MidiParameters-like fields.
+    co ma zrobić llm:
+    - przełożyć opis użytkownika na "parametry muzyczne" (tempo, tonacja, metrum, instrumenty itd.)
+    - zwrócić tylko json (bez markdown), zgodny ze schematem opisanym w system prompt
+
+    czego llm ma nie robić:
+    - nie ma generować konkretnych nut ani danych midi (to inny krok pipeline)
     """
     allowed = _allowed_instruments_hint()
     system = (
@@ -122,9 +134,8 @@ def _parameter_plan_system(plan: ParameterPlanIn) -> tuple[str, str]:
         "Plan a professional arrangement that is coherent and mix-ready. "
         "Never use generic 'FX' names. Focus on the provided allowed list."
     )
-    # For generative behavior we only send the high-level natural language
-    # description from the user. All concrete parameter values are chosen by
-    # the model within the schema constraints described in the system prompt.
+    # do llm wysyłamy głównie opis użytkownika (prompt).
+    # konkretne wartości parametrów llm dobiera sam, ale w ramach ograniczeń ze schematu.
     user = json.dumps({
         "task": "plan_music_parameters",
         "user_prompt": getattr(plan, "prompt", None),
@@ -133,14 +144,15 @@ def _parameter_plan_system(plan: ParameterPlanIn) -> tuple[str, str]:
 
 
 def _call_model(provider: str, model: Optional[str], system: str, user: str) -> str:
-    """Call underlying LLM provider and return raw text response.
+    """wykonuje wywołanie do wybranego dostawcy llm i zwraca surowy tekst odpowiedzi.
 
-    This wrapper tries to be defensive about provider SDK response shapes,
-    especially for Gemini where `.text` may not be populated.
+    ten wrapper jest "defensywny":
+    - różni dostawcy zwracają dane w różnych strukturach
+    - szczególnie dla gemini próbujemy kilku ścieżek odczytu tekstu, bo `.text` bywa puste
     """
     provider = (provider or "gemini").lower()
 
-    # OpenAI
+    # openai
     if provider == "openai":
         client = _get_openai_client()
         use_model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
@@ -154,7 +166,7 @@ def _call_model(provider: str, model: Optional[str], system: str, user: str) -> 
         )
         return (resp.choices[0].message.content or "").strip()
 
-    # Anthropic
+    # anthropic
     if provider == "anthropic":
         client = _get_anthropic_client()
         use_model = model or os.getenv("ANTHROPIC_MODEL", "claude-3-5-haiku-latest")
@@ -173,16 +185,16 @@ def _call_model(provider: str, model: Optional[str], system: str, user: str) -> 
                 out.append(t)
         return "\n".join(out).strip()
 
-    # Gemini / Google Generative AI
+    # gemini / google generative ai
     if provider == "gemini":
         g = _get_gemini_client()
         use_model = model or os.getenv("GOOGLE_MODEL", "gemini-3-pro-preview")
 
-        # Newer SDKs expect system instruction as list of parts; fall back to old style.
+        # nowsze sdk czasem oczekuje system_instruction w innym formacie; mamy fallback.
         try:
             m = g.GenerativeModel(use_model, system_instruction=system)
         except TypeError:
-            # In some SDK versions `system_instruction` expects list[dict]
+            # w części wersji sdk `system_instruction` oczekuje listy obiektów
             m = g.GenerativeModel(
                 use_model,
                 system_instruction=[{"role": "system", "parts": [system]}],
@@ -190,7 +202,7 @@ def _call_model(provider: str, model: Optional[str], system: str, user: str) -> 
 
         r = m.generate_content(user)
 
-        # Preferred path: candidates -> content.parts[].text
+        # preferowana ścieżka: candidates -> content.parts[].text
         try:
             text_parts = []
             candidates = getattr(r, "candidates", None) or []
@@ -204,16 +216,16 @@ def _call_model(provider: str, model: Optional[str], system: str, user: str) -> 
             if text_parts:
                 return "\n".join(text_parts).strip()
         except Exception:
-            # fall back to simpler shapes below
+            # jeśli się nie uda, próbujemy prostszych pól poniżej
             pass
 
-        # Fallback: r.text or stringified object
+        # fallback: r.text albo string z obiektu
         return (getattr(r, "text", None) or str(r) or "").strip()
 
-    # OpenRouter (OpenAI-compatible)
+    # openrouter (zgodne z api openai)
     if provider == "openrouter":
         client = _get_openrouter_client()
-        # Curated default chosen for structured output and free tier
+        # domyślny model dobrany pod ustrukturyzowane wyjście i darmowy tier
         use_model = model or os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")
         resp = client.chat.completions.create(
             model=use_model,
@@ -227,7 +239,7 @@ def _call_model(provider: str, model: Optional[str], system: str, user: str) -> 
     raise HTTPException(status_code=400, detail={"error": "unknown_provider", "message": f"Unknown provider: {provider}"})
 
 
-# Inventory proxy endpoints (keep param-generation self-contained for UI)
+# endpointy proxy do inventory (żeby ui mogło działać w obrębie jednego modułu api)
 @router.get("/available-instruments")
 def available_instruments_proxy():
     try:
@@ -240,6 +252,11 @@ def available_instruments_proxy():
 
 
 def _resolve_target_instruments(inv: dict, name: str) -> list[str]:
+    # mapuje nazwę instrumentu z ui/llm na nazwy instrumentów obecne w inventory.
+    #
+    # dlaczego to jest potrzebne:
+    # - użytkownik/llm może wpisać "drums" albo "hi-hat", a w inventory mamy np. "Hat"
+    # - chcemy obsłużyć podstawowe synonimy i proste dopasowania, bez ciężkiego fuzzy-matchingu
     names = list((inv.get("instruments") or {}).keys()) if isinstance(inv.get("instruments"), dict) else []
     if not names:
         return []
@@ -247,7 +264,7 @@ def _resolve_target_instruments(inv: dict, name: str) -> list[str]:
     q = (name or "").strip()
     ql = q.lower()
 
-    # synonyms / normalization -> singular instrument naming
+    # synonimy i normalizacja nazw -> sprowadzamy do nazw, które typowo istnieją w inventory
     syn = {
         # Core tonal families
         "pad": "Pad", "pads": "Pad",
@@ -269,10 +286,9 @@ def _resolve_target_instruments(inv: dict, name: str) -> list[str]:
         "strings": "Violin", "string section": "Violin",
         "orchestra": "Brass",  # rough fallback if only brass/strings are available
         "brass": "Brass",
-        # FX textures
-        # FX bucket – treat "fx" as whatever FX-like instruments exist in inventory.
-        # We DON'T hard-code Texture/Downfilter/etc. anymore; instead, we resolve
-        # dynamically below based on what's actually present.
+        # fx i tekstury
+        # "fx" traktujemy jako "cokolwiek fx-owego" obecnego w inventory.
+        # nie hardcodujemy już nazw typu texture/downfilter itd., tylko wykrywamy je dynamicznie.
         "fx": "fx",
         # 808 / low percussion
         "808": "808",
@@ -293,30 +309,26 @@ def _resolve_target_instruments(inv: dict, name: str) -> list[str]:
         "swell": "Swell", "swells": "Swell",
     }
 
-    # Exact
+    # dopasowanie 1:1
     if q in names:
         return [q]
-    # Case-insensitive exact
+    # dopasowanie bez rozróżniania wielkości liter
     if ql in lower_map:
         return [lower_map[ql]]
 
-    # Group aggregators
+    # agregatory grup (np. "drums" ma zwrócić kilka instrumentów perkusyjnych)
     if ql in ("drums", "drumkit"):
-        # Prefer whatever concrete drum parts are actually present in the
-        # current inventory, instead of relying on legacy plural forms.
+        # wybieramy tylko te części perkusji, które realnie istnieją w inventory
         drum_opts = ["Kick", "Snare", "Hat", "Clap"]
         return [x for x in drum_opts if x in names]
 
-    # Synonym resolution to a single instrument
+    # synonim -> instrument docelowy
     if ql in syn:
         tgt = syn[ql]
-        # Special dynamic handling for the generic "fx" bucket:
-        # map to all instruments that look like FX based on their
-        # own name or category in the inventory.
+        # specjalny przypadek dla "fx": zwracamy wszystkie instrumenty, które wyglądają na fx
         if tgt == "fx":
             fx_like = []
-            # Heuristic: prefer instruments whose name contains "fx",
-            # "Texture", "Impact", "Riser", "Subdrop", "Swell" etc.
+            # heurystyka: nazwa instrumentu zawiera słowa kluczowe związane z efektami
             fx_keywords = ["fx", "texture", "impact", "riser", "subdrop", "swell"]
             for n in names:
                 nl = n.lower()
@@ -324,19 +336,19 @@ def _resolve_target_instruments(inv: dict, name: str) -> list[str]:
                     fx_like.append(n)
             if fx_like:
                 return sorted(set(fx_like))
-        # Standard single-target synonym resolution
+        # standardowe dopasowanie do jednego instrumentu
         if tgt in names:
             return [tgt]
         if tgt.lower() in lower_map:
             return [lower_map[tgt.lower()]]
 
-    # Pluralization tweaks
+    # proste poprawki liczby mnogiej
     if ql.endswith("s") and ql[:-1] in lower_map:
         return [lower_map[ql[:-1]]]
     if (ql + "s") in lower_map:
         return [lower_map[ql + "s"]]
 
-    # Prefix/contains fuzzy (last resort)
+    # dopasowanie po prefiksie / zawieraniu (ostatnia deska ratunku)
     for n in names:
         if ql and (n.lower().startswith(ql) or ql in n.lower()):
             return [n]
@@ -352,7 +364,7 @@ def list_samples_proxy(instrument: str, offset: int = 0, limit: int = 100):
     except Exception as e:
         raise HTTPException(status_code=500, detail={"error": "inventory_error", "message": str(e)})
     ql = (instrument or "").strip().lower()
-    # Category aggregators based on sample rows for robustness
+    # agregatory kategorii na podstawie wierszy z samplami (bardziej odporne niż same nazwy)
     targets: list[str] = []
     if ql in ("drums", "drumkit"):
         try:
@@ -371,7 +383,7 @@ def list_samples_proxy(instrument: str, offset: int = 0, limit: int = 100):
     else:
         targets = _resolve_target_instruments(inv, instrument)
     if not targets:
-        # Include resolved targets info for easier debugging/UX on the client
+        # zwracamy też informację o rozpoznanych nazwach, żeby ułatwić debug i komunikaty w ui
         return {"instrument": instrument, "resolved": [], "count": 0, "items": [], "default": None}
     tset = set(targets)
     rows = [r for r in (inv.get("samples") or []) if r.get("instrument") in tset]
@@ -418,26 +430,27 @@ class ParameterPlanRequest(BaseModel):
     parameters: Dict[str, Any]
     provider: Optional[str] = None
     model: Optional[str] = None
-    # Opcjonalny identyfikator projektu, spójny między krokami param/midi/render.
+    # opcjonalny identyfikator projektu, spójny między krokami param/midi/render
     project_id: Optional[str] = None
 
 
 def _safe_parse_json(raw: str) -> tuple[Optional[Dict[str, Any]], list[str]]:
-    """Try to parse JSON from model output, with a couple of safety nets.
+    """próbuje sparsować json z odpowiedzi modelu i zwraca (doc, błędy).
 
-    - Strips potential ```json fences.
-    - On first failure, tries truncating to the last closing brace to
-      recover from outputs that were cut off mid-stream.
+    zabezpieczenia (żeby nie wywalać całego ux przy drobnych problemach):
+    - usuwa ewentualne płotki markdown (```json ... ```), jeśli model je dorzucił
+    - przy pierwszej porażce próbuje uciąć tekst do ostatniej klamry `}`
+        (częsty przypadek, gdy streaming uciął odpowiedź w połowie)
     """
     errors: list[str] = []
     text = (raw or "").strip()
 
-    # Strip markdown code fences if the model decided to add them anyway.
+    # usuwamy płotki markdown, jeśli model mimo zakazu je dodał
     if text.startswith("```"):
         try:
-            # find first closing ``` after the opening fence
+            # znajdujemy pierwsze zamknięcie ``` po otwarciu
             fence_end = text.index("```", 3) + 3
-            # take everything after that until the final fence (if present)
+            # bierzemy zawartość do końcowego ``` (jeśli jest)
             tail = text[fence_end:]
             if "```" in tail:
                 inner_end = tail.rindex("```")
@@ -458,8 +471,7 @@ def _safe_parse_json(raw: str) -> tuple[Optional[Dict[str, Any]], list[str]]:
         except Exception as e:  # noqa: PERF203
             last_error = e
             if attempt == 0:
-                # Try truncating to the last closing brace in case
-                # the response was cut off in the middle of streaming.
+                # próbujemy uciąć do ostatniej klamry, jeśli odpowiedź była ucięta w połowie
                 last_brace = text.rfind("}")
                 if last_brace > 0:
                     text = text[: last_brace + 1]
@@ -468,7 +480,7 @@ def _safe_parse_json(raw: str) -> tuple[Optional[Dict[str, Any]], list[str]]:
             errors.append(f"parse: {e}")
             break
 
-    # Failed to recover
+    # nie udało się odzyskać poprawnego json
     return None, errors
 
 
@@ -495,21 +507,20 @@ def generate_parameter_plan(body: ParameterPlanRequest):
         run.log("provider_call", "failed", {"error": str(e)})
         raise HTTPException(status_code=400, detail={"error": "provider_error", "message": str(e)})
 
-    # Parse JSON with a few guard rails so that slightly malformed outputs
-    # do not completely break the UX.
+    # parsowanie json z kilkoma "barierkami", żeby drobne błędy formatu nie psuły całego ux
     parsed, errors = _safe_parse_json(raw)
     if errors:
         run.log("parse", "json_error", {"error": errors[0]})
 
-    # Persist the original user prompt alongside model output.
-    # Keep it top-level (not inside meta) so later PATCH /meta does not overwrite it.
+    # dopisujemy oryginalny prompt użytkownika obok wyniku llm.
+    # trzymamy to na top-level (poza meta), żeby późniejszy patch /meta tego nie nadpisywał.
     if isinstance(parsed, dict):
         try:
             parsed.setdefault("user_prompt", getattr(plan, "prompt", "") or "")
         except Exception:
             parsed.setdefault("user_prompt", "")
 
-    # Persist outputs
+    # zapis wyników do plików (do debugowania i możliwości odtworzenia stanu)
     from datetime import datetime
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     run_dir = OUTPUT_DIR / f"{ts}_{run.run_id}"
@@ -530,7 +541,7 @@ def generate_parameter_plan(body: ParameterPlanRequest):
         except Exception as e:
             run.log("persist", "json_failed", {"error": str(e)})
 
-    # Build relative helpers
+    # helper do tworzenia ścieżek względnych względem katalogu output
     def _rel(p: Path | None) -> str | None:
         if p is None:
             return None
@@ -564,13 +575,13 @@ def get_debug(run_id: str):
 
 @router.get("/plan/{run_id}")
 def get_parameter_plan(run_id: str):
-    """Zwraca zapisany parameter_plan.json oraz podstawowe metadane dla danego run_id.
+    """zwraca zapisany parameter_plan.json oraz podstawowe metadane dla danego run_id.
 
-    Używane przez frontend do ponownego załadowania stanu kroku parametrów
-    (np. po powrocie z dalszych kroków).
+    to jest używane przez frontend do ponownego załadowania stanu kroku parametrów
+    (np. gdy użytkownik wróci z kolejnych kroków pipeline).
     """
 
-    # Znajdź katalog runu po wzorcu *_<run_id>/parameter_plan.json
+    # znajdujemy katalog runu po wzorcu *_<run_id>/parameter_plan.json
     run_dir: Path | None = None
     for p in OUTPUT_DIR.iterdir():
         if not p.is_dir():
@@ -584,19 +595,19 @@ def get_parameter_plan(run_id: str):
     json_path = run_dir / "parameter_plan.json"
     raw_path = run_dir / "parameter_plan_raw.txt"
 
-    # W niektórych przypadkach zapisany plik mógł zawierać śmieci na końcu
-    # (np. doklejone fragmenty ścieżek plików lub nadmiarowe klamry). Żeby
-    # nie blokować UX, próbujemy znaleźć najdłuższy poprawny prefiks JSON.
+    # w niektórych przypadkach zapisany plik mógł zawierać "śmieci" na końcu
+    # (np. doklejone fragmenty lub nadmiarowe klamry). żeby nie blokować ux,
+    # próbujemy znaleźć najdłuższy poprawny prefiks json.
     try:
         text = json_path.read_text(encoding="utf-8")
     except Exception as e:  # noqa: PERF203
         raise HTTPException(status_code=500, detail={"error": "plan_read_failed", "message": str(e)})
 
-    # 1) Szybka ścieżka: całość jest poprawnym JSON-em.
+    # 1) szybka ścieżka: całość jest poprawnym json-em
     try:
         doc = json.loads(text)
     except Exception:
-        # 2) Szukamy najdłuższego poprawnego prefiksu od pierwszej klamry.
+        # 2) szukamy najdłuższego poprawnego prefiksu od pierwszej klamry
         first = text.find("{")
         if first == -1:
             raise HTTPException(status_code=500, detail={"error": "plan_read_failed", "message": "no json object start found"})
@@ -634,11 +645,11 @@ def get_parameter_plan(run_id: str):
 
 
 class SelectedSamplesUpdate(BaseModel):
-    """Payload do aktualizacji wyboru sampli dla gotowego parameter planu.
+    """payload do aktualizacji wyboru sampli dla gotowego planu.
 
-    expected format:
+    oczekiwany format:
     {
-      "selected_samples": {"Piano": "piano_001", "Bass": "bass_013"}
+        "selected_samples": {"Piano": "piano_001", "Bass": "bass_013"}
     }
     """
 
@@ -647,15 +658,14 @@ class SelectedSamplesUpdate(BaseModel):
 
 @router.patch("/plan/{run_id}/selected-samples")
 def update_selected_samples(run_id: str, body: SelectedSamplesUpdate):
-    """Zapisz/aktualizuj pole meta.selected_samples w istniejącym parameter_plan.json.
+    """zapisuje/aktualizuje pole meta.selected_samples w istniejącym parameter_plan.json.
 
-    Ten endpoint nie dotyka logiki LLM – służy wyłącznie do tego, aby frontend
-    po wyborze sampli z inventory mógł powiązać instrumenty z konkrentymi
-    ID sampli (z inventory.json).
+    ten endpoint nie dotyka logiki llm.
+    służy wyłącznie do tego, aby frontend (po wyborze sampli z inventory)
+    mógł powiązać instrumenty z konkretnymi id sampli (z inventory.json).
     """
 
-    # Odnajdź katalog runu po saved_json_rel w istniejących plikach OUTPUT_DIR
-    # (prosty wariant: pattern *_<run_id>/parameter_plan.json)
+    # odnajdujemy katalog runu w OUTPUT_DIR (wariant prosty: pattern *_<run_id>/parameter_plan.json)
     try:
         run_dir: Path | None = None
         for p in OUTPUT_DIR.iterdir():
@@ -667,9 +677,8 @@ def update_selected_samples(run_id: str, body: SelectedSamplesUpdate):
         if run_dir is None:
             raise HTTPException(status_code=404, detail={"error": "plan_not_found", "message": "parameter_plan.json not found for run_id"})
         json_path = run_dir / "parameter_plan.json"
-        # Używamy tej samej strategii "najdłuższego poprawnego prefiksu JSON"
-        # co w get_parameter_plan, żeby poradzić sobie z ewentualnymi śmieciami
-        # na końcu pliku.
+        # używamy tej samej strategii "najdłuższego poprawnego prefiksu json"
+        # co w get_parameter_plan, żeby poradzić sobie z ewentualnymi śmieciami na końcu pliku
         try:
             text = json_path.read_text(encoding="utf-8")
         except Exception as e:  # noqa: PERF203
@@ -705,7 +714,7 @@ def update_selected_samples(run_id: str, body: SelectedSamplesUpdate):
             meta = {}
             doc["meta"] = meta
 
-        # Prosta walidacja: tylko string->string, bez pustych wartości
+        # prosta walidacja: tylko string->string, bez pustych wartości
         cleaned: Dict[str, str] = {}
         for k, v in (body.selected_samples or {}).items():
             if not isinstance(k, str) or not isinstance(v, str):
@@ -731,11 +740,11 @@ def update_selected_samples(run_id: str, body: SelectedSamplesUpdate):
 
 
 class MetaUpdate(BaseModel):
-    """Payload do pełnej aktualizacji pola meta w parameter_plan.json.
+    """payload do pełnej aktualizacji pola meta w parameter_plan.json.
 
-    Oczekujemy struktury zgodnej z ParamPlan/ParamPlanMeta z frontendu, np.:
+    oczekujemy struktury zgodnej z ParamPlan/ParamPlanMeta z frontendu, np.:
     {
-      "meta": { ... pełen obiekt ParamPlan ... }
+        "meta": { ... pełen obiekt ParamPlan ... }
     }
     """
 
@@ -744,11 +753,11 @@ class MetaUpdate(BaseModel):
 
 @router.patch("/plan/{run_id}/meta")
 def update_meta(run_id: str, body: MetaUpdate):
-    """Nadpisz całe pole doc["meta"] w istniejącym parameter_plan.json.
+    """nadpisuje całe pole doc["meta"] w istniejącym parameter_plan.json.
 
-    Używane przez frontend po każdej istotnej zmianie w Panelu parametrów,
-    tak aby backendowy parameter_plan.json pozostał źródłem prawdy dla
-    późniejszych odczytów (np. przy powrocie po samym run_id).
+    używane przez frontend po istotnych zmianach w panelu parametrów.
+    celem jest to, aby backendowy parameter_plan.json pozostał "źródłem prawdy"
+    dla późniejszych odczytów (np. przy powrocie tylko po run_id).
     """
 
     try:
@@ -769,8 +778,8 @@ def update_meta(run_id: str, body: MetaUpdate):
         except Exception as e:  # noqa: PERF203
             raise HTTPException(status_code=500, detail={"error": "plan_read_failed", "message": str(e)})
 
-        # Użyjemy tej samej strategii prefiksowej, co w get_parameter_plan,
-        # żeby poradzić sobie z ewentualnymi śmieciami na końcu pliku.
+        # używamy tej samej strategii prefiksowej co w get_parameter_plan,
+        # żeby poradzić sobie z ewentualnymi śmieciami na końcu pliku
         try:
             doc = json.loads(text)
         except Exception:
@@ -797,8 +806,8 @@ def update_meta(run_id: str, body: MetaUpdate):
         if not isinstance(doc, dict):
             doc = {}
 
-        # Podmień całe meta obiektem z frontendu, ale zachowaj ewentualne
-        # istniejące selected_samples jeśli frontend ich nie nadpisuje.
+        # podmieniamy całe meta obiektem z frontendu, ale zachowujemy ewentualne
+        # istniejące selected_samples, jeśli frontend ich nie nadpisuje
         incoming_meta = dict(body.meta or {})
         existing_meta = doc.get("meta") if isinstance(doc.get("meta"), dict) else {}
         if isinstance(existing_meta, dict) and "selected_samples" in existing_meta and "selected_samples" not in incoming_meta:

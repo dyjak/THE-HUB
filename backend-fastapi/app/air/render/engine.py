@@ -7,6 +7,18 @@ import wave
 import struct
 import time
 
+# ten moduł zawiera docelowy silnik renderu audio.
+#
+# w skrócie, co robi render:
+# - bierze midi (eventy nut dla instrumentów) oraz bibliotekę sampli z inventory
+# - dla każdego instrumentu buduje bufor audio (wkleja sample w odpowiednich miejscach osi czasu)
+# - opcjonalnie pitchuje sample dla instrumentów melodycznych (dla perkusji zwykle nie)
+# - nakłada głośność/pan i zapisuje stem-y (wav) oraz mix (wav)
+#
+# uwaga o jakości:
+# - to jest prosty renderer oparty o wklejanie sampli i resampling
+# - mechanizmy są "best-effort" (brak sampla lub błąd odczytu nie powinien wysadzić całej aplikacji)
+
 from .schemas import RenderRequest, RenderResponse, RenderedStem, TrackSettings
 from ..inventory.local_library import discover_samples, find_sample_by_id, LocalSample
 
@@ -19,8 +31,8 @@ log = logging.getLogger("air.render")
 # if not logging.getLogger().handlers:
 #     logging.basicConfig(level=logging.DEBUG)
 
-# Base reference frequency for pitch-shifting (assume C4 for raw samples),
-# kept in sync conceptually with the experimental audio_renderer.
+# bazowa częstotliwość odniesienia do pitch-shiftu (zakładamy c4 dla "surowych" sampli).
+# koncepcyjnie ma to być spójne z eksperymentalnym rendererem audio.
 _BASE_FREQ = 261.63 # C4
 #_BASE_FREQ = 523.25  # C5
 
@@ -30,9 +42,9 @@ def _note_freq(midi_note: int) -> float:
 
 
 def _freq_to_midi(freq: float) -> Optional[int]:
-    """Approximate MIDI note number from frequency.
+    """przybliża numer nuty midi na podstawie częstotliwości.
 
-    Returns None for non-positive frequencies.
+    zwraca `None` dla częstotliwości niedodatnich.
     """
 
     if freq <= 0.0:
@@ -45,9 +57,10 @@ def _db_to_gain(db: float) -> float:
 
 
 def _pan_gains(pan: float) -> Tuple[float, float]:
-    """Simple constant-power panning.
+    """prosty panning typu constant-power.
 
-    pan=-1 -> full left, pan=1 -> full right.
+    - pan=-1 -> pełny lewy
+    - pan=1 -> pełny prawy
     """
 
     pan = max(-1.0, min(1.0, pan))
@@ -58,10 +71,11 @@ def _pan_gains(pan: float) -> Tuple[float, float]:
 
 
 def _clamp_note_near_base(base_midi: int, target_midi: int, max_semitones: int) -> int:
-    """Clamp target_midi to stay within a window around base_midi.
+    """ogranicza target_midi do okna w pobliżu base_midi.
 
-    This keeps a given sample playing roughly in its natural register
-    while preserving the direction and relative size of MIDI intervals.
+    sens:
+    - dzięki temu sample gra mniej więcej w swoim naturalnym rejestrze
+    - a jednocześnie zachowujemy kierunek i względną wielkość interwałów z midi
     """
 
     if max_semitones <= 0:
@@ -76,10 +90,12 @@ def _clamp_note_near_base(base_midi: int, target_midi: int, max_semitones: int) 
 
 
 def _read_wav_mono(path: Path) -> List[float] | None:
-    """Read mono PCM samples from WAV.
+    """czyta próbki mono z pliku wav.
 
-    We first try scipy for broader codec support; if unavailable or failing,
-    fall back to the built-in wave module with 16-bit PCM only.
+    strategia:
+    - najpierw próbujemy scipy (większa kompatybilność z formatami)
+    - jeśli nie ma scipy albo odczyt się nie uda, używamy wbudowanego `wave`
+      (ale wtedy wspieramy tylko 16-bit pcm)
     """
 
     try:
@@ -115,12 +131,11 @@ def _read_wav_mono(path: Path) -> List[float] | None:
 
 
 def _pitch_shift_resample(samples: List[float], base_freq: float, target_freq: float, max_semitones: float | None = None) -> List[float]:
-    """Simple resampling pitch-shift using numpy if available.
+    """prosty pitch-shift przez resampling (używa numpy, jeśli jest dostępne).
 
-    If numpy is missing or base_freq invalid, returns the original samples.
-
-    Optional max_semitones clamps the pitch shift range around base_freq,
-    which helps avoid extremely unnatural transpositions (e.g. many octaves).
+    zasady:
+    - jeśli numpy nie jest dostępne albo base_freq jest nieprawidłowe, zwracamy oryginalne próbki
+    - opcjonalny max_semitones ogranicza zakres transpozycji, żeby uniknąć skrajnie nienaturalnych przesunięć
     """
 
     try:
@@ -131,7 +146,7 @@ def _pitch_shift_resample(samples: List[float], base_freq: float, target_freq: f
     if base_freq <= 0.0:
         return samples
 
-    # Clamp pitch shift in semitones if requested.
+    # opcjonalne ograniczenie pitch-shiftu w półtonach
     if max_semitones is not None and max_semitones > 0.0:
         try:
             # ratio = target / base, semitones = 12 * log2(ratio)
@@ -182,7 +197,7 @@ def _mix_tracks(tracks: List[List[float]]) -> List[float]:
     for t in tracks:
         for i, v in enumerate(t):
             out[i] += v
-    # simple normalization to avoid clipping
+    # prosta normalizacja, żeby zmniejszyć ryzyko przesteru (clippingu)
     peak = max((abs(v) for v in out), default=1.0)
     if peak > 0:
         scale = 0.9 / peak
@@ -197,7 +212,7 @@ def recommend_sample_for_instrument(
 ) -> LocalSample | None:
     """Zaproponuj LocalSample na podstawie MIDI + inventory.
 
-    Strategia:
+        strategia:
     - zbierz wszystkie nuty MIDI dla danego instrumentu,
     - policz medianę wysokości (median_note),
     - wybierz sample z inventory, którego root_midi jest możliwie najbliżej
@@ -212,7 +227,7 @@ def recommend_sample_for_instrument(
     if not rows or not isinstance(midi_layers, dict):
         return None
 
-    # Zbieramy wszystkie nuty z warstwy MIDI dla danego instrumentu.
+    # zbieramy wszystkie nuty z warstwy midi dla danego instrumentu
     notes: List[int] = []
     layer = midi_layers.get(instrument) or []
     for bar in layer:
@@ -261,24 +276,25 @@ def _resolve_sample_for_instrument(
     selected_samples: Dict[str, str] | None,
     lib: Dict[str, List[LocalSample]],
 ) -> LocalSample | None:
-    """Find the LocalSample for an instrument using selected_samples + inventory.
+    """odnajduje local sample dla instrumentu na podstawie selected_samples + inventory.
 
-    Tu NIE stosujemy automatycznej heurystyki – renderer respektuje tylko to,
-    co przyszło z frontendu (selected_samples), a jeśli brak wyboru, spada
-    do prostego fallbacku: pierwsza dostępna próbka.
-    Inteligentne dobieranie sampli dzieje się wcześniej, na żądanie UI
-    (np. przez osobny endpoint, który wywołuje recommend_sample_for_instrument
-    i zwraca gotowe sample_id do zapisania w param JSON).
+    ważne założenie:
+    - tutaj nie stosujemy automatycznej heurystyki wyboru sampla
+    - renderer respektuje tylko to, co przyszło z frontendu (selected_samples)
+    - jeśli brak wyboru, stosujemy prosty fallback: pierwsza dostępna próbka
+
+    inteligentne dobieranie sampli dzieje się wcześniej, na żądanie ui
+    (np. przez endpoint, który używa recommend_sample_for_instrument).
     """
 
-    # 1) Frontend override – jeśli użytkownik coś wybrał, szanujemy ten wybór.
+    # 1) override z frontendu: jeśli użytkownik coś wybrał, szanujemy ten wybór
     sample_id = (selected_samples or {}).get(instrument)
     if sample_id:
         s = find_sample_by_id(lib, instrument, sample_id)
         if s and s.file.exists():
             return s
 
-    # 2) Fallback: pierwsza dostępna próbka (obecne zachowanie).
+    # 2) fallback: pierwsza dostępna próbka (obecne zachowanie)
     for s in lib.get(instrument, []) or []:
         if s.file.exists():
             return s
@@ -286,14 +302,15 @@ def _resolve_sample_for_instrument(
 
 
 def render_audio(req: RenderRequest) -> RenderResponse:
-    """Render audio mix and per-instrument stems based on MIDI + inventory.
+    """renderuje audio (mix oraz stem-y per instrument) na podstawie midi + inventory.
 
-    For each enabled track (instrument) we:
-    - resolve a sample WAV via inventory + selected_samples,
-    - build a mono buffer from MIDI layers by pasting that sample on the timeline,
-    - apply a simple envelope per event,
-    - then apply volume + pan and write a stereo stem.
-    Finally we normalize and mix all stems into a stereo master.
+    kroki dla każdego włączonego instrumentu:
+    - znajdujemy wav sampla (inventory + selected_samples)
+    - budujemy bufor mono, wklejając sample w osi czasu zgodnie z eventami midi
+    - nakładamy prosty envelope (atak/wybrzmiewanie)
+    - stosujemy głośność i pan, a następnie zapisujemy stem jako stereo wav
+
+    na końcu mieszamy wszystkie stem-y do mastera (mix) i robimy prostą normalizację.
     """
 
     log.info(
@@ -304,18 +321,17 @@ def render_audio(req: RenderRequest) -> RenderResponse:
     )
 
     sr = 44100
-    # Użytkownik może delikatnie dostroić długość fade-outu pomiędzy
-    # kolejnymi nutami tego samego instrumentu. Zakres w sekundach,
-    # defensywnie ograniczony do [0.0, 0.1].
+    # użytkownik może delikatnie dostroić długość fade-outu pomiędzy kolejnymi nutami.
+    # zakres w sekundach, defensywnie ograniczony do [0.0, 0.1].
     try:
         fadeout_sec = float(getattr(req, "fadeout_seconds", 0.01) or 0.0)
     except Exception:
         fadeout_sec = 0.01
     fadeout_sec = max(0.0, min(0.1, fadeout_sec))
 
-    # Determine global song length (bars * 8 steps), inferred from MIDI if possible.
-    # Jeśli dostępne jest per-instrument MIDI, bierzemy meta z globalnego MIDI,
-    # który jest spójny dla wszystkich instrumentów (tempo, bars, length_seconds).
+    # określamy globalną długość utworu (bars * 8 kroków), najlepiej wnioskując to z midi.
+    # jeśli dostępne jest midi_per_instrument, nadal korzystamy z meta z globalnego midi,
+    # bo jest spójne dla wszystkich instrumentów (tempo, bars, length_seconds).
     meta = req.midi.get("meta") or {}
     bars = None
     try:
@@ -347,7 +363,7 @@ def render_audio(req: RenderRequest) -> RenderResponse:
             bars = 1
     total_steps = max(1, int(bars) * 8)
 
-    # Derive duration from meta.length_seconds if present, else from bars (2s per bar fallback).
+    # czas trwania: preferujemy meta.length_seconds, a jak brak to fallback z bars (2 s na takt)
     duration_sec = None
     try:
         if isinstance(meta, dict) and "length_seconds" in meta:
@@ -364,7 +380,7 @@ def render_audio(req: RenderRequest) -> RenderResponse:
     run_folder.mkdir(parents=True, exist_ok=True)
     timestamp = int(time.time())
 
-    # Load inventory once
+    # ładujemy inventory raz, na początku renderu
     lib = discover_samples(deep=False)
     log.info("[render] inventory loaded instruments=%s", sorted(lib.keys()))
 
@@ -373,8 +389,8 @@ def render_audio(req: RenderRequest) -> RenderResponse:
     all_stems_r: List[List[float]] = []
     missing_or_failed: List[str] = []
 
-    # Basic set of percussive instrument names for which we skip pitch-shifting
-    # and always play the raw sample (as in the experimental renderer).
+    # podstawowy zestaw nazw instrumentów perkusyjnych.
+    # dla nich pomijamy pitch-shifting i zawsze gramy surowy sample.
     perc_set = {
         "kick",
         "snare",
@@ -391,10 +407,9 @@ def render_audio(req: RenderRequest) -> RenderResponse:
         "hat",
     }
 
-    # Mapowanie warstw per instrument:
-    # - jeśli dostępne jest midi_per_instrument, bierzemy warstwę z odpowiedniego
-    #   instancji MIDI,
-    # - w przeciwnym razie używamy dotychczasowego rozwiązania: globalne midi.layers.
+    # mapowanie warstw per instrument:
+    # - jeśli dostępne jest midi_per_instrument, bierzemy warstwę z odpowiedniej instancji midi
+    # - w przeciwnym razie używamy dotychczasowego rozwiązania: globalne midi.layers
     global_layers = req.midi.get("layers") or {}
     if not isinstance(global_layers, dict):
         global_layers = {}
@@ -431,15 +446,14 @@ def render_audio(req: RenderRequest) -> RenderResponse:
             # Fail-silent: fall back to raw sample if anything goes wrong.
             pass
 
-        # Build mono buffer for this instrument
+        # budujemy bufor mono dla instrumentu
         buf = [0.0] * frames
-        # Prosta logika "voice stealing": kolejne zdarzenie tego samego
-        # instrumentu może wejść w dowolnym momencie (zgodnie z MIDI), ale
-        # ogon poprzedniego jest szybko wygaszany od chwili pojawienia się
-        # nowego eventu (krótki fade-out zamiast twardego ucięcia).
+        # prosta logika "voice stealing": kolejne zdarzenie tego samego instrumentu może wejść
+        # w dowolnym momencie (zgodnie z midi), ale ogon poprzedniego jest szybko wygaszany
+        # od chwili pojawienia się nowego eventu (krótki fade-out zamiast twardego ucięcia).
         last_event_end = 0
-        # Wybór warstwy MIDI: preferujemy midi_per_instrument, fallback na globalne layers.
-        # Uwaga: dla perkusji per-instrument MIDI może mieć puste `layers` i używać tylko `pattern`.
+        # wybór warstwy midi: preferujemy midi_per_instrument, fallback na globalne layers.
+        # uwaga: dla perkusji per-instrument midi może mieć puste `layers` i używać tylko `pattern`.
         if req.midi_per_instrument and instrument in req.midi_per_instrument:
             inst_midi = req.midi_per_instrument[instrument] or {}
             layer = inst_midi.get("pattern")
@@ -448,10 +462,10 @@ def render_audio(req: RenderRequest) -> RenderResponse:
         else:
             layer = global_layers.get(instrument, [])
 
-        # Historycznie MIDI z generatora miało pierwszy takt ustawiony na 1,
+        # historycznie midi z generatora miało pierwszy takt ustawiony na 1,
         # co powodowało kilka sekund ciszy na początku renderu.
-        # Zamiast przesuwać cały pattern do lewej (min_bar), odejmujemy
-        # tylko "jednostkowe" przesunięcie, jeśli pierwszy bar to dokładnie 1.
+        # zamiast przesuwać cały pattern do lewej (min_bar), odejmujemy tylko
+        # "jednostkowe" przesunięcie, jeśli pierwszy bar to dokładnie 1.
         min_bar = 0
         try:
             if layer:
@@ -468,9 +482,9 @@ def render_audio(req: RenderRequest) -> RenderResponse:
             duration_sec,
         )
 
-        # Determine per-sample base frequency for melodic instruments.
-        # If inventory provided a numeric root_midi from FFT analysis,
-        # use it; otherwise fall back to global _BASE_FREQ.
+        # wyznaczamy bazową częstotliwość sampla dla instrumentów melodycznych.
+        # jeśli inventory podało root_midi (np. z analizy fft), używamy go;
+        # w przeciwnym razie fallbackujemy do _BASE_FREQ.
         base_freq = _BASE_FREQ
         base_midi: Optional[int] = None
         try:
@@ -482,8 +496,7 @@ def render_audio(req: RenderRequest) -> RenderResponse:
             base_freq = _BASE_FREQ
             base_midi = None
         if base_midi is None:
-            # Approximate MIDI from fallback base frequency so that
-            # melodic mapping still behaves reasonably.
+            # przybliżamy midi z fallbackowej częstotliwości, żeby mapowanie melodii miało sens
             base_midi = _freq_to_midi(base_freq) or 60
         for bar in (layer or []):
             try:
@@ -498,24 +511,24 @@ def render_audio(req: RenderRequest) -> RenderResponse:
                 if start >= frames:
                     continue
 
-                # For percussive instruments or missing/invalid note, skip pitch shifting.
+                # dla perkusji lub brakującej/niepoprawnej nuty pomijamy pitch shifting
                 pitched = base_wave
                 try:
                     key = str(instrument).strip().lower()
                     if isinstance(note, int) and key not in perc_set:
                         #
-                        # Uniwersalny mechanizm pitchowania melodii:
+                        # uniwersalny mechanizm pitchowania melodii:
                         #
-                        # 1) Nutę docelową bierzemy wprost z MIDI (target_midi),
+                        # 1) nutę docelową bierzemy wprost z midi (target_midi),
                         #    dzięki czemu zachowujemy matematycznie poprawną tonację
                         #    w całym utworze.
-                        # 2) Nie "przyciskamy" target_midi do sztywnego okna
+                        # 2) nie "przyciskamy" target_midi do sztywnego okna
                         #    wokół base_midi (brak twardego clampa na samą nutę),
                         #    żeby uniknąć sytuacji w której wiele odległych nut
                         #    brzmi jak jedna i ta sama wysokość.
-                        # 3) Zamiast tego liczymy różnicę w półtonach względem
+                        # 3) zamiast tego liczymy różnicę w półtonach względem
                         #    naturalnego rejestru sampla (base_midi) i tę różnicę
-                        #    miękko kompresujemy funkcją tanh. Małe interwały
+                        #    miękko kompresujemy funkcją tanh. małe interwały
                         #    (typowo używane w muzyce) przechodzą praktycznie
                         #    bez zmian, natomiast bardzo duże skoki są coraz
                         #    silniej "spłaszczane" do rozsądnego zakresu.
@@ -524,19 +537,19 @@ def render_audio(req: RenderRequest) -> RenderResponse:
                         #    x        = raw_semi / max_semi
                         #    compressed = tanh(x) * max_semi
                         #
-                        #    Dla |raw_semi| << max_semi => tanh(x) ~ x,
+                        #    dla |raw_semi| << max_semi => tanh(x) ~ x,
                         #    więc compressed ~ raw_semi (dokładne pitchowanie
-                        #    jak w MIDI, zachowane interwały).
-                        #    Dla bardzo dużych |raw_semi| => tanh(x) -> ±1,
+                        #    jak w midi, zachowane interwały).
+                        #    dla bardzo dużych |raw_semi| => tanh(x) -> ±1,
                         #    więc compressed zbliża się gładko do ±max_semi,
                         #    dzięki czemu sample nigdy nie odlatuje o wiele
                         #    oktaw od swojego naturalnego rejestru, ale jednocześnie
                         #    każda różna nuta dostaje inną (choć coraz mniej różną)
                         #    wysokość.
                         #
-                        # 4) Ograniczamy w ten sposób "siłę" pitch-shiftu (ratio)
-                        #    zamiast brutalnie korygować nutę. To daje efekt,
-                        #    który jest jednocześnie muzycznie spójny, zgodny z MIDI
+                        # 4) ograniczamy w ten sposób "siłę" pitch-shiftu (ratio)
+                        #    zamiast brutalnie korygować nutę. to daje efekt,
+                        #    który jest jednocześnie muzycznie spójny, zgodny z midi
                         #    i odporny na ekstremalne przypadki (wysokie / niskie
                         #    dźwięki, nietypowe base_freq w samplach).
 
@@ -545,18 +558,18 @@ def render_audio(req: RenderRequest) -> RenderResponse:
                         # interwał względem naturalnego rejestru sampla
                         raw_semi = target_midi - base_midi
 
-                        # Maksymalny "efektywny" zakres, w którym pitch-shift
-                        # może się jeszcze rozciągać liniowo. Poza nim
+                        # maksymalny "efektywny" zakres, w którym pitch-shift
+                        # może się jeszcze rozciągać liniowo. poza nim
                         # interwał jest coraz mocniej kompresowany.
                         #
-                        # Ustawiamy ten zakres per-instrument, żeby:
+                        # ustawiamy ten zakres per-instrument, żeby:
                         # - dla basów ograniczyć transpozycję (brzmienie szybko
-                        #   robi się nienaturalne w skrajnych rejestrach),
+                        #   robi się nienaturalne w skrajnych rejestrach)
                         # - dla instrumentów harmonicznych / leadowych (piano,
                         #   pads, strings, sax, itp.) pozwolić na większy
                         #   zakres pracy, tak aby wyższe nuty faktycznie
                         #   różniły się wysokością, a nie były "przyklejone"
-                        #   do sufitu tanh.
+                        #   do sufitu tanh
                         instrument_max_semi = {
                             "bass": 7,
                             "bass guitar": 7,
@@ -575,7 +588,7 @@ def render_audio(req: RenderRequest) -> RenderResponse:
                         else:
                             compressed = 0.0
 
-                        # Z powrotem do współczynnika częstotliwości (ratio).
+                        # z powrotem do współczynnika częstotliwości (ratio)
                         ratio = 2.0 ** (compressed / 12.0)
                         target_freq_eff = base_freq * ratio
 
@@ -605,13 +618,12 @@ def render_audio(req: RenderRequest) -> RenderResponse:
                 if nl <= 0:
                     continue
 
-                # Jeśli poprzednie zdarzenie jeszcze trwa w momencie startu
-                # nowego, wykonujemy krótki fade-out jego ogona w przedziale
-                # [start, last_event_end), aby uniknąć kliku i jednocześnie
-                # nie dopuścić do długiego nakładania się ogonów.
+                # jeśli poprzednie zdarzenie jeszcze trwa w momencie startu nowego,
+                # wykonujemy krótki fade-out jego ogona w przedziale [start, last_event_end),
+                # aby uniknąć kliku i jednocześnie nie dopuścić do długiego nakładania się ogonów.
                 if last_event_end > start:
-                    # długość wygaszania ogona poprzedniej nuty według
-                    # parametru fadeout_seconds (domyślnie ok. 10 ms)
+                    # długość wygaszania ogona poprzedniej nuty według parametru fadeout_seconds
+                    # (domyślnie ok. 10 ms)
                     fade_len = min(int(fadeout_sec * sr), last_event_end - start)
                     if fade_len <= 0:
                         for idx in range(start, min(last_event_end, frames)):
@@ -626,11 +638,11 @@ def render_audio(req: RenderRequest) -> RenderResponse:
                             t = i / float(max(fade_len - 1, 1))
                             buf[idx] *= max(0.0, 1.0 - t)
                         # 2) pozostałą część ogona (jeśli jest dłuższa niż fade)
-                        # czyścimy do zera, żeby nie ciągnęła się za długo.
+                        # czyścimy do zera, żeby nie ciągnęła się za długo
                         for idx in range(end_fade, min(last_event_end, frames)):
                             buf[idx] = 0.0
 
-                # simple attack/release envelope dla nowego zdarzenia
+                    # prosty envelope atak/wybrzmiewanie dla nowego zdarzenia
                 a = max(1, int(0.01 * sr))
                 r = max(1, int(0.1 * sr))
                 for i in range(nl):
@@ -641,11 +653,11 @@ def render_audio(req: RenderRequest) -> RenderResponse:
                         amp = max(0.0, (nl - i) / r)
                     buf[start + i] += pitched[i] * vel * amp
 
-                # Zapisz koniec bieżącego zdarzenia (do ewentualnego duckingu
-                # przy następnym evencie tego instrumentu).
+                # zapisujemy koniec bieżącego zdarzenia (do ewentualnego duckingu
+                # przy następnym evencie tego instrumentu)
                 last_event_end = max(last_event_end, start + nl)
 
-        # Apply volume + pan and write stereo stem
+            # stosujemy głośność + pan i zapisujemy stem stereo
         gain = _db_to_gain(track.volume_db)
         pan_l, pan_r = _pan_gains(track.pan)
         stem_l: List[float] = []
@@ -665,7 +677,7 @@ def render_audio(req: RenderRequest) -> RenderResponse:
         all_stems_l.append(stem_l)
         all_stems_r.append(stem_r)
 
-    # If nothing rendered at all, fail loudly so frontend can show a clear error.
+    # jeśli nic się nie wyrenderowało, przerywamy z czytelnym błędem dla ui
     if not stems:
         details = {
             "error": "render_no_instruments",
@@ -675,12 +687,12 @@ def render_audio(req: RenderRequest) -> RenderResponse:
             details["missing_or_failed"] = sorted(set(missing_or_failed))
         raise RuntimeError(str(details))
 
-    # Build mix from all stereo stems
+    # budujemy mix z wszystkich stemów stereo
     if all_stems_l and all_stems_r:
         mix_l = _mix_tracks(all_stems_l)
         mix_r = _mix_tracks(all_stems_r)
     else:
-        # no enabled/usable tracks -> silence
+        # brak używalnych ścieżek -> cisza
         mix_l = [0.0] * frames
         mix_r = [0.0] * frames
 

@@ -5,6 +5,14 @@ from pathlib import Path
 import json
 import os
 
+# ten moduł wystawia endpointy fastapi dla kroku midi_generation.
+#
+# rola tego kroku w pipeline:
+# - bierze `meta` z param_generation (tempo, tonacja, instrumenty itd.)
+# - woła llm, które ma zwrócić json z danymi midi (`pattern` i/lub `layers`)
+# - zapisuje wynik na dysku przez `engine.generate_midi_and_artifacts`
+# - umożliwia ponowne wczytanie runu z dysku przez endpoint /run/{run_id}
+
 from .schemas import MidiGenerationIn, MidiGenerationOut, MidiArtifactPaths
 from .engine import generate_midi_and_artifacts, _safe_parse_midi_json
 from app.air.providers.client import (
@@ -18,8 +26,8 @@ from app.auth.dependencies import get_current_user
 router = APIRouter(
     prefix="/air/midi-generation",
     tags=["air:midi-generation"],
-    # Auth is enforced at the frontend route (/air/*).
-    # This module's endpoints stay public for now.
+    # uwaga: autoryzacja jest obecnie egzekwowana po stronie frontendu (/air/*).
+    # endpointy w tym module są publiczne (na ten moment).
 )
 
 BASE_OUTPUT_DIR = Path(__file__).parent / "output"
@@ -27,9 +35,13 @@ BASE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _call_composer(provider: str, model: Optional[str], meta: Dict[str, Any]) -> tuple[str, str, str]:
-    """Wywołuje model AI, który ma zwrócić JSON z pattern/layers/meta.
+    """wywołuje model llm, który ma zwrócić json z danymi midi.
 
-    Wejście do modelu opieramy na meta z param_generation.
+    wejście do modelu opieramy na `meta` z param_generation.
+    funkcja zwraca:
+    - system: prompt systemowy (instrukcje + schemat json)
+    - user: prompt użytkownika (payload json z meta)
+    - content: surową odpowiedź tekstową modelu (powinna być json-em)
     """
 
     provider = (provider or "gemini").lower()
@@ -73,7 +85,7 @@ def _call_composer(provider: str, model: Optional[str], meta: Dict[str, Any]) ->
 
     user = json.dumps(user_payload, separators=(",", ":"), ensure_ascii=False)
 
-    # OpenAI
+    # openai
     if provider == "openai":
         client = _get_openai_client()
         use_model = model or os.getenv("OPENAI_MIDI_MODEL", os.getenv("OPENAI_MODEL", "gpt-4o-mini"))
@@ -85,7 +97,7 @@ def _call_composer(provider: str, model: Optional[str], meta: Dict[str, Any]) ->
         content = (resp.choices[0].message.content or "").strip()
         return system, user, content
 
-    # Anthropic
+    # anthropic
     if provider == "anthropic":
         client = _get_anthropic_client()
         use_model = model or os.getenv("ANTHROPIC_MIDI_MODEL", os.getenv("ANTHROPIC_MODEL", "claude-3-5-haiku-latest"))
@@ -105,7 +117,7 @@ def _call_composer(provider: str, model: Optional[str], meta: Dict[str, Any]) ->
         content = "\n".join(out).strip()
         return system, user, content
 
-    # Gemini
+    # gemini
     if provider == "gemini":
         g = _get_gemini_client()
         use_model = model or os.getenv("GOOGLE_MIDI_MODEL", os.getenv("GOOGLE_MODEL", "gemini-3-pro-preview"))
@@ -132,7 +144,7 @@ def _call_composer(provider: str, model: Optional[str], meta: Dict[str, Any]) ->
         fallback = (getattr(r, "text", None) or str(r) or "").strip()
         return system, user, fallback
 
-    # OpenRouter
+    # openrouter
     if provider == "openrouter":
         client = _get_openrouter_client()
         use_model = model or os.getenv("OPENROUTER_MIDI_MODEL", os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free"))
@@ -149,11 +161,11 @@ def _call_composer(provider: str, model: Optional[str], meta: Dict[str, Any]) ->
 
 @router.post("/compose", response_model=MidiGenerationOut)
 def compose(req: MidiGenerationIn) -> MidiGenerationOut:
-    """Główny endpoint: przyjmuje meta z param_generation, generuje MIDI + SVG.
+    """główny endpoint: przyjmuje meta z param_generation i generuje dane midi + artefakty.
 
-    Frontend scenariusz:
-    1) /air/param-generation/plan -> parsed.meta
-    2) /air/midi-generation/compose { meta: parsed.meta, provider?, model? }
+    typowy scenariusz w ui:
+    1) /air/param-generation/plan -> pobranie `parsed.meta`
+    2) /air/midi-generation/compose -> wysłanie meta i odebranie run_id + plików output
     """
 
     meta = req.meta.dict()
@@ -167,7 +179,7 @@ def compose(req: MidiGenerationIn) -> MidiGenerationOut:
     errors: List[str] = []
 
     if req.ai_midi is not None:
-        # ręcznie wstrzyknięty JSON (debug / eksperymenty)
+        # ręcznie wstrzyknięty json (debug / eksperymenty)
         raw_midi_json = req.ai_midi
     else:
         try:
@@ -190,16 +202,16 @@ def compose(req: MidiGenerationIn) -> MidiGenerationOut:
         artifacts_per_instrument,
     ) = generate_midi_and_artifacts(meta, raw_midi_json)
 
-    # Best-effort link: render_run_id == midi run_id in this app.
-    # Store the param_run_id separately (outside step outputs) so later
-    # we can export param+midi+render artifacts together.
+    # best-effort powiązanie runów:
+    # w tej aplikacji render_run_id == midi run_id, a param_run_id przechowujemy osobno,
+    # żeby później dało się wyeksportować artefakty param+midi+render razem.
     try:
         if getattr(req, "param_run_id", None):
             from app.air.export.links import link_param_to_render
 
             link_param_to_render(run_id, str(req.param_run_id))
     except Exception:
-        # Linking is optional; do not affect MIDI generation.
+        # linkowanie jest opcjonalne i nie może wpływać na generowanie midi
         pass
 
     return MidiGenerationOut(
@@ -220,13 +232,15 @@ def compose(req: MidiGenerationIn) -> MidiGenerationOut:
 
 @router.get("/run/{run_id}", response_model=MidiGenerationOut)
 def get_midi_run(run_id: str) -> MidiGenerationOut:
-    """Zwraca zapisany stan MIDI dla danego run_id z dysku.
+    """zwraca zapisany stan midi dla danego run_id z dysku.
 
-    Frontend może tego użyć do ponownego załadowania kroku MIDI
-    (pattern, artefakty, podział per instrument).
+    frontend używa tego do ponownego załadowania kroku midi (np. po odświeżeniu strony):
+    - pattern/layers
+    - ścieżki do artefaktów
+    - podział per instrument (jeśli istnieje)
     """
 
-    # Struktura katalogu jest zgodna z generate_midi_and_artifacts: *_<run_id>/midi.json itd.
+    # struktura katalogu jest zgodna z generate_midi_and_artifacts: *_<run_id>/midi.json itd.
     run_dir: Optional[Path] = None
     for p in BASE_OUTPUT_DIR.iterdir():
         if not p.is_dir():
@@ -243,7 +257,7 @@ def get_midi_run(run_id: str) -> MidiGenerationOut:
     except Exception as e:  # noqa: PERF203
         raise HTTPException(status_code=500, detail={"error": "midi_read_failed", "message": str(e)})
 
-    # Artefakty globalne
+    # artefakty globalne
     def _rel(p: Optional[Path]) -> Optional[str]:
         if p is None:
             return None
@@ -261,7 +275,7 @@ def get_midi_run(run_id: str) -> MidiGenerationOut:
         midi_image_rel=_rel(midi_svg_path) if midi_svg_path.exists() else None,
     )
 
-    # Per-instrument MIDI + artefakty
+    # per-instrument midi + artefakty
     midi_per_instrument: Dict[str, Dict[str, Any]] = {}
     artifacts_per_instrument: Dict[str, MidiArtifactPaths] = {}
 

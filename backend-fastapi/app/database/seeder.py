@@ -1,3 +1,9 @@
+"""inicjalizacja struktury bazy (seed/migrate-lite).
+
+ten plik tworzy tabele na podstawie `Base.metadata`.
+nie dodaje automatycznie użytkowników — to jest tylko bootstrap struktury.
+"""
+
 from .connection import engine, Base
 
 if __name__ == "__main__":

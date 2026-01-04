@@ -2,12 +2,18 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 from typing import Any, Dict, List, Optional
 
+# ten moduł zawiera schematy danych (pydantic) używane w kroku midi_generation.
+#
+# ogólny przepływ:
+# - frontend wysyła `MidiGenerationIn` (meta z param_generation + opcjonalnie provider/model)
+# - backend zwraca `MidiGenerationOut` (wygenerowane midi w json + ścieżki do artefaktów)
+
 
 class MidiMetaIn(BaseModel):
-    """Minimalny podzbiór meta z param_generation potrzebny do komponowania MIDI.
+    """minimalny podzbiór meta z param_generation potrzebny do komponowania midi.
 
-    Oczekujemy, że frontend przekaże tutaj wprost `parsed.meta` z param_generation
-    (lub bardzo zbliżoną strukturę).
+    praktycznie frontend powinien tu przekazać to, co dostał w kroku 1 jako `parsed.meta`
+    (albo strukturę bardzo zbliżoną).
     """
 
     style: str = Field(default="ambient")
@@ -21,7 +27,7 @@ class MidiMetaIn(BaseModel):
     dynamic_profile: str = Field(default="moderate")
     arrangement_density: str = Field(default="balanced")
     harmonic_color: str = Field(default="diatonic")
-    # Optional: original user prompt from step 1, forwarded for better grounding.
+    # opcjonalnie: oryginalny prompt użytkownika z kroku 1, przekazywany dla lepszego kontekstu
     user_prompt: Optional[str] = None
     instruments: List[str] = Field(default_factory=list)
     instrument_configs: List[Dict[str, Any]] = Field(default_factory=list)
@@ -29,24 +35,25 @@ class MidiMetaIn(BaseModel):
 
 
 class MidiGenerationIn(BaseModel):
-    """Wejście do modułu midi_generation.
+    """wejście do modułu midi_generation.
 
-    Na ten moment zakładamy, że frontend przekazuje:
-    - meta: to co dostał z param_generation (parsed.meta)
-    - optionalnie provider/model dla AI-composera (domyślnie jak w param_generation)
+    zakładamy, że frontend przekazuje:
+    - meta: dane z param_generation (najczęściej `parsed.meta`)
+    - opcjonalnie: provider/model dla "ai kompozytora" (domyślnie jak w param_generation)
     """
 
     meta: MidiMetaIn
     provider: Optional[str] = Field(default=None)
     model: Optional[str] = Field(default=None)
-    # Optional link to the Param Generation run_id, used only for export discovery.
-    # This does NOT affect MIDI output file structure.
+    # opcjonalne powiązanie z run_id z param_generation (używane tylko do późniejszego eksportu).
+    # to nie wpływa na strukturę plików wyjściowych midi.
     param_run_id: Optional[str] = Field(default=None)
-    # Opcjonalnie pozwalamy podać gotowe midi_json (np. do debugowania)
+    # opcjonalnie: pozwalamy wstrzyknąć gotowy midi_json (np. do debugowania i eksperymentów)
     ai_midi: Optional[Dict[str, Any]] = None
 
 
 class MidiArtifactPaths(BaseModel):
+    # ścieżki względne (względem katalogu `output/`) do artefaktów wygenerowanych na dysku
     midi_json_rel: Optional[str] = None
     midi_mid_rel: Optional[str] = None
     midi_image_rel: Optional[str] = None
@@ -56,13 +63,13 @@ class MidiGenerationOut(BaseModel):
     run_id: str
     midi: Dict[str, Any]
     artifacts: MidiArtifactPaths
-    # Nowe pola: per-instrument MIDI oraz ich artefakty.
+    # opcjonalnie: wersje midi "per instrument" (osobny json/pianoroll dla każdego instrumentu)
     midi_per_instrument: Optional[Dict[str, Dict[str, Any]]] = None
     artifacts_per_instrument: Optional[Dict[str, MidiArtifactPaths]] = None
     provider: Optional[str] = None
     model: Optional[str] = None
     errors: Optional[List[str]] = None
-    # Pełny kontekst wymiany z modelem (analogicznie do param_generation)
+    # pełny kontekst wymiany z modelem (analogicznie do param_generation)
     system: Optional[str] = None
     user: Optional[str] = None
     raw: Optional[str] = None

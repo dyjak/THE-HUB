@@ -1,3 +1,10 @@
+"""proste migracje bazy sqlite.
+
+to nie jest pełny system migracji (jak alembic) — tylko minimalny skrypt, który:
+- upewnia się, że tabela `users` ma kolumnę `pin_hash`
+- upewnia się, że istnieje tabela `projs`
+"""
+
 from sqlalchemy import create_engine, text
 
 
@@ -5,7 +12,7 @@ engine = create_engine("sqlite:///./users.db", connect_args={"check_same_thread"
 
 
 def ensure_pin_hash_column() -> None:
-    """Zapewnia, że tabela users ma kolumnę pin_hash."""
+    """zapewnia, że tabela `users` ma kolumnę `pin_hash`."""
     with engine.connect() as conn:
         result = conn.execute(text("PRAGMA table_info(users)"))
         columns = [column[1] for column in result]
@@ -19,7 +26,7 @@ def ensure_pin_hash_column() -> None:
 
 
 def ensure_projs_table() -> None:
-    """Tworzy tabelę projs, jeśli nie istnieje."""
+    """tworzy tabelę `projs`, jeśli nie istnieje."""
     create_sql = """
     CREATE TABLE IF NOT EXISTS projs (
         id INTEGER PRIMARY KEY,

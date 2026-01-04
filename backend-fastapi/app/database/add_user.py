@@ -1,3 +1,8 @@
+"""narzędzie cli do ręcznego dodania użytkownika.
+
+skrypt jest pomocniczy (uruchamiany lokalnie), i zapisuje do sqlite przez `SessionLocal`.
+"""
+
 from getpass import getpass
 
 from .connection import SessionLocal
@@ -5,6 +10,7 @@ from ..auth.models import User
 
 
 def prompt_new_user() -> None:
+    """prowadzi interaktywny prompt dodawania użytkownika."""
     db = SessionLocal()
     try:
         print("Dodawanie nowego użytkownika do bazy")
@@ -19,7 +25,7 @@ def prompt_new_user() -> None:
             print(f"Użytkownik o nazwie '{username}' już istnieje (id={existing.id}).")
             return
 
-        # PIN jako input ukryty
+        # pin jako input ukryty
         pin = getpass("PIN (6 cyfr): ").strip()
         if len(pin) != 6 or not pin.isdigit():
             print("PIN musi mieć dokładnie 6 cyfr.")

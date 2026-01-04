@@ -1,5 +1,17 @@
 from __future__ import annotations
 
+"""endpointy eksportu artefaktów.
+
+moduł składa manifest plików do pobrania dla danego `render_run_id` i potrafi
+spakować wszystkie znalezione artefakty do zip.
+
+ważne założenia:
+- `render_run_id` jest stabilnym id projektu
+- output renderu traktujemy jako "źródło prawdy"
+- output midi i param próbujemy dołączyć best-effort (mogą być brakujące)
+- nie modyfikujemy istniejących struktur output; wyłącznie je skanujemy
+"""
+
 from fastapi import APIRouter, HTTPException
 from pathlib import Path
 from typing import Optional
@@ -23,7 +35,8 @@ router = APIRouter(
 
 
 def _paths() -> tuple[Path, Path, Path]:
-    # Local output roots (kept consistent with the step modules)
+    """zwraca rooty katalogów output dla poszczególnych kroków pipeline."""
+    # lokalne ścieżki output (spójne z modułami kroków)
     here = Path(__file__).resolve()
     air_root = here.parents[1]
     param_root = air_root / "param_generation" / "output"
@@ -33,6 +46,12 @@ def _paths() -> tuple[Path, Path, Path]:
 
 
 def _build_manifest(render_run_id: str, param_run_id: Optional[str] = None) -> ExportManifest:
+    """buduje manifest plików eksportu dla `render_run_id`.
+
+    `param_run_id` jest opcjonalny:
+    - jeśli jest podany, próbujemy z niego pobrać pliki param-generation
+    - jeśli nie, próbujemy odczytać link z `step_links.json` (render -> param)
+    """
     rid = (render_run_id or "").strip()
     if not rid:
         raise HTTPException(status_code=422, detail={"error": "invalid_run_id"})
@@ -41,13 +60,13 @@ def _build_manifest(render_run_id: str, param_run_id: Optional[str] = None) -> E
 
     manifest = ExportManifest(render_run_id=rid)
 
-    # Render files (authoritative)
+    # pliki renderu (autorytatywne)
     render_files = collect_render_files(render_root, rid)
     if not render_files:
         manifest.missing.append("render")
     manifest.files.extend(render_files)
 
-    # MIDI files (usually the same run_id)
+    # pliki midi (zwykle mają ten sam run_id)
     midi_files, _midi_folder = collect_midi_files(midi_root, rid)
     if midi_files:
         manifest.midi_run_id = rid
@@ -55,7 +74,7 @@ def _build_manifest(render_run_id: str, param_run_id: Optional[str] = None) -> E
     else:
         manifest.missing.append("midi_generation")
 
-    # Param files (need param_run_id; best-effort resolve from stored link)
+    # pliki param (wymagają param_run_id; best-effort próbujemy rozwiązać z linka)
     pid = (param_run_id or "").strip() or (get_param_for_render(rid) or "")
     if pid:
         param_files, _param_folder = collect_param_files(param_root, pid)
@@ -72,6 +91,7 @@ def _build_manifest(render_run_id: str, param_run_id: Optional[str] = None) -> E
 
 
 def _safe_arcname(step: str, rel_path: str) -> str:
+    """tworzy bezpieczną ścieżkę w zipie (bez `..` i ścieżek absolutnych)."""
     rel_posix = (rel_path or "").replace("\\", "/")
     rel_posix = rel_posix.lstrip("/")
     p = PurePosixPath(rel_posix)
@@ -82,13 +102,14 @@ def _safe_arcname(step: str, rel_path: str) -> str:
 
 @router.get("/list/{render_run_id}", response_model=ExportManifest)
 def export_list(render_run_id: str, param_run_id: Optional[str] = None) -> ExportManifest:
-    """Return a manifest of all exportable files for a project.
+    """zwraca manifest wszystkich plików możliwych do eksportu.
 
-    The stable project identifier used by the app is the render run_id.
-    We always include render outputs, try to include midi outputs for the same
-    run_id, and include param outputs if we can resolve the param_run_id.
-
-    We do NOT change any existing output file structures. We only scan folders.
+    zasady:
+    - stabilnym identyfikatorem projektu jest `render_run_id`
+    - zawsze dołączamy pliki renderu
+    - próbujemy dołączyć pliki midi dla tego samego runa
+    - próbujemy dołączyć pliki param, jeśli umiemy rozwiązać `param_run_id`
+    - nie zmieniamy struktury output; tylko skanujemy katalogi
     """
 
     return _build_manifest(render_run_id=render_run_id, param_run_id=param_run_id)
@@ -96,11 +117,11 @@ def export_list(render_run_id: str, param_run_id: Optional[str] = None) -> Expor
 
 @router.get("/zip/{render_run_id}")
 def export_zip(render_run_id: str, param_run_id: Optional[str] = None) -> StreamingResponse:
-    """Download a ZIP containing all exportable artifacts for a project."""
+    """zwraca zip zawierający wszystkie znalezione artefakty dla projektu."""
 
     manifest = _build_manifest(render_run_id=render_run_id, param_run_id=param_run_id)
 
-    # Build ZIP (best-effort; skips missing/unreadable files)
+    # budowanie zip (best-effort; pomijamy pliki brakujące/nieczytelne)
     tmp = tempfile.SpooledTemporaryFile(max_size=64 * 1024 * 1024)
     used: dict[str, int] = {}
     with zipfile.ZipFile(tmp, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
@@ -116,7 +137,7 @@ def export_zip(render_run_id: str, param_run_id: Optional[str] = None) -> Stream
                 continue
 
             arc = _safe_arcname(str(f.step), str(f.rel_path))
-            # Avoid duplicate arcnames
+            # unikamy duplikatów nazw w zipie
             n = used.get(arc, 0)
             if n:
                 stem = arc

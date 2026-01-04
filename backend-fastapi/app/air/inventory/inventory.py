@@ -5,17 +5,29 @@ import json, time, re
 
 from .analyze_pitch_fft import estimate_root_pitch
 
+# ten moduł buduje oraz wczytuje inventory.json.
+#
+# inventory.json to "spis sampli" w `local_samples/`.
+# zawiera:
+# - listę instrumentów (nazwy + proste statystyki)
+# - listę sampli (ścieżki, kategoria, rodzina, subtype, pitch z nazwy, itd.)
+# - opcjonalnie dane "deep" (np. rms/gain_db_normalize oraz root_midi z fft)
+#
+# dlaczego to istnieje:
+# - inne kroki (param_generation, render) potrzebują stabilnej listy instrumentów i sampli
+# - zamiast za każdym razem skanować filesystem, robimy to raz i zapisujemy do json
+
 
 INVENTORY_FILE = Path(__file__).parent / "inventory.json"
 INVENTORY_SCHEMA_VERSION = "air-inventory-1"
 
-# Default root fallback if inventory.json doesn't define 'root'
-# inventory.py path: backend-fastapi/app/air/inventory/inventory.py
-# parents[4] points to the repository root (THE-HUB)
+# domyślny katalog sampli, jeśli inventory.json nie definiuje pola `root`.
+# uwaga: parents[4] wskazuje na root repo (THE-HUB) przy obecnej strukturze projektu.
 DEFAULT_LOCAL_SAMPLES_ROOT = Path(__file__).resolve().parents[4] / "local_samples"
 
 
 def _rel(path: Path) -> str:
+    # zwraca ścieżkę względną względem `DEFAULT_LOCAL_SAMPLES_ROOT` (do stabilnego id i url)
     try:
         return str(path.relative_to(DEFAULT_LOCAL_SAMPLES_ROOT))
     except Exception:
@@ -23,32 +35,32 @@ def _rel(path: Path) -> str:
 
 
 def build_inventory(deep: bool = False) -> Dict[str, Any]:
-    """Scan the local_samples tree and (re)generate inventory.json.
+    """skanuje `local_samples/` i generuje (albo przebudowuje) inventory.json.
 
-    - Groups samples by a simple, robust keyword-based instrument classifier
-    - Stores absolute + relative paths for reliable URL building later
-    - Optionally (deep=True) computes basic audio stats for loudness normalisation
-    - Skips unreadable/invalid audio files so broken samples never enter inventory
-    - Keeps schema stable so runtime readers don't need to change
+    co dokładnie robimy:
+    - klasyfikujemy sample do instrumentów prostym, odpornym klasyfikatorem (słowa kluczowe w ścieżce)
+    - zapisujemy ścieżki absolutne i względne, żeby później łatwo budować url do odsłuchu
+    - opcjonalnie (deep=True) liczymy proste statystyki audio (rms, gain_db_normalize, root_midi)
+    - pomijamy pliki uszkodzone/nieczytelne, żeby nie trafiały do ui ani renderu
+    - trzymamy stabilny schemat json, żeby inne moduły nie musiały się zmieniać
     """
     root = DEFAULT_LOCAL_SAMPLES_ROOT
     audio_exts = {".wav", ".mp3", ".aif", ".aiff", ".flac", ".ogg", ".m4a", ".wvp"}
 
     def _tokenize_path(parts: List[str], filename: str) -> set[str]:
-        """Tokenize directory parts and filename into lowercase identifier-like tokens.
+        """tokenizuje ścieżkę katalogów i nazwę pliku na zestaw "tokenów" (lowercase).
 
-        Notes:
-        - We keep this intentionally simple and robust (no hard dependency on a sample-pack naming scheme).
-        - We enrich tokens with substring matches for common instrument keywords so files like
-          "DNC_ClubKick.wav" (token "clubkick") still match "kick".
+        po co:
+        - chcemy prosto i odporne wyłapywać słowa kluczowe (bez zależności od konkretnego nazewnictwa paczek)
+        - dodajemy też dopasowania po substringach, żeby np. "clubkick" nadal pasowało do "kick"
         """
         raw = "/".join(parts + [filename])
         raw_low = raw.lower()
         toks = re.split(r"[^A-Za-z0-9#]+", raw_low)
         out: set[str] = set()
 
-        # Keywords we want to detect even when they appear as part of a larger token.
-        # Keep this list small and high-signal; it directly influences classification.
+        # słowa kluczowe, które chcemy wykrywać nawet jako część większego tokena.
+        # lista powinna być krótka i "wysokosygnałowa", bo bezpośrednio wpływa na klasyfikację.
         substr_keywords = {
             # drums
             "kick",
@@ -90,7 +102,7 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
                 if kw in t:
                     out.add(kw)
 
-        # normalize common variants
+        # normalizacja częstych wariantów
         if "hi" in out and "hat" in out:
             out.add("hihat")
         if "hi-hat" in raw_low:
@@ -100,10 +112,12 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
         return out
 
     def _detect_pitch(name: str) -> str | None:
-        """Extract pitch like A, A#3, Bb2, F from filename if present.
-        Returns the last match to prefer the more specific suffix tokens."""
-        # Match tokens with word-ish boundaries to reduce false positives
-        # Examples: "C", "C#", "Db", "F3", "A#4"
+        """wyciąga pitch (np. A, A#3, Bb2, F) z nazwy pliku, jeśli da się go rozpoznać.
+
+        zwracamy ostatnie dopasowanie, bo często bardziej szczegółowe oznaczenie jest na końcu.
+        """
+        # dopasowanie z "word boundary" żeby ograniczyć false positive
+        # przykłady: "C", "C#", "Db", "F3", "A#4"
         pat = re.compile(r"(?<![A-Za-z])([A-G])([#b]?)([0-8]?)(?![A-Za-z])")
         matches = list(pat.finditer(name))
         if not matches:
@@ -115,44 +129,48 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
         return note + acc + (octv or "")
 
     def classify(rel_parts: List[str], file_name: str) -> Tuple[str, str | None, str | None, str | None, str | None]:
-        """Return (instrument, family, category, subtype, pitch) from relative path parts and filename.
-        - family: top-level pack name (first dir under root)
-        - category: grouping like Drums or FX for certain instruments; else None
-        - subtype: optional detail label (often equals instrument for grouped types)
-        - pitch: extracted from filename when found
+        """klasyfikuje plik do instrumentu na podstawie ścieżki i nazwy.
+
+        zwraca krotkę: (instrument, family, category, subtype, pitch)
+
+        znaczenie pól:
+        - family: najwyższy katalog pod root (często nazwa paczki)
+        - category: szersza kategoria typu "Drums" lub "FX" (jeśli ma sens)
+        - subtype: dodatkowy detal (często równy instrumentowi dla perkusji)
+        - pitch: rozpoznany z nazwy pliku (jeśli występuje)
         """
         tokens = _tokenize_path(rel_parts, file_name)
         family = rel_parts[0] if rel_parts else None
         container = family.lower() if family else None
-        # Common layout: root/Instruments/<pack>/... and root/Drums/<pack>/...
+        # typowy układ: root/Instruments/<pack>/... oraz root/Drums/<pack>/...
         pack = rel_parts[1] if len(rel_parts) > 1 and container in {"instruments", "drums"} else None
         pitch = _detect_pitch(file_name)
 
         name_upper = file_name.upper()
 
-        # 1) Explicit name-based rules from spec
-        # Acoustic Guitar: filename contains "ACOUSTICG"
+        # 1) jawne reguły po nazwie pliku (specjalne przypadki)
+        # acoustic guitar: nazwa zawiera "ACOUSTICG"
         if "ACOUSTICG" in name_upper:
             return "Acoustic Guitar", family, None, None, pitch
 
-        # Electric Guitar: filename contains "DARK STAL METAL"
+        # electric guitar: nazwa zawiera "DARK STAR METAL"
         if "DARK STAR METAL" in name_upper:
             return "Electric Guitar", family, None, None, pitch
 
-        # Bass Guitar: filename contains "DEEPER PURPLE"
+        # bass guitar: nazwa zawiera "DEEPER PURPLE"
         if "DEEPER PURPLE" in name_upper:
             return "Bass Guitar", family, None, None, pitch
 
-        # Trombone: filename contains "TRO MLON"
+        # trombone: nazwa zawiera "TRO MLON"
         if "TRO MLON" in name_upper:
             return "Trombone", family, None, None, pitch
 
-        # Piano specials: "CHANGPIANOHARD" or prefix "Gz_"
+        # piano: specjalne przypadki: "CHANGPIANOHARD" albo prefix "Gz_"
         if "CHANGPIANOHARD" in name_upper or name_upper.startswith("GZ_"):
             return "Piano", family, None, None, pitch
 
-        # 2) Folder-based high-level families
-        # Support both direct layout (root/Piano/...) and grouped layout (root/Instruments/Piano/...)
+        # 2) reguły po folderach (wysokopoziomowe)
+        # wspieramy układ bezpośredni (root/Piano/...) oraz zgrupowany (root/Instruments/Piano/...)
         if family:
             fam_low = family.lower()
             pack_low = pack.lower() if isinstance(pack, str) else None
@@ -190,17 +208,17 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
                 if pack_low == "trombone":
                     return "Trombone", family, None, None, pitch
                 if pack_low == "orchestral":
-                    # In this library orchestral samples are mostly strings/brass/woodwinds.
-                    # We keep it simple and map to Strings (frontend already understands it).
+                    # w tej bibliotece orchestral to głównie smyczki/dęte.
+                    # trzymamy to prosto i mapujemy na strings (frontend to rozumie).
                     return "Strings", family, None, None, pitch
                 if pack_low == "hits":
-                    # Impacts / hits behave more like FX than Pads.
+                    # impacts/hits zachowują się bardziej jak fx niż pads.
                     return "FX", family, "FX", None, pitch
                 if pack_low in {"perc", "percs"}:
-                    # If a dedicated Percs instrument is desired later, change this.
+                    # jeśli później chcemy osobny instrument "percs", to tutaj jest miejsce do zmiany.
                     return "Shake", family, None, None, pitch
                 if pack_low == "guitar":
-                    # Prefer directory-based guitar classification when present.
+                    # preferujemy klasyfikację po katalogach, jeśli jest dostępna:
                     # root/Instruments/Guitar/<Bass|Acoustic|Electric>/...
                     sub = rel_parts[2].lower() if len(rel_parts) > 2 else ""
                     if sub == "bass" or "bass" in tokens:
@@ -209,10 +227,9 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
                         return "Acoustic Guitar", family, None, None, pitch
                     if sub == "electric" or "electric" in tokens:
                         return "Electric Guitar", family, None, None, pitch
-                    # If unknown, do not force into Pads; fall through to token rules.
+                    # jeśli nie wiemy, nie wciskamy tego na siłę w pads; lecimy do reguł tokenowych.
 
-        # 3) Drums with detailed subtypes
-        # We treat all of them under category "Drums" with subtypes
+        # 3) perkusja: szczegółowe subtype (wszystko pod category "Drums")
         drum_subs = {
             "clap": "Clap",
             "hat": "Hat",
@@ -232,8 +249,8 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
             if kw in tokens:
                 return sub, family or "Drums", "Drums", sub, pitch
 
-        # Extra percussion-ish tokens that should never end up in Pads.
-        # If the file lives under /Drums, prefer Shake.
+        # dodatkowe tokeny perkusyjne, które nie powinny trafiać do pads.
+        # jeśli plik żyje pod /Drums, wolimy potraktować go jako shake.
         if container == "drums":
             for kw in ("guiro", "tamb", "tambourine", "cowbell", "clave", "perc", "percs"):
                 if kw in tokens:
@@ -241,8 +258,8 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
             if "fx" in tokens or "hit" in tokens:
                 return "FX", family or "Drums", "Drums", "FX", pitch
 
-        # 4) Remaining broader instrument categories
-        # Uwaga: nie dodajemy ogólnego fallbacku "guitar" tutaj, żeby nie mylić Electric/Acoustic.
+        # 4) pozostałe, szersze kategorie instrumentów
+        # uwaga: nie dodajemy ogólnego fallbacku "guitar", żeby nie mylić electric/acoustic.
         single_map = [
             ("choir", "Choirs"),
             ("string", "Strings"),
@@ -258,15 +275,15 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
             if kw in tokens:
                 return inst, family, None, None, pitch
 
-        # 5) Default to FX or Synth depending on folder
+        # 5) fallback: fx lub pads w zależności od folderu
         if family and family.lower() == "fx":
             return "FX", family, "FX", None, pitch
 
-        # Neutral melodic default
-        # Avoid overfilling Pads: only default to Pads when the path/name suggests it.
+        # neutralny fallback melodyczny.
+        # unikamy przepełniania pads: wybieramy pads tylko jeśli ścieżka/nazwa to sugeruje.
         if "pad" in tokens or (container == "instruments" and isinstance(pack, str) and pack.lower() == "pads"):
             return "Pads", family, None, None, pitch
-        # Otherwise treat as FX (one-shots) when under Drums, or Pads as last resort.
+        # w przeciwnym razie pod /Drums traktujemy to jako fx (one-shoty), a na końcu jako pads.
         if container == "drums":
             return "FX", family, "Drums", "FX", pitch
         return "Pads", family, None, None, pitch
@@ -282,29 +299,29 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
                 continue
             if f.suffix.lower() not in audio_exts:
                 continue
-            # Skip specific FX we don't want in the inventory
+            # pomijamy niektóre fx, których nie chcemy w inventory
             name_lower = f.name.lower()
             if "downlifter" in name_lower or "uplifter" in name_lower:
                 continue
             try:
                 rel = f.relative_to(root)
             except Exception:
-                # If file is outside the expected root, skip
+                # jeśli plik jest poza oczekiwanym rootem, pomijamy
                 continue
 
-            # Lightweight validity check: try opening audio file once.
-            # This ensures corrupt/unreadable files never reach the inventory
-            # and therefore nie pojawią się w panelu ani w playbacku.
+            # lekki test poprawności: próbujemy raz otworzyć plik audio.
+            # dzięki temu uszkodzone/nieczytelne pliki nie trafiają do inventory,
+            # i tym samym nie pojawią się w panelu ani w playbacku.
             try:
                 if f.suffix.lower() == ".wav":
                     import wave as _wav  # type: ignore
                     with _wav.open(str(f), "rb") as _wf:  # type: ignore
                         _ = _wf.getnframes()
                 else:
-                    # For now other formats are trusted; extend here if needed.
+                    # na razie inne formaty traktujemy jako "zaufane"; można rozszerzyć w przyszłości.
                     pass
             except Exception:
-                # Broken / unreadable file -> completely skip
+                # plik uszkodzony/nieczytelny -> całkowicie pomijamy
                 continue
 
             rel_parts = list(rel.parts[:-1])  # directory parts only
@@ -315,7 +332,7 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
             except Exception:
                 pass
 
-            # Optional deep analysis for loudness/length if requested.
+            # opcjonalna analiza "deep" (głośność/długość/pitch) w trybie deep=True
             sample_rate: int | None = None
             length_sec: float | None = None
             loudness_rms: float | None = None
@@ -330,7 +347,7 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
                         sr = wf.getframerate()
                         n_channels = wf.getnchannels()
                         n_frames = wf.getnframes()
-                        # limit frames for RMS to keep it quick on huge files
+                        # limit klatek dla rms, żeby było szybko na dużych plikach
                         max_frames = min(n_frames, sr * 60)
                         frames = wf.readframes(max_frames)
                         import struct as _struct  # type: ignore
@@ -340,16 +357,16 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
                             fmt = "<" + "h" * total_samples
                             try:
                                 ints = _struct.unpack(fmt, frames)
-                                # downmix to mono by taking first channel
+                                # downmix do mono: bierzemy pierwszy kanał
                                 mono = ints[0::n_channels]
                                 if mono:
-                                    # normalise to [-1, 1]
+                                    # normalizacja do [-1, 1]
                                     vals = [x / 32768.0 for x in mono]
                                     n = float(len(vals))
                                     if n > 0:
                                         rms = _math.sqrt(sum(v * v for v in vals) / n)
                                         loudness_rms = float(rms)
-                                        # baseline target ~0.2 (arbitrary but sensible for headroom)
+                                        # cel rms ~0.2 (umowny, ale sensowny pod headroom)
                                         target = 0.2
                                         if rms > 0:
                                             gain_db_normalize = float(-20.0 * _math.log10(rms / target))
@@ -361,7 +378,7 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
                 except Exception:
                     pass
 
-                # Optional FFT-based pitch estimation for root note
+                # opcjonalna estymacja root pitch przez fft
                 try:
                     est = estimate_root_pitch(f)
                     if est and "pitch_midi" in est:
@@ -396,7 +413,7 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
     except FileNotFoundError:
         # Empty inventory when folder is missing
         pass
-    # Determine root: prefer existing inventory root, else fallback
+    # pole `root`: preferujemy istniejące inventory root, w przeciwnym razie fallback
     try:
         existing = load_inventory() or {}
         root_str = existing.get("root") or str(DEFAULT_LOCAL_SAMPLES_ROOT)
@@ -423,6 +440,7 @@ def build_inventory(deep: bool = False) -> Dict[str, Any]:
 
 
 def load_inventory() -> Dict[str, Any] | None:
+    # wczytuje inventory.json z dysku (zwraca None, jeśli pliku nie ma albo jest niepoprawny)
     if not INVENTORY_FILE.exists():
         return None
     try:

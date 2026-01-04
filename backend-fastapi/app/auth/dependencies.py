@@ -1,3 +1,15 @@
+"""zależności i helpery uwierzytelniania.
+
+ten moduł realizuje:
+- tworzenie jwt access tokenów
+- dependency do pobrania bieżącego użytkownika (wymagany token)
+- dependency opcjonalne (zwraca None zamiast 401)
+
+uwaga:
+- sekret może być nadpisany przez `AUTH_SECRET_KEY` w env
+- baza danych jest pobierana przez `SessionLocal` z `app.database.connection`
+"""
+
 from datetime import datetime, timedelta
 from typing import Optional
 import os
@@ -17,6 +29,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
 
 def get_db():
+    """fastapi dependency: zwraca sesję bazy i zamyka ją po użyciu."""
     db = SessionLocal()
     try:
         yield db
@@ -25,6 +38,11 @@ def get_db():
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """tworzy jwt access token.
+
+    - payload jest kopiowany i rozszerzany o `exp`
+    - czas wygaśnięcia domyślnie wynika z `ACCESS_TOKEN_EXPIRE_MINUTES`
+    """
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
@@ -34,7 +52,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 security = HTTPBearer(auto_error=True)
 
-# Wersja opcjonalna: nie rzuca 401, tylko zwraca None gdy brak/niepoprawny token.
+# wersja opcjonalna: nie rzuca 401, tylko zwraca None gdy brak/niepoprawny token.
 security_optional = HTTPBearer(auto_error=False)
 
 
@@ -42,6 +60,13 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ) -> User:
+    """fastapi dependency: zwraca zalogowanego użytkownika.
+
+    rzuca 401, gdy:
+    - token jest niepoprawny / nie da się go zdekodować
+    - payload nie zawiera `sub`
+    - użytkownik o danym id nie istnieje
+    """
     token = credentials.credentials
     secret = os.getenv("AUTH_SECRET_KEY", SECRET_KEY)
     try:
@@ -62,9 +87,9 @@ def get_optional_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security_optional),
     db: Session = Depends(get_db),
 ) -> User | None:
-    """Zwraca zalogowanego użytkownika lub None, jeśli brak poprawnego tokena.
+    """zwraca zalogowanego użytkownika lub None, jeśli brak poprawnego tokena.
 
-    Używane w publicznych endpointach, gdzie auth jest tylko dodatkową informacją.
+    używane w publicznych endpointach, gdzie auth jest tylko dodatkową informacją.
     """
 
     if credentials is None:

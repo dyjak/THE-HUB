@@ -1,5 +1,18 @@
+"""główna aplikacja fastapi.
+
+ten moduł:
+- konfiguruje aplikację (`FastAPI`) i cors
+- ładuje `.env` możliwie wcześnie, żeby downstream moduły widziały sekrety
+- montuje statyczne katalogi (np. `local_samples/`, outputy kroków pipeline)
+- rejestruje routery (auth/users oraz moduły `air/*` w trybie best-effort)
+
+uwaga:
+- część modułów `air/*` może nie być dostępna, jeśli brakuje zależności; wtedy router nie jest montowany,
+  a informacja trafia na stdout przez `print()`
+"""
+
 from fastapi import FastAPI
-# hot-reload touch: inventory integration verified
+# hot-reload touch: integracja inventory potwierdzona
 from fastapi.middleware.cors import CORSMiddleware
 from .database.connection import Base, engine
 from .auth.router import router as auth_router
@@ -11,27 +24,27 @@ import sys
 
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
-# Load .env early so downstream modules (sample fetcher / chat) see secrets
+# ładujemy `.env` wcześnie, żeby downstream moduły (np. sample fetcher / chat) widziały sekrety
 try:
     import os as _os
     from dotenv import load_dotenv, dotenv_values  # type: ignore
     env_file = Path(__file__).parent.parent / ".env"  # backend-fastapi/.env
     if env_file.exists():
-        # Parse values explicitly and inject if missing/empty
+        # parsujemy wartości jawnie i wstrzykujemy tylko brakujące
         vals = dotenv_values(str(env_file))
         for k, v in vals.items():
             if v is None:
                 continue
             if not _os.getenv(k):
                 _os.environ[k] = v
-        # Also call load_dotenv to ensure any other behavior (e.g., export) is preserved
+        # dodatkowo wołamy load_dotenv, żeby zachować jego zachowanie (np. export)
         load_dotenv(dotenv_path=env_file, override=False)
     else:
         load_dotenv()
 except Exception:
     pass
 
-# Include production param-generation module (separate step: AI MIDI plan)
+# moduły `air/*` ładujemy best-effort (mogą zależeć od zewnętrznych bibliotek)
 try:
     from .air.param_generation.router import router as param_generation_router  # type: ignore
     _PARAM_GEN_AVAILABLE = True
@@ -91,10 +104,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Konfiguracja CORS
+# konfiguracja cors
 app.add_middleware(
     CORSMiddleware,
-    # Keep explicit common dev origins and add a regex for any localhost/127.0.0.1 port
+    # trzymamy jawne originy dev i regex dla dowolnego localhost/127.0.0.1 z portem
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
@@ -108,24 +121,24 @@ app.add_middleware(
     max_age=86400,  # cache preflight for a day in dev
 )
 
-# Mount local_samples for sample previews (global, independent of ai-render-test)
+# montujemy `local_samples/` do odsłuchu sampli (globalnie, niezależnie od testów)
 try:
     repo_root = Path(__file__).resolve().parents[2]
     local_samples_dir = repo_root / "local_samples"
     if local_samples_dir.exists():
         app.mount("/api/local-samples", StaticFiles(directory=str(local_samples_dir)), name="local_samples")
     else:
-        print("[WARN] local_samples directory not found:", local_samples_dir)
+        print("[WARN] nie znaleziono katalogu local_samples:", local_samples_dir)
 except Exception as e:
-    print("[WARN] failed to mount local_samples:", e)
+    print("[WARN] nie udało się zamontować local_samples:", e)
 
-# Upewnij się, że tabele są utworzone (bez automatycznego seedowania użytkowników)
+# upewnij się, że tabele są utworzone (bez automatycznego seedowania użytkowników)
 Base.metadata.create_all(bind=engine)
 
-# Dodaj routery
+# dodaj routery
 app.include_router(auth_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
-# Mount param-generation router and its static outputs
+# montujemy router param-generation oraz jego statyczne outputy
 if _PARAM_GEN_AVAILABLE and param_generation_router:
     app.include_router(param_generation_router, prefix="/api")
     try:
@@ -133,31 +146,31 @@ if _PARAM_GEN_AVAILABLE and param_generation_router:
         param_gen_output.mkdir(parents=True, exist_ok=True)
         app.mount("/api/param-generation/output", StaticFiles(directory=str(param_gen_output)), name="param_generation_output")
     except Exception as e:
-        print("[WARN] failed to mount param-generation static output:", e)
+        print("[WARN] nie udało się zamontować statycznego outputu param-generation:", e)
     try:
         pg_routes = [getattr(r, "path", str(r)) for r in app.routes if "/param-generation" in getattr(r, "path", "")]
-        print("[param-generation] registered routes:")
+        print("[param-generation] zarejestrowane trasy:")
         for p in sorted(pg_routes):
             print("   ", p)
     except Exception as e:
-        print("[WARN] failed to enumerate param-generation routes:", e)
+        print("[WARN] nie udało się wypisać tras param-generation:", e)
 else:
-    print("[WARN] param_generation_router not loaded:", globals().get('_PARAM_GEN_IMPORT_ERROR'))
+    print("[WARN] nie załadowano param_generation_router:", globals().get('_PARAM_GEN_IMPORT_ERROR'))
 
-# Mount inventory router (sample catalog)
+# montujemy router inventory (katalog sampli)
 if _AIR_INV_AVAILABLE and air_inventory_router:
     app.include_router(air_inventory_router, prefix="/api")
     try:
         inv_routes = [getattr(r, "path", str(r)) for r in app.routes if "/air/inventory" in getattr(r, "path", "")]
-        print("[air-inventory] registered routes:")
+        print("[air-inventory] zarejestrowane trasy:")
         for p in sorted(inv_routes):
             print("   ", p)
     except Exception as e:
-        print("[WARN] failed to enumerate air-inventory routes:", e)
+        print("[WARN] nie udało się wypisać tras air-inventory:", e)
 else:
-    print("[WARN] air_inventory_router not loaded:", globals().get('_AIR_INV_IMPORT_ERROR'))
+    print("[WARN] nie załadowano air_inventory_router:", globals().get('_AIR_INV_IMPORT_ERROR'))
 
-# Mount midi-generation router and its static outputs
+# montujemy router midi-generation oraz jego statyczne outputy
 if _MIDI_GEN_AVAILABLE and midi_generation_router:
     app.include_router(midi_generation_router, prefix="/api")
     try:
@@ -165,58 +178,59 @@ if _MIDI_GEN_AVAILABLE and midi_generation_router:
         midi_gen_output.mkdir(parents=True, exist_ok=True)
         app.mount("/api/midi-generation/output", StaticFiles(directory=str(midi_gen_output)), name="midi_generation_output")
     except Exception as e:
-        print("[WARN] failed to mount midi-generation static output:", e)
+        print("[WARN] nie udało się zamontować statycznego outputu midi-generation:", e)
     try:
         mg_routes = [getattr(r, "path", str(r)) for r in app.routes if "/midi-generation" in getattr(r, "path", "")]
-        print("[midi-generation] registered routes:")
+        print("[midi-generation] zarejestrowane trasy:")
         for p in sorted(mg_routes):
             print("   ", p)
     except Exception as e:
-        print("[WARN] failed to enumerate midi-generation routes:", e)
+        print("[WARN] nie udało się wypisać tras midi-generation:", e)
 else:
-    print("[WARN] midi_generation_router not loaded:", globals().get('_MIDI_GEN_IMPORT_ERROR'))
+    print("[WARN] nie załadowano midi_generation_router:", globals().get('_MIDI_GEN_IMPORT_ERROR'))
 
-# Mount render router (audio export)
+# montujemy router render (export audio)
 if _RENDER_AVAILABLE and render_router:
     app.include_router(render_router, prefix="/api")
     try:
         render_output = Path(__file__).parent / "air" / "render" / "output"
         render_output.mkdir(parents=True, exist_ok=True)
-        # Expose audio files under /api/audio/{run_id}/...
+        # wystawiamy pliki audio pod /api/audio/{run_id}/...
         app.mount("/api/audio", StaticFiles(directory=str(render_output)), name="air_audio_output")
     except Exception as e:
-        print("[WARN] failed to mount render static output:", e)
+        print("[WARN] nie udało się zamontować statycznego outputu render:", e)
 else:
-    print("[WARN] render_router not loaded:", globals().get('_RENDER_IMPORT_ERROR'))
+    print("[WARN] nie załadowano render_router:", globals().get('_RENDER_IMPORT_ERROR'))
 
-# Mount user-projects router (simple listing for current user)
+# montujemy router user-projects (lista projektów dla użytkownika)
 if _USER_PROJECTS_AVAILABLE and user_projects_router:
     app.include_router(user_projects_router, prefix="/api")
     try:
         up_routes = [getattr(r, "path", str(r)) for r in app.routes if "/air/user-projects" in getattr(r, "path", "")]
-        print("[air-user-projects] registered routes:")
+        print("[air-user-projects] zarejestrowane trasy:")
         for p in sorted(up_routes):
             print("   ", p)
     except Exception as e:
-        print("[WARN] failed to enumerate air-user-projects routes:", e)
+        print("[WARN] nie udało się wypisać tras air-user-projects:", e)
 else:
-    print("[WARN] user_projects_router not loaded:", globals().get('_USER_PROJECTS_IMPORT_ERROR'))
+    print("[WARN] nie załadowano user_projects_router:", globals().get('_USER_PROJECTS_IMPORT_ERROR'))
 
-# Mount export router (manifest for downloading all project artifacts)
+# montujemy router export (manifest do pobrania wszystkich artefaktów projektu)
 if _EXPORT_AVAILABLE and export_router:
     app.include_router(export_router, prefix="/api")
 else:
-    print("[WARN] export_router not loaded:", globals().get('_EXPORT_IMPORT_ERROR'))
+    print("[WARN] nie załadowano export_router:", globals().get('_EXPORT_IMPORT_ERROR'))
 
-# Mount gallery router (portfolio / SoundCloud embeds)
+# montujemy router gallery (portfolio / linki soundcloud)
 if _GALLERY_AVAILABLE and gallery_router:
     app.include_router(gallery_router, prefix="/api")
 else:
-    print("[WARN] gallery_router not loaded:", globals().get('_GALLERY_IMPORT_ERROR'))
+    print("[WARN] nie załadowano gallery_router:", globals().get('_GALLERY_IMPORT_ERROR'))
 
 
 @app.get("/")
 def read_root():
+    """prosty endpoint statusowy (root)."""
     return {
         "message": "AIR 4.0 API is running",
         "version": "1.0.0",
@@ -230,20 +244,25 @@ def read_root():
 
 @app.get("/health")
 def health_check():
+    """lekki healthcheck."""
     return {"status": "healthy"}
 
 
 @app.get("/api/debug/routes")
 def debug_routes():
+    """zwraca listę zarejestrowanych tras (endpoint diagnostyczny)."""
+    # część flag może nie istnieć, jeśli dany moduł debug/testowy nie był importowany.
+    # nie chcemy, żeby endpoint diagnostyczny wywalał 500 przez NameError.
     return {
-        "param_adv_loaded": _PARAM_ADV_AVAILABLE,
-        "param_adv_import_error": None if _PARAM_ADV_AVAILABLE else globals().get('_PARAM_ADV_IMPORT_ERROR'),
+        "param_adv_loaded": bool(globals().get("_PARAM_ADV_AVAILABLE", False)),
+        "param_adv_import_error": None if globals().get("_PARAM_ADV_AVAILABLE", False) else globals().get("_PARAM_ADV_IMPORT_ERROR"),
         "routes": [r.path for r in app.routes]
     }
 
 
 @app.get("/api/param-adv/_routes")
 def debug_param_adv_routes():
+    """wypisuje trasy `/param-adv` (endpoint diagnostyczny)."""
     try:
         param_routes = [getattr(r, "path", str(r)) for r in app.routes if "/param-adv" in getattr(r, "path", "")]
         return {"routes": sorted(param_routes)}

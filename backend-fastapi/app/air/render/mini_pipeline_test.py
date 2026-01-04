@@ -2,16 +2,24 @@ from __future__ import annotations
 from pathlib import Path
 import json
 
+# ten plik to pomocniczy "mini pipeline" uruchamiany z konsoli.
+#
+# zastosowanie:
+# - mamy już zapisane outputy z param_generation i midi_generation (pliki json w output/)
+# - chcemy szybko odpalić docelowy render audio bez frontendu
+# - plik składa dane w `RenderRequest` i woła `render_audio`
+
 from .schemas import RenderRequest, TrackSettings
 from .engine import render_audio
 
 
 def _auto_update_selected_samples(param_run_dir: Path) -> None:
-    """Lokalny odpowiednik PATCH /param-generation/plan/{run_id}/selected-samples.
+    """lokalny odpowiednik patch /param-generation/plan/{run_id}/selected-samples.
 
-    W testowym pipeline bierzemy prostą heurystykę: dla każdego instrumentu
-    z meta.instruments ustawiamy sample_id = nazwa_instrumentu (to pozwala
-    zademonstrować przepływ; docelowo front dostarczy realne ID z inventory).
+    w tym testowym pipeline bierzemy bardzo prostą heurystykę:
+    - dla każdego instrumentu z meta.instruments ustawiamy sample_id = nazwa instrumentu
+    - to jest tylko placeholder, żeby zademonstrować przepływ
+    - docelowo frontend dostarczy realne id z inventory
     """
     json_path = param_run_dir / "parameter_plan.json"
     if not json_path.exists():
@@ -36,8 +44,8 @@ def _auto_update_selected_samples(param_run_dir: Path) -> None:
         name = inst.strip()
         if not name:
             continue
-        # placeholder: używamy nazwy instrumentu jako ID; inventory
-        # i frontend mogą nadpisać to realnymi ID sampli.
+        # placeholder: używamy nazwy instrumentu jako id;
+        # inventory i frontend mogą nadpisać to realnymi id sampli
         selected[name] = name
     if not selected:
         return
@@ -53,19 +61,18 @@ def run_mini_render(
     midi_run_dir: Path,
     run_id: str | None = None,
 ):
-    """Mini-pipeline: wczytuje istniejące outputy z param_generation + midi_generation
-    i uruchamia docelowy render.
+    """mini-pipeline: wczytuje istniejące outputy z param_generation i midi_generation i uruchamia render.
 
-    Założenia (obecny stan projektu):
-    - param_generation zapisuje JSON z meta pod nazwą parameter_plan.json,
-    - midi_generation zapisuje midi.json w swoim katalogu run,
-    - wybór sampli z inventory jest już rozstrzygnięty wcześniej (param_generation),
-      więc tutaj tylko odtwarzamy gotowy plan MIDI.
+    założenia (obecny stan projektu):
+    - param_generation zapisuje json z meta pod nazwą parameter_plan.json
+    - midi_generation zapisuje midi.json w katalogu run
+    - wybór sampli z inventory jest rozstrzygnięty wcześniej (param_generation),
+      więc tutaj tylko odtwarzamy gotowy plan midi
     """
 
     param_json = param_run_dir / "parameter_plan.json"
     midi_json = midi_run_dir / "midi.json"
-    # opcjonalnie: per-instrument podział MIDI z modułu midi_generation
+    # opcjonalnie: per-instrument podział midi z modułu midi_generation
     midi_per_instrument: dict[str, dict] | None = None
 
     if not param_json.exists():
@@ -73,14 +80,14 @@ def run_mini_render(
     if not midi_json.exists():
         raise FileNotFoundError(f"Missing midi.json in {midi_run_dir}")
 
-    # Najpierw upewniamy się, że meta.selected_samples jest obecne choćby jako
-    # placeholder, tak jak zrobiłby to PATCH w param_generation.
+    # najpierw upewniamy się, że meta.selected_samples jest obecne choćby jako placeholder,
+    # tak jak zrobiłby to patch w param_generation
     _auto_update_selected_samples(param_run_dir)
 
     meta = json.loads(param_json.read_text(encoding="utf-8")).get("meta", {})
     midi = json.loads(midi_json.read_text(encoding="utf-8"))
 
-    # spróbuj wczytać dodatkowy plik z podziałem per instrument, jeśli istnieje
+    # próbujemy wczytać dodatkowy plik z podziałem per instrument, jeśli istnieje
     try:
         per_inst_path = midi_run_dir / "midi_per_instrument.json"
         if per_inst_path.exists():
@@ -88,8 +95,8 @@ def run_mini_render(
     except Exception:
         midi_per_instrument = None
 
-    # Bazujemy na instrumentach z meta.instruments; frontend docelowo może
-    # przekazywać dokładniejsze TrackSettings, ale tu robimy prostą mapę.
+    # bazujemy na instrumentach z meta.instruments; frontend docelowo może przekazywać
+    # dokładniejsze TrackSettings, ale tu robimy prostą mapę
     instruments = meta.get("instruments") or midi.get("meta", {}).get("instruments") or []
     selected_samples: dict[str, str] = {}
     raw_selected = meta.get("selected_samples") or {}
@@ -104,14 +111,14 @@ def run_mini_render(
             selected_samples[name] = sid
     tracks: list[TrackSettings] = []
     for name in instruments:
-        # domyślnie każdy instrument włączony, głośność 0 dB, pan 0
+        # domyślnie każdy instrument włączony, głośność 0 db, pan 0
         tracks.append(TrackSettings(instrument=str(name)))
 
     if not tracks:
         raise ValueError("No instruments found in meta to build tracks list")
 
-    # run_id może pochodzić z zewnątrz (np. UI),
-    # tu fallbackujemy do nazwy katalogu midi_generation.
+    # run_id może pochodzić z zewnątrz (np. ui),
+    # tu fallbackujemy do nazwy katalogu midi_generation
     if run_id is None:
         run_id = midi_run_dir.name
 
@@ -128,20 +135,20 @@ def run_mini_render(
 
 
 def _pick_latest_run(output_root: Path) -> Path:
-    """Zwróć katalog o *najnowszej* nazwie (sort lex) z danego output_root."""
+    """zwraca katalog o "najnowszej" nazwie (sort leksykalny) z danego output_root."""
     if not output_root.is_dir():
         raise FileNotFoundError(f"Output root not found: {output_root}")
     dirs = [p for p in output_root.iterdir() if p.is_dir()]
     if not dirs:
         raise FileNotFoundError(f"No run directories found in {output_root}")
-    # Nazwy mają prefiks z datą/czasem, więc sortowanie leksykalne działa jako proxy czasu.
+    # nazwy mają prefiks z datą/czasem, więc sortowanie leksykalne działa jako proxy czasu
     dirs.sort(key=lambda p: p.name)
     return dirs[-1]
 
 
 if __name__ == "__main__":
-    # Interaktywne uruchomienie: pozwalamy wpisać NAZWY folderów albo zostawić puste,
-    # wtedy automatycznie wybieramy najnowsze runy z obu modułów.
+    # interaktywne uruchomienie: pozwalamy wpisać nazwy folderów albo zostawić puste,
+    # wtedy automatycznie wybieramy najnowsze runy z obu modułów
     base = Path(__file__).resolve().parent
 
     print("Mini render pipeline")

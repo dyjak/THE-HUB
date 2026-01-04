@@ -8,8 +8,18 @@ import contextlib
 
 import numpy as np  # type: ignore
 
+# ten moduł zawiera prostą analizę pitch (wysokości) dla plików wav.
+#
+# zastosowanie:
+# - w trybie "deep" podczas budowy inventory próbujemy oszacować root_midi sampla
+# - dzięki temu renderer może lepiej pitchować sample melodyczne (bliżej ich naturalnej wysokości)
+#
+# uwaga:
+# - to jest heurystyka oparta o fft, nie pełna detekcja tonu (dla perkusji często zwróci None)
+
 
 def _iter_wav_files(root: Path) -> Iterable[Path]:
+    # iterator po wszystkich plikach wav w drzewie katalogów
     audio_exts = {".wav"}
     for f in root.rglob("*"):
         if f.is_file() and f.suffix.lower() in audio_exts:
@@ -17,10 +27,12 @@ def _iter_wav_files(root: Path) -> Iterable[Path]:
 
 
 def _read_mono_segment(path: Path, max_seconds: float = 5.0) -> Tuple[np.ndarray, int]:
-    """Read up to max_seconds of mono audio from WAV as float32 array.
+    """czyta do max_seconds sekund mono audio z wav jako tablicę float32.
 
-    If the file is stereo, take the first channel. If it's shorter than
-    max_seconds, read the whole file. Raises on invalid/corrupt WAV.
+    zasady:
+    - jeśli plik jest stereo, bierzemy pierwszy kanał
+    - jeśli plik jest krótszy niż max_seconds, czytamy całość
+    - rzuca wyjątek dla nieprawidłowego/uszkodzonego wav
     """
 
     with contextlib.closing(wave.open(str(path), "rb")) as wf:
@@ -62,10 +74,10 @@ def _midi_to_name(midi: float) -> str:
 
 
 def estimate_root_pitch(path: Path) -> Optional[dict]:
-    """Estimate dominant pitch of a WAV file using a simple FFT-based method.
+    """szacuje dominującą wysokość dźwięku w pliku wav prostą metodą fft.
 
-    Returns dict with keys: pitch_hz, pitch_midi, pitch_name, confidence.
-    Returns None if estimation fails (e.g. too short, silent, heavily percussive).
+    zwraca dict z polami: pitch_hz, pitch_midi, pitch_name, confidence.
+    zwraca None, jeśli estymacja się nie uda (np. plik za krótki, cisza, mocno perkusyjny charakter).
     """
 
     try:
@@ -76,21 +88,21 @@ def estimate_root_pitch(path: Path) -> Optional[dict]:
     if sr <= 0 or data.size == 0:
         return None
 
-    # Apply a Hann window to reduce spectral leakage
+    # okno hann'a zmniejsza "przeciekanie" widma (spectral leakage)
     n = data.size
     if n < 1024:
         return None
     window = np.hanning(n).astype("float32")
     windowed = data * window
 
-    # FFT and magnitude spectrum
+    # fft i moduł widma
     spec = np.fft.rfft(windowed)
     mag = np.abs(spec)
 
-    # Frequency axis
+    # oś częstotliwości
     freqs = np.fft.rfftfreq(n, d=1.0 / sr)
 
-    # Ignore very low and very high bins (below 30 Hz, above 5 kHz)
+    # ignorujemy skrajnie niskie i wysokie pasmo (poniżej 30 hz, powyżej 5 khz)
     lo = np.searchsorted(freqs, 30.0)
     hi = np.searchsorted(freqs, 5000.0)
     mag = mag[lo:hi]
@@ -98,12 +110,12 @@ def estimate_root_pitch(path: Path) -> Optional[dict]:
     if mag.size == 0:
         return None
 
-    # Find peak bin
+    # znajdujemy najwyższy pik widma
     idx = int(np.argmax(mag))
     peak_freq = float(freqs[idx])
     peak_mag = float(mag[idx])
 
-    # Basic confidence: peak vs median energy
+    # prosta "pewność": stosunek piku do mediany energii widma
     median_mag = float(np.median(mag)) or 1e-9
     confidence = peak_mag / median_mag
 
@@ -121,8 +133,8 @@ def estimate_root_pitch(path: Path) -> Optional[dict]:
 
 
 def main() -> None:
-    # Import here to avoid circular import when inventory imports
-    # analyze_pitch_fft. CLI usage still works as expected.
+    # import lokalny, żeby uniknąć cyklicznego importu (inventory importuje analyze_pitch_fft).
+    # użycie jako skrypt cli nadal działa.
     from .inventory import DEFAULT_LOCAL_SAMPLES_ROOT  # type: ignore
 
     root = DEFAULT_LOCAL_SAMPLES_ROOT

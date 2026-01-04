@@ -3,6 +3,13 @@ from fastapi import APIRouter, HTTPException, Depends
 from pathlib import Path
 import json
 
+# ten moduł wystawia endpointy fastapi dla kroku render.
+#
+# w skrócie:
+# - `/render-audio` uruchamia właściwy render (mix + stem-y) i zapisuje stan na dysku
+# - `/run/{run_id}` pozwala odtworzyć ostatni zapisany stan renderu dla danego run_id
+# - `/recommend-samples` daje podpowiedzi doboru sampli na podstawie midi (bez renderowania)
+
 from .schemas import (
     RenderRequest,
     RenderResponse,
@@ -18,7 +25,8 @@ from app.auth.models import Proj
 router = APIRouter(
     prefix="/air/render",
     tags=["air:render"],
-    # Auth is enforced at the frontend /air/* route; backend endpoints remain public.
+    # uwaga: autoryzacja jest egzekwowana po stronie frontendu (/air/*),
+    # a endpointy backendu w tym module są publiczne (na ten moment)
 )
 
 
@@ -27,23 +35,23 @@ def render_endpoint(
     req: RenderRequest,
     db: Session = Depends(get_db),
 ) -> RenderResponse:
-    """Render mix + per-instrument stems for a given MIDI plan.
+    """renderuje mix oraz stem-y per instrument dla danego planu midi.
 
-    This endpoint is intentionally self-contained and does not import
-    anything from the experimental test modules.
+    endpoint jest celowo samowystarczalny: używa tylko docelowego silnika renderu,
+    bez importowania eksperymentalnych modułów testowych.
     """
 
     try:
         resp = render_audio(req)
-        # Po udanym renderze spróbuj zapisać prosty rekord projektu powiązany z run_id.
+        # po udanym renderze próbujemy zapisać prosty rekord projektu powiązany z run_id
         try:
             proj = Proj(user_id=req.user_id, render=req.run_id)
             db.add(proj)
             db.commit()
         except Exception:
-            # Nie blokujemy odpowiedzi renderu błędem DB.
+            # nie blokujemy odpowiedzi renderu błędem db
             db.rollback()
-        # Zapisz ostatni stan renderu dla danego run_id, aby frontend mógł go później odtworzyć.
+        # zapisujemy ostatni stan renderu dla danego run_id, aby frontend mógł go później odtworzyć
         try:
             run_dir = OUTPUT_ROOT / req.run_id
             run_dir.mkdir(parents=True, exist_ok=True)
@@ -54,7 +62,7 @@ def render_endpoint(
             }
             state_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
         except Exception:
-            # Render ma priorytet – jeśli zapis stanu się nie powiedzie, nie blokujemy odpowiedzi.
+            # render ma priorytet: jeśli zapis stanu się nie powiedzie, nie blokujemy odpowiedzi
             pass
         return resp
     except Exception as e:
@@ -88,11 +96,14 @@ def get_render_run(run_id: str) -> RenderResponse:
 
 @router.post("/recommend-samples", response_model=RecommendSamplesResponse)
 def recommend_samples_endpoint(req: RenderRequest) -> RecommendSamplesResponse:
-    """Zwraca rekomendowane sample z inventory na podstawie MIDI.
+    """zwraca rekomendowane sample z inventory na podstawie midi.
 
-    Endpoint służy tylko do podpowiedzi – NIE renderuje audio i niczego
-    sam nie zapisuje. Frontend może użyć zwróconej mapy instrument -> sample_id
-    do zaktualizowania JSON-a parametrów (np. meta.selected_samples).
+    endpoint służy tylko do podpowiedzi:
+    - nie renderuje audio
+    - niczego sam nie zapisuje
+
+    frontend może użyć mapy instrument -> sample_id do aktualizacji planu
+    (np. w meta.selected_samples).
     """
 
     from ..inventory.local_library import discover_samples  # lokalny import, jak w engine.py
@@ -102,7 +113,7 @@ def recommend_samples_endpoint(req: RenderRequest) -> RecommendSamplesResponse:
     except Exception as e:  # noqa: PERF203
         raise HTTPException(status_code=500, detail={"error": "inventory_failed", "message": str(e)})
 
-    # Preferujemy dokładniejsze warstwy per-instrument, jeśli są obecne.
+    # preferujemy dokładniejsze warstwy per-instrument, jeśli są obecne
     global_layers = req.midi.get("layers") or {}
     if not isinstance(global_layers, dict):
         global_layers = {}
@@ -112,8 +123,8 @@ def recommend_samples_endpoint(req: RenderRequest) -> RecommendSamplesResponse:
     for track in req.tracks:
         instrument = track.instrument
 
-        # Wybór odpowiedniej warstwy MIDI dla danego instrumentu.
-        # Per-instrument MIDI może używać `pattern` (zwłaszcza dla perkusji).
+        # wybór odpowiedniej warstwy midi dla danego instrumentu.
+        # per-instrument midi może używać `pattern` (zwłaszcza dla perkusji)
         if req.midi_per_instrument and instrument in (req.midi_per_instrument or {}):
             inst_midi = req.midi_per_instrument[instrument] or {}
             midi_layer = inst_midi.get("pattern")

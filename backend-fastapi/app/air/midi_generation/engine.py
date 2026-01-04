@@ -5,13 +5,27 @@ import json
 from datetime import datetime
 from uuid import uuid4
 
+# ten moduł jest "silnikiem" kroku midi_generation.
+#
+# odpowiedzialność:
+# - przyjąć wynik wygenerowany przez llm (zwykle json z `pattern` i/lub `layers`)
+# - doprowadzić strukturę do spójnej postaci (uzupełnić meta, zbudować pattern z layers, itp.)
+# - zapisać artefakty na dysku w katalogu output (json, opcjonalnie .mid, podgląd svg)
+# - opcjonalnie wygenerować dodatkowe pliki "per instrument", żeby ui mogło pokazywać rozbicie śladów
+#
+# ważne pojęcia:
+# - `pattern`: lista taktów, gdzie każdy takt ma listę eventów (step/note/vel/len)
+#   używane głównie do perkusji (wspólny kanał zdarzeń)
+# - `layers`: słownik instrument -> pattern, używany głównie do instrumentów melodycznych
+# - "best-effort": jeśli coś się nie uda (np. svg albo mid), nie przerywamy całej generacji
+
 try:  # opcjonalny export .mid
     import mido  # type: ignore
 except Exception:  # pragma: no cover - środowiska bez mido
     mido = None  # type: ignore
 
-## W produkcyjnym module nie używamy DEBUG_STORE z testów –
-## generujemy prosty run_id lokalnie.
+# w tym module nie używamy debug_store z innych kroków.
+# run_id generujemy lokalnie i zapisujemy artefakty do katalogu z timestampem.
 
 
 BASE_OUTPUT_DIR = Path(__file__).parent / "output"
@@ -19,14 +33,16 @@ BASE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _canon_inst_name(name: Any) -> str:
+    # normalizuje nazwę instrumentu do postaci porównywalnej (lowercase, pojedyncze spacje)
     return " ".join(str(name or "").strip().lower().split())
 
 
 def _notes_for_percussion_instrument(name: str) -> Optional[List[int]]:
-    """Map common drum instrument names to General MIDI note numbers.
+    """mapuje popularne nazwy elementów perkusji na numery nut general midi.
 
-    Important: for ambiguous names like "Hat" we accept both closed (42) and open (46)
-    so that model outputs using either representation still get attributed.
+    ważne:
+    - nazwy bywają niejednoznaczne (np. "hat"), więc dla hi-hatu akceptujemy zarówno
+      zamknięty (42), jak i otwarty (46), żeby eventy z obu wariantów dało się przypisać.
     """
 
     n = _canon_inst_name(name)
@@ -79,6 +95,8 @@ def _notes_for_percussion_instrument(name: str) -> Optional[List[int]]:
 
 
 def _filter_pattern_by_notes(pattern: List[Dict[str, Any]], allowed_notes: List[int], bars: int | None = None) -> List[Dict[str, Any]]:
+    # filtruje pattern i zostawia tylko eventy, których `note` należy do `allowed_notes`.
+    # używane przy rozbijaniu perkusji (globalny pattern) na osobne instrumenty.
     allowed = set(int(x) for x in (allowed_notes or []) if isinstance(x, int) or str(x).isdigit())
     if not allowed:
         return []
@@ -100,7 +118,7 @@ def _filter_pattern_by_notes(pattern: List[Dict[str, Any]], allowed_notes: List[
         if evs:
             out.append({"bar": b, "events": evs})
 
-    # If desired, make sure we have a deterministic bar range (for UI friendliness).
+    # opcjonalnie normalizujemy zakres taktów (1..bars), żeby ui miało stabilny widok
     if bars and bars > 0:
         existing = {int(b.get("bar", 0) or 0): b for b in out}
         normalized: List[Dict[str, Any]] = []
@@ -110,25 +128,20 @@ def _filter_pattern_by_notes(pattern: List[Dict[str, Any]], allowed_notes: List[
 
     return out
 
-#debug
-# class _DummyRun:
-#     def __init__(self) -> None:
-#         from uuid import uuid4
-#         self.run_id = str(uuid4())
-
-#     def log(self, category: str, event: str, payload: dict) -> None:
-#         # Możesz tu w razie czego zrobić print/logowanie do pliku
-#         pass
-# class _DummyStore:
-#     def start(self) -> "_DummyRun":
-#         return _DummyRun()
-# DEBUG_STORE = _DummyStore()
+# poniżej jest stary, zakomentowany szkic "dummy" loggera.
+# zostawiamy go jako kontekst historyczny, ale w produkcyjnym przepływie nie jest używany.
 
 
 def _safe_parse_midi_json(raw: str) -> Tuple[Dict[str, Any], List[str]]:
-    """Minimalny parser JSON z delikatnym odzyskiwaniem (analogiczny do _safe_parse_json).
+    """minimalny parser json z delikatnym odzyskiwaniem.
 
-    Zdejmuje ewentualne ``` fences i próbuje przyciąć do ostatniej klamry.
+    po co to jest:
+    - llm czasem zwraca ```json ... ``` mimo że prosimy o "sam json"
+    - odpowiedź bywa ucięta i wtedy pomaga przycięcie do ostatniej `}`
+
+    zwraca:
+    - sparsowany obiekt (lub pusty dict)
+    - listę błędów/ostrzeżeń opisujących, co poszło nie tak
     """
 
     errors: List[str] = []
@@ -166,10 +179,12 @@ def _safe_parse_midi_json(raw: str) -> Tuple[Dict[str, Any], List[str]]:
 
 
 def _ensure_midi_structure(meta: Dict[str, Any], midi_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Zapewnia, że midi_data ma pattern/layers/meta w podstawowej formie.
+    """upewnia się, że `midi_data` ma podstawową, spójną strukturę.
 
-    Jeśli model zwróci tylko layers bez pattern, zbudujemy pattern jako sumę.
-    Jeśli nie ma meta, uzupełnimy z wejściowego meta (tempo, instruments itd.).
+    co dokładnie robimy:
+    - jeśli w odpowiedzi nie ma `meta`, to uzupełniamy je danymi wejściowymi (tempo, bars, instrumenty itd.)
+    - jeśli w odpowiedzi nie ma `layers`, tworzymy pusty słownik
+    - jeśli w odpowiedzi nie ma `pattern`, budujemy go jako "sumę" eventów ze wszystkich warstw
     """
 
     if not isinstance(midi_data, dict):
@@ -196,10 +211,11 @@ def _ensure_midi_structure(meta: Dict[str, Any], midi_data: Dict[str, Any]) -> D
 
 
 def _build_pattern_from_layers(layers: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Buduje pattern jako sumę wszystkich warstw.
+    """buduje globalny `pattern` jako sumę eventów ze wszystkich warstw (`layers`).
 
-    Wspólna funkcja, której użyjemy również do generowania patternów
-    per-instrument.
+    dlaczego to jest potrzebne:
+    - czasem llm zwraca tylko `layers` (np. dla instrumentów melodycznych)
+    - ui/render łatwiej obsługują też ustandaryzowany `pattern`, więc go dopinamy
     """
 
     combined: Dict[int, Dict[str, Any]] = {}
@@ -220,7 +236,12 @@ def _build_pattern_from_layers(layers: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 
 def _export_pattern_to_mid(pattern: List[Dict[str, Any]], tempo_bpm: int, out_path: Path) -> Optional[Path]:
-    """Eksportuje prosty pattern do pliku .mid (jak w module testowym)."""
+    """eksportuje prosty pattern do pliku .mid.
+
+    uwagi:
+    - ten eksport jest bardzo podstawowy (siatka 8 kroków na takt)
+    - jeśli biblioteka `mido` nie jest dostępna, funkcja zwraca `None`
+    """
 
     if mido is None:
         return None
@@ -257,9 +278,14 @@ def _export_pattern_to_mid(pattern: List[Dict[str, Any]], tempo_bpm: int, out_pa
 
 
 def _render_pianoroll_svg(midi_data: Dict[str, Any], out_path: Path) -> Optional[Path]:
-    """Generuje prosty pianoroll jako SVG (bars x 8 stepów, oś nut).
+    """generuje prosty podgląd pianoroll jako svg.
 
-    To jest wersja robocza – bez skalowania do pikseli perfect.
+    jak to działa w skrócie:
+    - oś x: takty * 8 kroków na takt
+    - oś y: wysokość nut (min..max z eventów)
+    - prostokąty reprezentują nuty, a jasność zależy od velocity
+
+    to jest wersja robocza (bez perfekcyjnego skalowania i bez opisów osi).
     """
 
     pattern = midi_data.get("pattern") or []
@@ -337,14 +363,14 @@ def generate_midi_and_artifacts(
     Dict[str, Dict[str, Any]],
     Dict[str, Dict[str, Optional[str]]],
 ]:
-    """Główna funkcja silnika: porządkuje strukturę MIDI i generuje artefakty.
+    """główna funkcja silnika: porządkuje strukturę midi i generuje artefakty.
 
-    Zwraca:
-    - run_id,
-    - midi_data (globalny plan),
-    - artifacts (globalne artefakty),
-    - midi_per_instrument (strukturya MIDI per instrument),
-    - artifacts_per_instrument (artefakty per instrument).
+    zwraca:
+    - run_id: krótki identyfikator uruchomienia
+    - midi_data: globalny plan midi (meta + layers + pattern)
+    - artifacts: ścieżki względne do plików globalnych (json/mid/svg)
+    - midi_per_instrument: osobne struktury midi dla instrumentów (jeśli uda się je przygotować)
+    - artifacts_per_instrument: ścieżki do plików per instrument
     """
 
     run_id = uuid4().hex[:12]
@@ -387,7 +413,7 @@ def generate_midi_and_artifacts(
         "midi_image_rel": _rel(midi_svg_path) if midi_svg_path else None,
     }
 
-    # --- Nowość: podział MIDI per instrument ---
+    # rozbicie midi per instrument (dla warstw melodycznych)
     midi_per_instrument: Dict[str, Dict[str, Any]] = {}
     artifacts_per_instrument: Dict[str, Dict[str, Optional[str]]] = {}
 
@@ -408,7 +434,7 @@ def generate_midi_and_artifacts(
             }
             midi_per_instrument[inst] = inst_midi
 
-            # Artefakty na dysku
+            # artefakty na dysku dla konkretnego instrumentu
             safe_inst = str(inst).replace("/", "_").replace("\\", "_")
             inst_json_path = run_dir / f"midi_{safe_inst}.json"
             with inst_json_path.open("w", encoding="utf-8") as f:
@@ -433,7 +459,7 @@ def generate_midi_and_artifacts(
                 "midi_image_rel": _rel(inst_svg_path) if inst_svg_path else None,
             }
 
-    # --- Perkusja: budujemy per-instrument na podstawie globalnego pattern ---
+    # perkusja: budujemy per-instrument na podstawie globalnego pattern (filtr po nutach)
     try:
         midi_meta = midi_data.get("meta") if isinstance(midi_data.get("meta"), dict) else {}
         requested_instruments = (midi_meta.get("instruments") or meta.get("instruments") or [])
@@ -469,7 +495,7 @@ def generate_midi_and_artifacts(
             if inst in midi_per_instrument:
                 continue
 
-            # Only handle percussion here.
+            # tu obsługujemy tylko perkusję (melodyczne instrumenty są rozbijane wcześniej przez layers)
             if percussion_names and inst not in percussion_names:
                 continue
             allowed_notes = _notes_for_percussion_instrument(inst)
@@ -479,8 +505,8 @@ def generate_midi_and_artifacts(
             inst_pattern = _filter_pattern_by_notes(global_pattern, allowed_notes, bars=bars_count)
             has_any = any((b.get("events") or []) for b in (inst_pattern or []))
             if not has_any:
-                # No repair/placeholder events: if the model produced no notes for this
-                # percussion instrument, we keep an empty pattern.
+                # jeśli nie ma żadnych eventów, nie "naprawiamy" tego sztucznymi nutami.
+                # w ui i tak lepiej pokazać pusty pattern, ale z poprawnym zakresem taktów.
                 if bars_count and bars_count >= 1:
                     inst_pattern = [{"bar": i, "events": []} for i in range(1, bars_count + 1)]
                 else:
@@ -515,11 +541,11 @@ def generate_midi_and_artifacts(
                 "midi_image_rel": _rel(inst_svg_path) if inst_svg_path else None,
             }
     except Exception:
-        # Per-instrument export is best-effort; global MIDI should still succeed.
+        # eksport per-instrument jest best-effort; globalne midi ma się udać niezależnie
         pass
 
-    # Zapisujemy zbiorczy opis podziału per instrument w jednym JSON-ie ułatwiającym
-    # późniejsze testowe pipeline'y (np. mini_pipeline_test).
+    # zapisujemy zbiorczy opis podziału per instrument w jednym pliku,
+    # żeby później łatwo testować pipeline'y i diagnostykę
     try:
         per_inst_path = run_dir / "midi_per_instrument.json"
         with per_inst_path.open("w", encoding="utf-8") as f:
