@@ -17,6 +17,17 @@ Dodatkowo:
 - **`gallery`** — proste portfolio (najmniej istotne).
 - **`projects/store`** — prosty plikowy storage (aktualnie pomocniczy / przyszłościowy).
 
+Szczegółowe opisy poszczególnych modułów są też w ich lokalnych README:
+
+- `param_generation/README.md`
+- `midi_generation/README.md`
+- `render/README.md`
+- `inventory/README.md`
+- `providers/README.md`
+- `export/README.md`
+- `projects/README.md`
+- `gallery/README.md`
+
 > Ważne: w tym repo endpointy AIR są w praktyce „publiczne” na poziomie backendu (brak `Depends(get_current_user)`), a kontrola dostępu jest zakładana w warstwie frontendu (`/air/*`). W środowisku produkcyjnym warto to docelowo domknąć po stronie backendu.
 
 ---
@@ -538,6 +549,8 @@ Poniżej mechanika `render_audio(req)`:
 
 - pobierz sample (wav) i wczytaj mono (`_read_wav_mono`):
   - preferuje `scipy.io.wavfile`, fallback `wave` (16-bit).
+
+Ważne ograniczenie: renderer działa na stałym `sr = 44100` i **ignoruje sample-rate z pliku WAV**. Jeśli sample nie mają 44100 Hz, odtwarzanie będzie miało błędny pitch/tempo.
 - jeśli sample ma `gain_db_normalize`, przeskaluj amplitudę.
 
 4) **Złożenie mono bufora instrumentu**
@@ -583,6 +596,8 @@ To jest ważna decyzja „muzyczna”:
 - attack 0.01s
 - release 0.1s
 
+Uwaga: renderer **nie używa pola `len`** z eventu MIDI do sterowania długością nuty. Długość wynika z długości sampla po pitch-shifcie oraz z voice stealing (kolejny event może wyciąć ogon poprzedniego).
+
 8) **Pan/volume i zapis stemu**
 
 - `gain = db_to_gain(volume_db)`
@@ -594,6 +609,8 @@ To jest ważna decyzja „muzyczna”:
 - sumuje lewy i prawy kanał stemów (`_mix_tracks`),
 - robi prostą normalizację do 0.9 peak,
 - zapisuje `*_mix_*.wav`.
+
+Praktyczny detal: normalizacja jest wykonywana przez `_mix_tracks()` osobno dla lewego i prawego kanału (czyli każdy kanał jest skalowany niezależnie). To może minimalnie zmienić obraz stereo w zależności od zawartości kanałów.
 
 10) **Błąd, jeśli nic nie wyrenderowano**
 
@@ -634,8 +651,8 @@ Dać frontendowi możliwość pobrania wszystkich artefaktów projektu jako:
 
 Router: `app/air/export/router.py` prefiks `/air/export`.
 
-- `GET /api/air/export/list/{render_run_id}?param_run_id=...`
-- `GET /api/air/export/zip/{render_run_id}?param_run_id=...`
+- `GET /api/air/export/list/{render_run_id}` (opcjonalnie query: `param_run_id`)
+- `GET /api/air/export/zip/{render_run_id}` (opcjonalnie query: `param_run_id`)
 
 `ExportManifest` zawiera:
 
@@ -738,6 +755,14 @@ To jest najmniej istotne dla pipeline.
 ```
 air/projects/output/<project_id>.json
 ```
+
+W tym samym katalogu (obok plików projektów) trzymane jest też mapowanie kroków pipeline:
+
+```
+air/projects/output/step_links.json
+```
+
+Plik jest zapisywany przez `export/links.py` i służy do linkowania `render_run_id -> param_run_id` (best-effort).
 
 Funkcje:
 

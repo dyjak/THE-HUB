@@ -354,6 +354,28 @@ def _render_pianoroll_svg(midi_data: Dict[str, Any], out_path: Path) -> Optional
     return out_path
 
 
+def _write_placeholder_pianoroll_svg(out_path: Path) -> Optional[Path]:
+    """Zapisuje minimalny SVG, gdy podgląd pianoroll jest niedostępny.
+
+    To jest celowo best-effort: ta funkcja nigdy nie powinna przerwać pipeline.
+    """
+
+    try:
+        svg = (
+            "<svg xmlns='http://www.w3.org/2000/svg' width='640' height='120' viewBox='0 0 640 120'>\n"
+            "  <rect x='0' y='0' width='100%' height='100%' fill='black'/>\n"
+            "  <text x='16' y='46' fill='rgba(255,255,255,0.85)' font-size='14' font-family='sans-serif'>"
+            "Pianoroll SVG unavailable</text>\n"
+            "  <text x='16' y='72' fill='rgba(255,255,255,0.55)' font-size='12' font-family='sans-serif'>"
+            "(empty pattern or render error)</text>\n"
+            "</svg>\n"
+        )
+        out_path.write_text(svg, encoding="utf-8")
+        return out_path
+    except Exception:
+        return None
+
+
 def generate_midi_and_artifacts(
     meta: Dict[str, Any], midi_data: Dict[str, Any]
 ) -> Tuple[
@@ -398,6 +420,9 @@ def generate_midi_and_artifacts(
         midi_svg_path = _render_pianoroll_svg(midi_data, run_dir / "pianoroll.svg")
     except Exception:
         midi_svg_path = None
+    if midi_svg_path is None:
+        # SVG jest tylko do podglądu/debugu. Brak/porażka nie może wpływać na UX.
+        midi_svg_path = _write_placeholder_pianoroll_svg(run_dir / "pianoroll.svg")
 
     def _rel(p: Optional[Path]) -> Optional[str]:
         if p is None:
@@ -452,6 +477,8 @@ def generate_midi_and_artifacts(
                 inst_svg_path = _render_pianoroll_svg(inst_midi, run_dir / f"pianoroll_{safe_inst}.svg")
             except Exception:
                 inst_svg_path = None
+            if inst_svg_path is None:
+                inst_svg_path = _write_placeholder_pianoroll_svg(run_dir / f"pianoroll_{safe_inst}.svg")
 
             artifacts_per_instrument[inst] = {
                 "midi_json_rel": _rel(inst_json_path),
@@ -534,6 +561,8 @@ def generate_midi_and_artifacts(
                 inst_svg_path = _render_pianoroll_svg(inst_midi, run_dir / f"pianoroll_{safe_inst}.svg")
             except Exception:
                 inst_svg_path = None
+            if inst_svg_path is None:
+                inst_svg_path = _write_placeholder_pianoroll_svg(run_dir / f"pianoroll_{safe_inst}.svg")
 
             artifacts_per_instrument[inst] = {
                 "midi_json_rel": _rel(inst_json_path),
