@@ -17,3 +17,5 @@ venv
 *.wav
 *.dwp
 *.fst
+
+*.env
