@@ -1,5 +1,12 @@
 "use client";
 
+// particletext: renderuje napis jako „chmurę” cząsteczek na canvasie.
+// mechanizm:
+// - rysujemy tekst na niewidocznym canvasie i odczytujemy piksele,
+// - z pikseli z alphą budujemy listę cząsteczek,
+// - w animacji cząsteczki reagują na mysz i delikatnie „żyją” ruchem ambient.
+// wariant awaryjny: jeśli napis nie mieści się w kontenerze, pokazujemy zwykły tekst (bez canvasa).
+
 import React, { useLayoutEffect, useMemo, useRef, useEffect, useState } from "react";
 
 interface ParticleTextProps {
@@ -50,9 +57,10 @@ export default function ParticleText({
       width: "100%",
     };
 
-    // Handle common patterns used in this repo:
+    // obsługa typowych formatów fontów używanych w repo:
     // - "bold 74px system-ui"
-    // - "bold clamp(28px, 8vw, 64px) system-ui" (not valid as canvas font, but usable as CSS fontSize)
+    // - "bold clamp(28px, 8vw, 64px) system-ui" (nie jest poprawnym fontem dla canvasa,
+    //   ale działa jako css font-size w fallbacku tekstowym)
     if (font.includes("clamp(")) {
       const clampStart = font.indexOf("clamp(");
       const weightPart = font.slice(0, clampStart).trim();
@@ -93,17 +101,17 @@ export default function ParticleText({
       const containerWidth = container.clientWidth;
       const containerHeight = container.clientHeight;
 
-      // If we have no room, fall back to plain text.
+      // jeśli kontener nie ma sensownego rozmiaru, przełączamy się na zwykły tekst.
       if (containerWidth <= 0 || containerHeight <= 0) {
         setUsePlainText(true);
         return;
       }
 
-      // Measure the natural one-line width of the text using DOM (supports clamp() fontSize).
-      // Use scrollWidth so it ignores container width constraints.
+      // mierzymy „naturalną” szerokość napisu w jednej linii przez dom.
+      // używamy scrollwidth, żeby ominąć ograniczenia szerokości kontenera.
       const textWidth = measureEl.scrollWidth;
 
-      // Small padding to avoid edge clipping.
+      // drobny margines, żeby uniknąć ucinania przy krawędzi.
       const fits = textWidth <= containerWidth * 0.98;
       setUsePlainText(!fits);
     };
@@ -131,7 +139,7 @@ export default function ParticleText({
     let height = canvas.height;
 
     const init = () => {
-      // Resize canvas to parent
+      // dopasowanie canvasa do rodzica
       const parent = canvas.parentElement;
       if (parent) {
         canvas.width = parent.clientWidth;
@@ -140,10 +148,10 @@ export default function ParticleText({
       width = canvas.width;
       height = canvas.height;
 
-      // Draw text to get coordinates
+      // rysujemy tekst, żeby wyciągnąć współrzędne pikseli
       ctx.clearRect(0, 0, width, height);
       ctx.fillStyle = "white";
-      // Prefer computed CSS font from our measure element (handles clamp() etc.)
+      // preferujemy font wyliczony przez css (obsługuje clamp() itd.)
       const measuredCssFont = measureRef.current ? window.getComputedStyle(measureRef.current).font : "";
       ctx.font = measuredCssFont || font;
       ctx.textAlign = "center";
@@ -153,7 +161,7 @@ export default function ParticleText({
       const textData = ctx.getImageData(0, 0, width, height);
       const particles: Particle[] = [];
 
-      // Sampling step - adjust for performance vs density
+      // krok próbkowania: kompromis między wydajnością a gęstością cząsteczek
       const step = 4;
 
       for (let y = 0; y < height; y += step) {
@@ -194,14 +202,13 @@ export default function ParticleText({
         let forceDirectionX = dx / distance;
         let forceDirectionY = dy / distance;
 
-        // Mouse interaction
+        // interakcja z myszą
         let maxDistance = mouseRadius;
         let force = (maxDistance - distance) / maxDistance;
         let directionX = forceDirectionX * force * mouseStrength;
         let directionY = forceDirectionY * force * mouseStrength;
 
-        // Ambient motion (living particles)
-        // Use random phase to make them move independently
+        // ruch ambient: cząsteczki „żyją”, każda ma własną fazę
         const ambientX = Math.sin(timeRef.current + particle.phaseX) * 1.5;
         const ambientY = Math.cos(timeRef.current + particle.phaseY) * 1.5;
 
@@ -212,10 +219,10 @@ export default function ParticleText({
           particle.x -= directionX;
           particle.y -= directionY;
         } else {
-          // Return to base (with ambient offset)
+          // powrót do pozycji bazowej (z uwzględnieniem ruchu ambient)
           if (particle.x !== targetX) {
             let dx = particle.x - targetX;
-            particle.x -= dx / 15; // Slower return for smoother feel
+            particle.x -= dx / 15; // wolniej = bardziej płynnie
           }
           if (particle.y !== targetY) {
             let dy = particle.y - targetY;
@@ -223,7 +230,7 @@ export default function ParticleText({
           }
         }
 
-        // Draw particle
+        // rysowanie cząsteczki
         ctx.fillStyle = particle.color;
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
@@ -265,7 +272,7 @@ export default function ParticleText({
       className={className}
       style={{ width: "100%", height: "100%", position: "relative" }}
     >
-      {/* Hidden measurer: determines if the text fits the container at current CSS font */}
+      {/* ukryty „miernik”: sprawdza, czy tekst mieści się w kontenerze przy aktualnym css font */}
       <span
         ref={measureRef}
         aria-hidden="true"

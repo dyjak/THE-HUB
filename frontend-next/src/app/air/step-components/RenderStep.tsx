@@ -1,5 +1,20 @@
 "use client";
 
+/*
+  krok 3: render audio i eksport plików.
+
+  co robi:
+  - pozwala nazwać projekt i skonfigurować ścieżki (włącz/wyłącz, głośność, panoramę)
+  - pozwala dobrać sample ręcznie (SampleSelector) albo poprosić backend o rekomendację
+  - wysyła do backendu żądanie renderowania miksu i osobnych ścieżek (stems)
+  - po renderze pozwala odsłuchać wynik oraz pobrać pliki (pojedynczo lub wszystko naraz)
+
+  ważne pojęcia:
+  - run_id: identyfikator renderu po stronie backendu (zwykle ten sam co w kroku midi)
+  - rel_path: ścieżka względna do pliku w katalogu output backendu
+  - /api/audio: endpoint, z którego serwowane są wygenerowane pliki audio
+*/
+
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import type { ParamPlanMeta } from "../lib/paramTypes";
@@ -35,10 +50,10 @@ type Props = {
   meta: ParamPlanMeta | null;
   midi: MidiPlanResult | null;
   selectedSamples: Record<string, string | undefined>;
-  // run_id z backendu dla kroku renderu (zwykle ten sam co z MIDI)
+  // run_id z backendu dla kroku renderu (zwykle ten sam co z midi)
   initialRunId?: string | null;
   onRunIdChange?: (runId: string | null) => void;
-  // Opcjonalne powiadomienie rodzica o zmianie wyboru sampli w kroku render
+  // opcjonalne powiadomienie rodzica o zmianie wyboru sampli w kroku render
   onSelectedSamplesChange?: (next: Record<string, string | undefined>) => void;
 };
 
@@ -66,8 +81,8 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
   const canRender = !!meta && !!midi && !loading && !!projectName.trim();
 
   const backendAudioBase = useMemo(() => {
-    // Backend: app.mount("/api/audio", StaticFiles(directory=render_output))
-    // => pliki siedzą w: output/<run_id>/<file>, URL: /api/audio/<run_id>/<file>
+    // backend mapuje katalog output pod /api/audio.
+    // w praktyce: pliki są w output/<run_id>/<plik>, a url wygląda jak /api/audio/<run_id>/<plik>
     return `${API_BASE}/api/audio/`;
   }, []);
 
@@ -81,7 +96,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
 
       const finalUrl = `${backendAudioBase}${tail}`;
       if (process.env.NODE_ENV === "development") {
-        // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-console -- logowanie tylko w trybie dev
         console.log("[RenderStep] resolveRenderUrl", { rel, tail, finalUrl });
       }
       return finalUrl;
@@ -89,12 +104,12 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
     [backendAudioBase],
   );
 
-  // Resolve MIDI file URL from midi artifacts
+  // buduje url do pliku midi na podstawie ścieżki zwróconej w artefaktach
   const resolveMidiUrl = useCallback(
     (rel: string | null | undefined) => {
       if (!rel) return null;
-      // MIDI files are also served from /api/audio/ endpoint
-      // Handle both forward slashes and backslashes
+      // pliki midi też są serwowane z /api/audio
+      // obsługujemy zarówno ukośniki / jak i \\ (windows)
       const markerBack = "output\\";
       const markerFwd = "output/";
       let idx = rel.indexOf(markerBack);
@@ -104,7 +119,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
         marker = markerFwd;
       }
       const tail = idx >= 0 ? rel.slice(idx + marker.length) : rel;
-      // Normalize path separators to forward slashes for URL
+      // normalizacja separatorów ścieżek do ukośników, żeby url był poprawny
       const normalizedTail = tail.replace(/\\/g, '/');
       const finalUrl = `${backendAudioBase}${normalizedTail}`;
       if (process.env.NODE_ENV === "development") {
@@ -115,7 +130,8 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
     [backendAudioBase],
   );
 
-  // Download a single file - returns true on success, false on failure
+  // pobiera pojedynczy plik.
+  // zwraca true gdy pobranie się udało, false gdy nie (np. 404 albo błąd sieci).
   const downloadFile = useCallback(async (url: string, filename: string, silentOn404 = false): Promise<boolean> => {
     try {
       if (process.env.NODE_ENV === "development") {
@@ -146,14 +162,15 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
     }
   }, []);
 
-  // Download all files (render + midi + param artifacts)
+  // pobiera wszystkie pliki powiązane z renderem.
+  // priorytet: zip (jeden plik), wariant awaryjny: manifest i wiele pobrań.
   const downloadAll = useCallback(async (h: RenderResult) => {
     const projectNameClean = h.project_name.replace(/[^a-zA-Z0-9_-]/g, '_');
     setError(null);
     try {
       setDownloadingAllRunId(h.run_id);
 
-      // 1) Prefer ZIP (single download)
+      // 1) preferujemy zip (pojedyncze pobranie)
       const zipUrl = `${API_BASE}${API_PREFIX}/air/export/zip/${encodeURIComponent(h.run_id)}`;
       const zipRes = await fetch(zipUrl);
       if (zipRes.ok) {
@@ -169,7 +186,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
         return;
       }
 
-      // 2) Fallback: manifest-based downloads
+      // 2) wariant awaryjny: pobieranie na podstawie manifestu
       const url = `${API_BASE}${API_PREFIX}/air/export/list/${encodeURIComponent(h.run_id)}`;
       const res = await fetch(url);
       const data = await res.json().catch(() => null);
@@ -230,8 +247,8 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
         midi_per_instrument: (midi as any).midi_per_instrument ?? null,
         tracks,
         selected_samples: selectedSamples,
-        // Umożliwiamy delikatne dostrojenie długości fade-outu poprzedniej
-        // nuty w ramach jednego instrumentu. Backend oczekuje sekund.
+        // pozwala delikatnie dostroić długość fade-outu poprzedniej nuty w obrębie jednego instrumentu.
+        // backend oczekuje wartości w sekundach.
         fadeout_seconds: Math.max(0, Math.min(100, fadeoutMs)) / 1000,
       };
       const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/render-audio`, {
@@ -290,7 +307,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
         { instrument: string; sample_id: string }
       >;
 
-      // Zbuduj mapę instrument -> sample_id
+      // budujemy mapę instrument -> sample_id
       const merged: Record<string, string | undefined> = { ...selectedSamples };
       for (const [inst, rec] of Object.entries(recommended)) {
         if (rec?.sample_id) {
@@ -308,7 +325,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
     }
   };
 
-  // Przy initialRunId spróbujmy odczytać ostatni stan renderu
+  // jeśli mamy initialRunId, próbujemy odczytać ostatni stan renderu
   useEffect(() => {
     if (!initialRunId || result) return;
     let active = true;
@@ -350,7 +367,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
       ) : (
         <div className="space-y-6">
 
-          {/* 1. Recommend Samples */}
+          {/* 1. dobieranie sampli */}
           <div className="flex flex-col sm:flex-row gap-4 items-start bg-black/80 p-5 rounded-xl border border-emerald-900/40">
             <button
               type="button"
@@ -375,7 +392,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
             </div>
           </div>
 
-          {/* 2. Track Configuration */}
+          {/* 2. konfiguracja ścieżek */}
           <div className="space-y-3">
             <div className="space-y-2 max-h-[500px] overflow-y-auto scroll-container-emerald pr-2 border border-emerald-500/30 rounded-2xl p-4 bg-black/40">
               <label className="block text-xs uppercase tracking-widest text-emerald-300 mb-1 pl-1">Konfiguracja ścieżek</label>
@@ -385,7 +402,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
                   key={t.instrument || idx}
                   className="border border-emerald-800/30 rounded-xl px-4 py-3 bg-black/40 hover:bg-black/50 transition-colors grid grid-cols-1 sm:grid-cols-12 gap-6 items-center"
                 >
-                  {/* Left: Instrument Name + Dot Checkbox */}
+                  {/* lewa strona: nazwa instrumentu + przełącznik włącz/wyłącz */}
                   <div className="sm:col-span-3 flex items-center justify-center gap-3">
                     <button
                       type="button"
@@ -398,9 +415,9 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
                     </div>
                   </div>
 
-                  {/* Middle: Volume and Pan Sliders Stacked */}
+                  {/* środek: suwaki głośności i panoramy */}
                   <div className="sm:col-span-5 flex flex-col gap-2">
-                    {/* Volume */}
+                    {/* głośność */}
                     <div className="flex items-center gap-2 text-[11px] text-gray-400">
                       <span className="w-6 shrink-0">Vol</span>
                       <input
@@ -415,7 +432,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
                       />
                       <span className="w-12 text-right text-gray-300 font-mono shrink-0">{t.volume_db > 0 ? `+${t.volume_db}` : t.volume_db} dB</span>
                     </div>
-                    {/* Pan */}
+                    {/* panorama */}
                     <div className="flex items-center gap-2 text-[11px] text-gray-400">
                       <span className="w-6 shrink-0">Pan</span>
                       <input
@@ -434,7 +451,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
                     </div>
                   </div>
 
-                  {/* Right: Sample Selector */}
+                  {/* prawa strona: wybór sampla */}
                   <div className="sm:col-span-4">
                     <div className="text-[9px] text-gray-400 mb-1">Sample</div>
                     <SampleSelector
@@ -451,7 +468,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
             </div>
           </div>
 
-          {/* 3. Fade-out */}
+          {/* 3. fade-out */}
           <div className="flex flex-col sm:flex-row gap-10 items-start bg-black/20 p-4 rounded-xl border border-emerald-900/20">
             <div className="flex-1 space-y-2 w-full">
               <div className="flex items-center justify-between gap-2">
@@ -480,7 +497,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
             </div>
           </div>
 
-          {/* 4. Project Name */}
+          {/* 4. nazwa projektu */}
           <div className="flex flex-col items-center gap-2">
             <label className="block text-l uppercase tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-emerald-200 via-green-400 to-emerald-200 animate-pulse font-bold">
               Nazwij swój projekt
@@ -493,7 +510,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
             />
           </div>
 
-          {/* 5. Render Button */}
+          {/* 5. przycisk renderowania */}
           <div>
             <ElectricBorder
               as="button"
@@ -548,7 +565,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
                             </div>
                           )}
                         </div>
-                        {/* Download buttons */}
+                        {/* przyciski pobierania */}
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
@@ -623,7 +640,7 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
         </div>
       )}
 
-      {/* Loading overlay */}
+      {/* overlay ładowania */}
       <LoadingOverlay
         isVisible={loading}
         message="Renderuję Twój utwór... To już akurat potrwa bardzo niedługo!"

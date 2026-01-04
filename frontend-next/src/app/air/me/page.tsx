@@ -1,5 +1,12 @@
 "use client";
 
+// „twoje audio”: lista projektów użytkownika zapisanych w backendzie.
+// użytkownik może:
+// - odsłuchać mix i stemsy,
+// - podejrzeć prompt i parametry,
+// - zmienić nazwę / usunąć,
+// - pobrać pliki (mix albo cały eksport).
+
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { SimpleAudioPlayer } from "../step-components/SimpleAudioPlayer";
@@ -59,6 +66,8 @@ function useResolveRenderUrl() {
   const backendAudioBase = useBackendAudioBase();
   return (rel: string) => {
     if (!rel) return backendAudioBase;
+    // backend w niektórych miejscach zwraca ścieżki „windowsowe” typu output\....
+    // tu odcinamy prefix do folderu output i budujemy url do /api/audio/.
     const marker = "output\\";
     const idx = rel.indexOf(marker);
     const tail = idx >= 0 ? rel.slice(idx + marker.length) : rel;
@@ -91,7 +100,7 @@ function extractPrompt(item: any): string | null {
     const fromParam = pm?.user_prompt ?? pm?.prompt;
     if (typeof fromParam === "string" && fromParam.trim()) return fromParam.trim();
   } catch {
-    // ignore
+    // ignorujemy: tu tylko „best effort” wydobycia prompta z różnych struktur.
   }
   return null;
 }
@@ -183,7 +192,8 @@ export default function UserProjectsPage() {
     }
   };
 
-  // Download file helper
+  // helper do pobierania pojedynczego pliku.
+  // używamy blob + tymczasowego linka, żeby wymusić download (a nie nawigację).
   const downloadFile = useCallback(async (url: string, filename: string): Promise<boolean> => {
     try {
       const response = await fetch(url);
@@ -205,7 +215,9 @@ export default function UserProjectsPage() {
     }
   }, []);
 
-  // Download all files for a project (render + midi + param artifacts)
+  // pobieranie „wszystkiego” dla projektu:
+  // - preferujemy 1 plik zip,
+  // - jeśli zip jest niedostępny, bierzemy manifest i ściągamy pliki po kolei.
   const downloadAll = useCallback(async (item: UserProjectItem) => {
     const projectNameClean = (item.project_name || 'projekt').replace(/[^a-zA-Z0-9_-]/g, '_');
     setError(null);
@@ -213,7 +225,7 @@ export default function UserProjectsPage() {
     try {
       setDownloadingAllRunId(item.run_id);
 
-      // 1) Prefer ZIP (single download)
+      // 1) preferujemy zip (jedno pobranie)
       const zipUrl = `${API_BASE}${API_PREFIX}/air/export/zip/${encodeURIComponent(item.run_id)}`;
       const zipRes = await fetch(zipUrl);
       if (zipRes.ok) {
@@ -229,7 +241,7 @@ export default function UserProjectsPage() {
         return;
       }
 
-      // 2) Fallback: manifest-based downloads
+      // 2) wariant awaryjny: pobieranie na podstawie manifestu
       const url = `${API_BASE}${API_PREFIX}/air/export/list/${encodeURIComponent(item.run_id)}`;
       const res = await fetch(url);
       const data = await res.json().catch(() => null);
@@ -281,7 +293,7 @@ export default function UserProjectsPage() {
     <section className="min-h-screen bg-black/0 p-6 md:p-10">
       <div className="max-w-5xl mx-auto space-y-6">
 
-        {/* Header with ParticleText */}
+        {/* nagłówek z particletext */}
         <div className="bg-gray-900/10 border border-cyan-700/30 rounded-2xl shadow-lg shadow-cyan-900/10 p-6 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-cyan-900/5 to-transparent pointer-events-none" />
 
@@ -305,7 +317,7 @@ export default function UserProjectsPage() {
           </div>
         </div>
 
-        {/* Loading State */}
+        {/* stan ładowania */}
         {loading && (
           <div className="bg-black/40 border border-cyan-800/30 rounded-xl p-6 text-center">
             <div className="flex items-center justify-center gap-3">
@@ -315,7 +327,7 @@ export default function UserProjectsPage() {
           </div>
         )}
 
-        {/* Error State */}
+        {/* stan błędu */}
         {error && (
           <div className="bg-cyan-900/30 border border-cyan-800/70 text-cyan-200 text-sm rounded-xl px-4 py-3 flex items-center gap-3">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-cyan-400 shrink-0">
@@ -325,7 +337,7 @@ export default function UserProjectsPage() {
           </div>
         )}
 
-        {/* Empty State */}
+        {/* pusty stan */}
         {!loading && !error && items.length === 0 && (
           <div className="bg-gray-900/40 border border-cyan-800/30 rounded-2xl p-8 text-center space-y-4">
             <div className="text-cyan-500 mx-auto">
@@ -342,7 +354,7 @@ export default function UserProjectsPage() {
           </div>
         )}
 
-        {/* Projects List */}
+        {/* lista projektów */}
         {!loading && items.length > 0 && (
           <div className="bg-gray-900/40 border border-cyan-700/40 rounded-2xl shadow-lg shadow-cyan-900/10 p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-cyan-900/40 pb-3">
@@ -360,7 +372,7 @@ export default function UserProjectsPage() {
                   key={`${item.run_id}-${idx}`}
                   className="border border-cyan-800/30 rounded-xl bg-black/40 hover:bg-black/50 transition-all duration-300 overflow-hidden group"
                 >
-                  {/* Project Header */}
+                  {/* nagłówek kafelka projektu */}
                   <div className="px-4 py-3 flex items-center justify-between gap-4 border-b border-cyan-900/20">
                     <div className="flex items-center gap-3 min-w-0">
                       {/* <div className="w-3 h-3 rounded-full bg-blue-500 shadow-lg shadow-cyan-500/50 animate-pulse shrink-0" /> */}
@@ -384,7 +396,7 @@ export default function UserProjectsPage() {
                       </div>
                     </div>
 
-                    {/* Action Buttons */}
+                    {/* przyciski akcji */}
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         type="button"
@@ -442,7 +454,7 @@ export default function UserProjectsPage() {
                     </div>
                   </div>
 
-                  {/* Mix Player */}
+                  {/* odsłuch mixu */}
                   <div className="px-4 py-4 bg-blue-900/20">
                     <VisualAudioPlayer
                       src={resolveRenderUrl(item.mix_wav_rel)}
@@ -453,7 +465,7 @@ export default function UserProjectsPage() {
                     />
                   </div>
 
-                  {/* Prompt Panel */}
+                  {/* prompt (jeśli da się go wydobyć z meta) */}
                   <details className="group border-t border-cyan-900/20">
                     <summary className="cursor-pointer px-4 py-2.5 text-[11px] text-cyan-400/70 hover:text-cyan-300 transition-colors select-none flex items-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 transition-transform group-open:rotate-90">
@@ -474,7 +486,7 @@ export default function UserProjectsPage() {
                     </div>
                   </details>
 
-                  {/* Parameters Panel */}
+                  {/* parametry (skrót + pełny json) */}
                   <details className="group border-t border-cyan-900/20">
                     <summary className="cursor-pointer px-4 py-2.5 text-[11px] text-cyan-400/70 hover:text-cyan-300 transition-colors select-none flex items-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 transition-transform group-open:rotate-90">
@@ -487,7 +499,7 @@ export default function UserProjectsPage() {
                         <div className="text-[10px] text-gray-500">param_run_id: <span className="font-mono text-gray-300">{item.param_run_id}</span></div>
                       )}
 
-                      {/* Compact meta overview (prefer param_meta, fallback midi_meta) */}
+                      {/* skrót meta: preferujemy param_meta, a jeśli brak to midi_meta */}
                       {(() => {
                         const meta = item.param_meta || item.midi_meta;
                         if (!meta) return null;
@@ -505,7 +517,7 @@ export default function UserProjectsPage() {
                         );
                       })()}
 
-                      {/* Instruments */}
+                      {/* instrumenty */}
                       {(() => {
                         const meta = item.param_meta || item.midi_meta;
                         const instruments = meta?.instruments;
@@ -518,7 +530,7 @@ export default function UserProjectsPage() {
                         );
                       })()}
 
-                      {/* Selected samples names */}
+                      {/* wybrane sample (nazwy) */}
                       {item.selected_samples_info && Object.keys(item.selected_samples_info).length > 0 && (
                         <div className="text-[11px] text-gray-300">
                           <div className="text-[10px] uppercase tracking-widest text-cyan-300/80 mb-1">Wybrane sample</div>
@@ -535,7 +547,7 @@ export default function UserProjectsPage() {
                         </div>
                       )}
 
-                      {/* Full JSON (always visible inside panel) */}
+                      {/* pełny json (zawsze widoczny w panelu) */}
                       <div className="bg-black/20 border border-cyan-900/30 rounded-lg px-3 py-2">
                         <div className="text-[10px] text-cyan-300/70">Pełna lista parametrów (JSON)</div>
                         <pre className="mt-2 whitespace-pre-wrap break-words text-[10px] max-h-72 overflow-auto bg-black/40 rounded-lg px-2 py-2 border border-cyan-900/40 text-gray-200">{JSON.stringify(item.param_meta || item.midi_meta || {}, null, 2)}</pre>
@@ -543,7 +555,7 @@ export default function UserProjectsPage() {
                     </div>
                   </details>
 
-                  {/* Stems Expandable */}
+                  {/* stemsy: osobne ścieżki per instrument */}
                   {item.stems.length > 0 && (
                     <details className="group border-t border-cyan-900/20">
                       <summary className="cursor-pointer px-4 py-2.5 text-[11px] text-cyan-400/70 hover:text-cyan-300 transition-colors select-none flex items-center gap-2">
@@ -578,7 +590,7 @@ export default function UserProjectsPage() {
 
       </div>
 
-      {/* Custom scrollbar styles for red theme */}
+      {/* globalne style scrollbara dla tej listy (webkity) */}
       <style jsx global>{`
         .scroll-container-red::-webkit-scrollbar {
           width: 6px;

@@ -1,6 +1,6 @@
-// We treat option lists in ./constants as *suggested* presets only.
-// To allow fully generative values from the model, all meta fields and
-// instrument config fields are typed as plain strings here.
+// typy danych dla kroku 1 (param_generation) i przekazania meta dalej.
+// listy opcji z ./constants traktujemy jako „sugestie” do ui, a nie twarde ograniczenia.
+// dlatego pola są tu stringami: model/backend może zwrócić wartość spoza listy.
 
 export interface InstrumentConfig {
   name: string;
@@ -11,8 +11,8 @@ export interface InstrumentConfig {
 }
 
 export interface ParamPlan {
-  // Original natural-language prompt provided by the user in step 1.
-  // Optional so existing saved plans and model outputs remain compatible.
+  // oryginalny prompt użytkownika z kroku 1.
+  // opcjonalne, żeby zachować kompatybilność wstecz (stare plany / stare odpowiedzi modeli).
   user_prompt?: string;
   style: string;
   genre: string;
@@ -28,11 +28,11 @@ export interface ParamPlan {
   harmonic_color: string;
   instruments: string[];
   instrument_configs: InstrumentConfig[];
-  // Optional seed used only on the frontend to pass through generative runs
+  // opcjonalny seed (używany po stronie frontendu do powtarzalności runów)
   seed?: number | null;
 }
 
-// Minimalne meta przekazywane z param_generation do midi_generation
+// minimalne meta przekazywane z param_generation do midi_generation
 export type ParamPlanMeta = ParamPlan;
 
 export interface SampleListItem {

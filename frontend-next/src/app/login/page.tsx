@@ -1,5 +1,9 @@
 'use client';
 
+// strona logowania.
+// logowanie jest oparte o next-auth (provider credentials) i backend fastapi.
+// pin jest wpisywany w 6 polach; po wpisaniu kompletu cyfr uruchamiamy logowanie automatycznie.
+
 import { useState, useEffect, useRef } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -57,7 +61,7 @@ export default function LoginPage() {
         }
     };
 
-    // Focus logic
+    // logika focusu: aktywne pole pinu powinno być zawsze „na wierzchu”.
     useEffect(() => {
         inputRefs.current[activeIndex]?.focus();
     }, [activeIndex]);
@@ -101,7 +105,7 @@ export default function LoginPage() {
         <section className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 text-white overflow-hidden">
             <div className="w-full max-w-md bg-gray-900/30 border border-cyan-700/30 rounded-2xl shadow-lg shadow-cyan-900/10 p-8 space-y-8 relative overflow-hidden backdrop-blur-sm mx-4">
 
-                {/* Header */}
+                {/* nagłówek */}
                 <div className="text-center space-y-2 relative z-10">
                     <h2 className="text-3xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-cyan-100 to-blue-500 animate-pulse tracking-tight">
                         Panel logowania
@@ -175,7 +179,7 @@ export default function LoginPage() {
                     </div>
                 </div>
 
-                {/* Background decoration */}
+                {/* tło dekoracyjne */}
                 <div className="absolute inset-0 bg-gradient-to-b from-cyan-900/5 to-transparent pointer-events-none" />
             </div>
         </section>

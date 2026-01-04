@@ -1,5 +1,9 @@
 "use client";
 
+// loadingoverlay: pełnoekranowa nakładka „czekaj”.
+// używana w krokach air, gdy backend/model wykonuje długą operację.
+// renderujemy ją w portalu (document.body), żeby zawsze była nad całą aplikacją.
+
 import React from "react";
 import { createPortal } from "react-dom";
 import ParticleSpinner from "./ParticleSpinner";
@@ -20,13 +24,13 @@ export default function LoadingOverlay({
     const overlay = (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center h-screen w-screen overflow-hidden">
 
-            {/* Backdrop with blur */}
+            {/* tło: półprzezroczyste przyciemnienie + blur */}
             <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
 
-            {/* Content panel */}
+            {/* panel treści */}
             <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-3xl px-8 space-y-8">
 
-                {/* Particle Spinner */}
+                {/* loader: spinner z cząsteczek */}
                 <div className="w-64 h-64">
                     <ParticleSpinner
                         radius={60}
@@ -37,13 +41,13 @@ export default function LoadingOverlay({
                     />
                 </div>
 
-                {/* Loading message */}
+                {/* komunikat ładowania */}
                 <div className="text-center space-y-4">
                     <p className="text-sm font-medium text-purple-200 animate-pulse tracking-wide">
                         {message}
                     </p>
 
-                    {/* Animated dots */}
+                    {/* animowane kropki (czysto wizualny „puls”) */}
                     <div className="flex items-center justify-center gap-3">
                         <div className="w-2 h-2 bg-white/50 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                         <div className="w-2 h-2 bg-white/50 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
@@ -54,6 +58,6 @@ export default function LoadingOverlay({
         </div>
     );
 
-    // Use portal to render outside the current DOM hierarchy
+    // używamy portalu, żeby nakładka nie była ograniczona przez layout/overflow rodziców
     return typeof document !== 'undefined' ? createPortal(overlay, document.body) : null;
 }

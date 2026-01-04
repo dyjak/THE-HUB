@@ -1,5 +1,9 @@
 "use client";
 
+// electricborder: wrapper nadający elementowi „elektryczną” obwódkę.
+// efekt jest realizowany przez svg filter (turbulence + displacement) nakładany na border.
+// `chaos` kontroluje siłę zniekształceń; przy `disabled` efekt jest praktycznie wyłączony.
+
 import React, { CSSProperties, PropsWithChildren, useEffect, useId, useLayoutEffect, useRef, ElementType } from 'react';
 
 type ElectricBorderProps<T extends ElementType> = PropsWithChildren<{
@@ -48,7 +52,7 @@ const ElectricBorder = <T extends ElementType = 'div'>({
     const rootRef = useRef<HTMLElement | null>(null);
     const strokeRef = useRef<HTMLDivElement | null>(null);
 
-    // Set chaos to 0 when disabled
+    // gdy komponent jest wyłączony, redukujemy „chaos”, żeby obwódka była stabilna
     const effectiveChaos = disabled ? 0.01 : chaos;
 
     const updateAnim = () => {

@@ -1,5 +1,19 @@
 "use client";
 
+/*
+  krok 2: generowanie planu midi na podstawie meta z kroku 1.
+
+  przepływ w skrócie:
+  - wejście: meta (ParamPlanMeta) z kroku parametrów oraz opcjonalnie run_id (żeby spiąć eksporty)
+  - użytkownik wybiera provider/model i uruchamia generowanie
+  - backend zwraca run_id, json midi, oraz artefakty (np. .mid i svg)
+  - frontend wyświetla wynik oraz pianoroll (wizualizacja nut)
+
+  dodatkowo:
+  - pobieramy listę dostępnych instrumentów z inventory, żeby pokazać ostrzeżenie o brakach
+  - obsługujemy initialRunId: pozwala odtworzyć wynik kroku 2 bez ponownego generowania
+*/
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ParamPlanMeta } from "../lib/paramTypes";
 import MidiPianoroll from "./MidiPianoroll";
@@ -38,7 +52,7 @@ export type MidiPlanResult = {
 
 type Props = {
   meta: ParamPlanMeta | null;
-  // Optional: run_id from Param Generation step (used only to link exports)
+  // opcjonalny run_id z kroku parametrów (używany tylko do powiązania eksportów po stronie backendu)
   paramRunId?: string | null;
   onReady?: (result: MidiPlanResult) => void;
   // run_id z backendu do odtwarzania/śledzenia kroku 2
@@ -81,7 +95,7 @@ export default function MidiPlanStep({ meta, paramRunId, onReady, initialRunId, 
     try { return JSON.stringify(v, null, 2); } catch { return String(v); }
   }, []);
 
-  // Fetch providers
+  // pobranie listy providerów
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -104,7 +118,7 @@ export default function MidiPlanStep({ meta, paramRunId, onReady, initialRunId, 
     return () => { mounted = false; };
   }, []);
 
-  // Load available instruments (via param-generation proxy backed by inventory)
+  // pobranie listy instrumentów dostępnych w inventory (przez proxy param-generation)
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -116,7 +130,7 @@ export default function MidiPlanStep({ meta, paramRunId, onReady, initialRunId, 
         if (!mounted) return;
         setAvailableInstruments(list);
       } catch {
-        // inventory is optional; do not block MIDI step
+        // inventory jest opcjonalne; nie blokujemy kroku midi
       }
     })();
     return () => {
@@ -124,7 +138,7 @@ export default function MidiPlanStep({ meta, paramRunId, onReady, initialRunId, 
     };
   }, []);
 
-  // Fetch models
+  // pobranie listy modeli dla wybranego providera
   useEffect(() => {
     let mounted = true;
     if (!provider) { setModels([]); return; }
@@ -145,7 +159,7 @@ export default function MidiPlanStep({ meta, paramRunId, onReady, initialRunId, 
     return () => { mounted = false; };
   }, [provider]);
 
-  // Jeśli mamy initialRunId, spróbujmy odtworzyć poprzedni run z backendu
+  // jeśli mamy initialRunId, próbujemy odtworzyć poprzedni run z backendu
   useEffect(() => {
     if (!initialRunId || result) return;
     let active = true;
@@ -207,12 +221,12 @@ export default function MidiPlanStep({ meta, paramRunId, onReady, initialRunId, 
         onRunIdChange(data.run_id);
       }
 
-      // Detect non-fatal problems worth surfacing to the user.
+      // wykrywanie niekrytycznych problemów, które warto pokazać użytkownikowi jako ostrzeżenie
       const warn: string[] = [];
       const errorsArr = Array.isArray(data?.errors) ? data.errors.filter((e: any) => typeof e === "string" && e.trim()) : [];
       if (errorsArr.length) warn.push(...errorsArr);
 
-      // Inventory mismatch: instruments requested but missing in local sample base.
+      // braki w inventory: instrumenty żądane przez plan, ale niedostępne w lokalnej bazie sampli
       const reqInstrumentsRaw = (data?.midi?.meta?.instruments ?? meta?.instruments ?? []) as any;
       const reqInstruments = Array.isArray(reqInstrumentsRaw) ? reqInstrumentsRaw.filter((x: any) => typeof x === "string" && x.trim()) : [];
       if (availableInstruments.length > 0 && reqInstruments.length > 0) {
@@ -281,7 +295,7 @@ export default function MidiPlanStep({ meta, paramRunId, onReady, initialRunId, 
         służy jako baza do eksportu pliku .mid i dalszego renderu audio.
       </p>
 
-      {/* Provider + model */}
+      {/* wybór providera i modelu */}
       <div className="grid md:grid-cols-4 gap-4 items-start">
         <div className="space-y-3 md:col-span-1">
           <div>
@@ -344,7 +358,7 @@ export default function MidiPlanStep({ meta, paramRunId, onReady, initialRunId, 
           </div>
         </div>
 
-        {/* Podgląd meta (read-only, stały panel ze scrollem) */}
+        {/* podgląd meta (tylko do odczytu, stały panel ze scrollem) */}
         <div className="md:col-span-3 ">
           <label className="block text-xs uppercase tracking-widest text-orange-300 mb-1">Parametry wejściowe (read-only)</label>
           {meta ? (
@@ -394,7 +408,7 @@ export default function MidiPlanStep({ meta, paramRunId, onReady, initialRunId, 
         </div>
       </div>
 
-      {/* Action button full width */}
+      {/* przycisk akcji na całą szerokość */}
       <div>
         <ElectricBorder
           as="button"
@@ -446,10 +460,10 @@ export default function MidiPlanStep({ meta, paramRunId, onReady, initialRunId, 
               Przejdź do renderowania ścieżek audio
             </ElectricBorder>
           </div>
-          {/* Pianoroll frontendowy na bazie JSON-a z backendu */}
+          {/* pianoroll na froncie na bazie json-a z backendu */}
           <div className="relative">
             <MidiPianoroll ref={pianorollScrollRef} midi={result.midi as any} />
-            {/* Info o przewijaniu zostawiamy, ale używamy natywnego scrolla kontenera */}
+            {/* informacja o przewijaniu; używamy natywnego scrolla kontenera */}
             <div className="mt-2 text-[10px] text-orange-400/60 flex items-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z" clipRule="evenodd" />

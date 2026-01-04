@@ -1,4 +1,9 @@
 "use client";
+
+// przeglądarka inventory: lista instrumentów + siatka sampli z odsłuchem.
+// robi dwa zapytania do backendu:
+// 1) lista dostępnych instrumentów,
+// 2) lista sampli dla aktualnie wybranego instrumentu.
 import React, { useEffect, useState } from "react";
 import { SimpleAudioPlayer } from "@/app/air/step-components/SimpleAudioPlayer";
 
@@ -32,6 +37,8 @@ export const InventoryBrowser: React.FC = () => {
   const [samples, setSamples] = useState<SampleItem[]>([]);
 
   useEffect(() => {
+    // pierwszy efekt: pobieramy listę instrumentów.
+    // flaga alive chroni przed ustawianiem stanu po unmount.
     let alive = true;
     (async () => {
       setLoading(true); setError(null);
@@ -41,6 +48,7 @@ export const InventoryBrowser: React.FC = () => {
         const data: InstrumentListResp = await r.json();
         if (!alive) return;
         setInstruments(data.available || []);
+        // jeśli użytkownik jeszcze nic nie wybrał, ustawiamy pierwszy instrument z listy.
         if (!instrument && data.available?.length) setInstrument(data.available[0]);
       } catch (e: any) {
         setError(e?.message || String(e));
@@ -53,6 +61,7 @@ export const InventoryBrowser: React.FC = () => {
 
   useEffect(() => {
     if (!instrument) return;
+    // drugi efekt: za każdym razem gdy zmienia się instrument, pobieramy sample.
     let alive = true;
     (async () => {
       setLoading(true); setError(null);
@@ -63,6 +72,7 @@ export const InventoryBrowser: React.FC = () => {
         if (!alive) return;
         const items = (data.items || []).map((it) => ({
           ...it,
+          // backend może zwrócić ścieżkę względną; tu normalizujemy ją do pełnego url.
           url: it.url ? (it.url.startsWith("http") ? it.url : `${API_BASE}${it.url}`) : null,
         }));
         setSamples(items);
@@ -77,7 +87,7 @@ export const InventoryBrowser: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      {/* Instrument Selector Panel */}
+      {/* panel wyboru instrumentu + stany ładowania/błędu */}
       <div className="bg-gray-900/30 border border-purple-700/30 rounded-xl p-4 backdrop-blur-sm">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-3">
@@ -115,14 +125,14 @@ export const InventoryBrowser: React.FC = () => {
         </div>
       </div>
 
-      {/* Samples Grid */}
+      {/* siatka sampli */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {samples.map((s) => (
           <div
             key={s.id}
             className="group border border-purple-800/30 rounded-xl p-4 bg-black/40 hover:bg-purple-900/20 hover:border-purple-700/50 transition-all duration-300"
           >
-            {/* Sample Header */}
+            {/* nagłówek kafelka */}
             <div className="flex items-start justify-between mb-3">
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold text-purple-100 truncate group-hover:text-white transition-colors">
@@ -167,7 +177,7 @@ export const InventoryBrowser: React.FC = () => {
               )}
             </div>
 
-            {/* Audio Player */}
+            {/* odsłuch audio */}
             {s.url ? (
               <SimpleAudioPlayer src={s.url} variant="compact" height={36} />
             ) : (
@@ -178,7 +188,7 @@ export const InventoryBrowser: React.FC = () => {
           </div>
         ))}
 
-        {/* Empty State */}
+        {/* pusty stan: brak sampli dla instrumentu */}
         {!samples.length && !loading && (
           <div className="col-span-full bg-gray-900/30 border border-purple-800/30 rounded-xl p-8 text-center">
             <div className="text-purple-500/60 mx-auto mb-3">
@@ -192,7 +202,7 @@ export const InventoryBrowser: React.FC = () => {
         )}
       </div>
 
-      {/* Custom Scrollbar Styles */}
+      {/* globalne style scrollbara dla tej listy (webkity) */}
       <style jsx global>{`
         .scroll-container-purple::-webkit-scrollbar {
           width: 6px;

@@ -1,5 +1,8 @@
 "use client";
 
+// przeglądarka archiwum sampli.
+// to jest tylko „rama” strony: nagłówek + komponent inventorybrowser z logiką fetchowania.
+
 import React from "react";
 import { InventoryBrowser } from "./ui/InventoryBrowser";
 import ParticleText from "@/components/ui/ParticleText";
@@ -9,7 +12,7 @@ export default function InventoryPage() {
     <section className="min-h-screen bg-black/0 p-6 md:p-10">
       <div className="max-w-6xl mx-auto space-y-6">
 
-        {/* Header with ParticleText */}
+        {/* nagłówek z particletext */}
         <div className="bg-gray-900/10 border border-purple-700/30 rounded-2xl shadow-lg shadow-purple-900/10 p-6 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-purple-900/10 to-transparent pointer-events-none" />
 
@@ -31,7 +34,7 @@ export default function InventoryPage() {
           </div>
         </div>
 
-        {/* Inventory Browser */}
+        {/* właściwa przeglądarka inventory */}
         <InventoryBrowser />
       </div>
     </section>

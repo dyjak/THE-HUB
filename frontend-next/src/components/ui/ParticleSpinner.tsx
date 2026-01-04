@@ -1,5 +1,9 @@
 "use client";
 
+// particlespinner: loader na canvasie w formie „wiru” cząsteczek.
+// ideowo to układ w współrzędnych biegunowych (kąt + promień), z lekkim ruchem ambient
+// i opcjonalnym wpływem myszy (odpychanie / zaburzenie trajektorii).
+
 import React, { useRef, useEffect } from "react";
 
 interface ParticleSpinnerProps {
@@ -16,14 +20,14 @@ interface ParticleSpinnerProps {
 interface Particle {
     x: number;
     y: number;
-    // Polar coordinates for base position
+    // współrzędne biegunowe dla pozycji bazowej (kąt + promień)
     angle: number;
     dist: number;
 
     size: number;
     color: string;
 
-    // Ambient motion
+    // fazy ruchu ambient (żeby cząsteczki nie poruszały się identycznie)
     phaseX: number;
     phaseY: number;
 }
@@ -55,7 +59,7 @@ export default function ParticleSpinner({
         let height = canvas.height;
 
         const init = () => {
-            // Resize canvas to parent
+            // dopasowanie canvasa do rodzica
             const parent = canvas.parentElement;
             if (parent) {
                 canvas.width = parent.clientWidth;
@@ -67,15 +71,15 @@ export default function ParticleSpinner({
             const particles: Particle[] = [];
 
             for (let i = 0; i < count; i++) {
-                // Distribute evenly around circle
+                // rozkład równomierny po okręgu
                 const baseAngle = (i / count) * Math.PI * 2;
-                // Add some random variance to radius for "thick" ring effect
+                // losowa wariancja promienia dla efektu „grubej” obręczy
                 const dist = radius + (Math.random() - 0.5) * 20;
 
                 const color = colors[Math.floor(Math.random() * colors.length)];
 
                 particles.push({
-                    x: width / 2, // Start at center or random
+                    x: width / 2, // start w centrum (potem „odjeżdża” na orbitę)
                     y: height / 2,
                     angle: baseAngle,
                     dist: dist,
@@ -99,12 +103,12 @@ export default function ParticleSpinner({
             const centerY = height / 2;
 
             particlesRef.current.forEach((particle) => {
-                // Calculate current base position based on rotation
+                // wyliczenie pozycji bazowej na podstawie rotacji
                 const currentAngle = particle.angle + rotationRef.current;
                 const baseX = centerX + Math.cos(currentAngle) * particle.dist;
                 const baseY = centerY + Math.sin(currentAngle) * particle.dist;
 
-                // Interaction physics
+                // prosta „fizyka” interakcji z myszą
                 let dx = mouseRef.current.x - particle.x;
                 let dy = mouseRef.current.y - particle.y;
                 let distance = Math.sqrt(dx * dx + dy * dy);
@@ -116,7 +120,7 @@ export default function ParticleSpinner({
                 let directionX = forceDirectionX * force * mouseStrength;
                 let directionY = forceDirectionY * force * mouseStrength;
 
-                // Ambient motion
+                // ruch ambient: delikatne „falowanie”
                 const ambientX = Math.sin(timeRef.current + particle.phaseX) * 2;
                 const ambientY = Math.cos(timeRef.current + particle.phaseY) * 2;
 
@@ -127,7 +131,7 @@ export default function ParticleSpinner({
                     particle.x -= directionX;
                     particle.y -= directionY;
                 } else {
-                    // Return to base
+                    // powrót do pozycji bazowej
                     if (particle.x !== targetX) {
                         let dx = particle.x - targetX;
                         particle.x -= dx / 10;
@@ -138,7 +142,7 @@ export default function ParticleSpinner({
                     }
                 }
 
-                // Draw
+                // rysowanie cząsteczki
                 ctx.fillStyle = particle.color;
                 ctx.beginPath();
                 ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);

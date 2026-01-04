@@ -1,4 +1,18 @@
 "use client";
+
+/*
+  panel edycji parametrów muzycznych (krok 1) oraz konfiguracji instrumentów.
+
+  co robi:
+  - pokazuje podstawowe parametry (tempo, tonacja, metrum itd.) jako selecty/suwaki
+  - pozwala wybrać instrumenty dostępne w lokalnej bazie sampli (inventory)
+  - dla każdego instrumentu pozwala ustawić bardziej szczegółową konfigurację (rola, rejestr itd.)
+  - dla każdego instrumentu pozwala wybrać konkretny sample przez SampleSelector
+
+  ważne pojęcia:
+  - availableInstruments: lista instrumentów, które backend potrafi realnie zrenderować (ma sample)
+  - selectableInstruments: lista instrumentów do pokazania w UI (zwykle taka sama jak available)
+*/
 import { memo, useCallback, useMemo } from "react";
 import {
   ARRANGEMENT_DENSITY_OPTIONS,
@@ -92,20 +106,22 @@ const ParamPanelComponent = ({
   const sizeClass = compact ? "text-xs" : "text-sm";
 
   const DRUMS = ["Kick", "Snare", "Clap", "Hat", "Tom", "Rim", "Crash", "Ride", "Splash", "Shake"];
-  const FX = ["Impact", "Riser", "Subdrop", "Swell", "Texture"]; //old
+  const FX = ["Impact", "Riser", "Subdrop", "Swell", "Texture"]; // stara lista fx (zostawiona dla kompatybilności)
   const genericInstruments = selectableInstruments.filter(inst => !DRUMS.includes(inst) && !FX.includes(inst));
 
-  // Derive instruments that are present in the MIDI meta but not available in the inventory.
+  // instrumenty, które są w planie (midi.instruments), ale nie występują w lokalnej bazie sampli.
+  // to zwykle oznacza, że model ai zaproponował instrument, którego nie mamy na dysku.
   const missingInstruments = useMemo(
     () => midi.instruments.filter(inst => !availableInstruments.includes(inst)),
     [midi.instruments, availableInstruments],
   );
 
-  // Helper to ensure the current value is always present in the select options
+  // helper: pilnuje, żeby aktualna wartość była zawsze dostępna w opcjach selecta.
+  // ma to znaczenie, gdy model ai zwróci wartość spoza listy presetów (np. nietypowy styl).
   const withCurrent = useCallback(<T extends string>(options: readonly T[], current: string | undefined | null): string[] => {
     const base = Array.from(options) as string[];
     if (!current) return base;
-    // Prefer existing preset casing when value matches ignoring case
+    // jeśli wartość już istnieje w presetach (ignorując wielkość liter), nie dodajemy duplikatu
     const lower = current.toLowerCase();
     if (!base.some(opt => opt.toLowerCase() === lower)) {
       base.push(current);

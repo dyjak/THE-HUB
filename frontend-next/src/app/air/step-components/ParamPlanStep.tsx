@@ -1,4 +1,20 @@
 "use client";
+
+/*
+  krok 1: generowanie parametrów utworu (plan parametryczny) przez model ai.
+
+  przepływ w skrócie:
+  - użytkownik wpisuje opis utworu (prompt)
+  - frontend wysyła żądanie do backendu param-generation (provider + model)
+  - backend zapisuje run_id oraz zwraca odpowiedź (parsed/raw)
+  - frontend normalizuje odpowiedź do struktury ParamPlan i pokazuje panel edycji (ParamPanel)
+  - zmiany w panelu (parametry, instrumenty, konfiguracje, wybór sampli) są trzymane w stanie react
+  - jeśli mamy run_id, część zmian jest zapisywana do backendu przez endpointy PATCH
+
+  cel komentarzy w tym pliku:
+  - wytłumaczyć skąd biorą się dane (prompt -> backend -> run_id -> plan)
+  - opisać dlaczego mamy kilka efektów useEffect oraz co one synchronizują
+*/
 import { useCallback, useEffect, useState, useRef } from "react";
 import { ParamPanel } from "./ParamPanel";
 import type { ParamPlan, InstrumentConfig, ParamPlanMeta } from "../lib/paramTypes";
@@ -12,15 +28,15 @@ type ChatProviderInfo = { id: string; name: string; default_model?: string };
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
 const API_PREFIX = "/api";
-// Use new param-generation backend module
+// ścieżka modułu backendu odpowiedzialnego za generowanie planu parametrów
 const MODULE_PREFIX = "/air/param-generation";
 
 type Props = {
   onMetaReady?: (meta: ParamPlanMeta | null) => void;
   onNavigateNext?: () => void;
-  // pełny plan + wybrane sample (instrument -> sampleId) przekazywane do AirPanel
+  // pełny plan + wybrane sample (instrument -> sampleId) przekazywane wyżej (np. do AirPanel)
   onPlanChange?: (plan: ParamPlan | null, selectedSamples: Record<string, string | undefined>) => void;
-  // Obsługa run_id z backendu, żeby można było odtworzyć stan kroku 1
+  // run_id z backendu, żeby można było odtworzyć stan kroku 1 (np. po odświeżeniu strony)
   initialRunId?: string | null;
   onRunIdChange?: (runId: string | null) => void;
 };
@@ -39,7 +55,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
   const [userPrompt, setUserPrompt] = useState<string | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
-  // Editing panel state
+  // stan panelu edycji (to jest "źródło prawdy" dla UI)
   const [midi, setMidi] = useState<ParamPlan | null>(null);
   const [available, setAvailable] = useState<string[]>([]);
   const [selectable, setSelectable] = useState<string[]>([]);
@@ -61,13 +77,15 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
     }
   }, [shouldScroll, midi]);
 
-  // Synchronize local plan + selected samples to parent AirPanel
+  // synchronizacja stanu lokalnego (plan + wybór sampli) do komponentu rodzica.
+  // dzięki temu kolejne kroki mogą użyć tych danych bez odpytywania backendu.
   useEffect(() => {
     if (!onPlanChange) return;
     onPlanChange(midi, selectedSamples);
   }, [midi, selectedSamples, onPlanChange]);
 
-  // Jeśli mamy initialRunId, spróbujmy wczytać istniejący parameter_plan.json z backendu
+  // jeśli mamy initialRunId, próbujemy odtworzyć stan kroku 1 z backendu.
+  // to pozwala wrócić do edycji bez ponownego generowania parametrów.
   useEffect(() => {
     if (!initialRunId) return;
     let active = true;
@@ -78,7 +96,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
         const payload = await res.json().catch(() => null);
         if (!active || !payload?.plan) return;
 
-        // Preferuj payload.plan.meta, ale jeśli jej nie ma, spróbuj użyć całego planu jako ParamPlan
+        // preferujemy payload.plan.meta, ale jeśli jej nie ma, próbujemy użyć całego planu jako ParamPlan
         const rawMeta = (payload.plan.meta || payload.plan) as any;
         if (!rawMeta || typeof rawMeta !== "object") return;
 
@@ -92,8 +110,8 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
           const normalizedMidi = normalizeParamPlan(rawMeta);
           cloned = cloneParamPlan(normalizedMidi);
         } catch {
-          // Fallback: zbuduj minimalny ParamPlan na podstawie dostępnych pól,
-          // tak aby ParamPanel zawsze mógł się pojawić, jeśli dane istnieją.
+          // wariant awaryjny: budujemy minimalny ParamPlan na podstawie dostępnych pól.
+          // cel: ParamPanel ma się dać wyświetlić nawet wtedy, gdy payload jest częściowo uszkodzony.
           cloned = {
             style: rawMeta.style ?? "ambient",
             genre: rawMeta.genre ?? "generic",
@@ -114,7 +132,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
         }
         setMidi(cloned);
         if (savedUserPrompt && savedUserPrompt.trim()) {
-          // Keep it on the plan so downstream steps (MIDI) can use it.
+          // zapisujemy prompt w planie, żeby kolejne kroki (midi) mogły go użyć bez dodatkowych zapytań
           (cloned as any).user_prompt = savedUserPrompt;
         }
         setRunId(initialRunId);
@@ -123,13 +141,13 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
         setSelectedSamples(sel);
         if (onPlanChange) onPlanChange(cloned, sel);
       } catch {
-        // brak stanu nie jest błędem krytycznym
+        // brak stanu nie jest błędem krytycznym (użytkownik może po prostu wygenerować parametry od nowa)
       }
     })();
     return () => { active = false; };
   }, [initialRunId]);
 
-  // Fetch providers (no auth required on this endpoint for now)
+  // pobranie listy providerów (na ten moment endpoint jest publiczny)
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -140,7 +158,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
         const list = Array.isArray(data?.providers) ? data.providers as ChatProviderInfo[] : [];
         if (!mounted) return;
         setProviders(list);
-        // Prefer gemini by default if available
+        // domyślnie preferujemy gemini, jeśli jest dostępny
         const gem = list.find(p => (p.id || "").toLowerCase() === "gemini");
         const first = list[0];
         const chosen = gem || first;
@@ -153,7 +171,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
     return () => { mounted = false; };
   }, []);
 
-  // Fetch models for provider (no auth token needed)
+  // pobranie listy modeli dla wybranego providera
   useEffect(() => {
     let mounted = true;
     if (!provider) { setModels([]); return; }
@@ -163,7 +181,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
         if (!res.ok) { if (mounted) setModels([]); return; }
         const data = await res.json();
         const list = Array.isArray(data?.models) ? data.models as string[] : [];
-        // De-duplicate and sanitize model names to avoid React key collisions
+        // usuwamy duplikaty i puste wartości, żeby nie robić konfliktów key w react
         const uniq = Array.from(new Set(list.filter(m => typeof m === "string" && m.trim())));
         if (!mounted) return;
         setModels(uniq);
@@ -173,7 +191,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
     return () => { mounted = false; };
   }, [provider]);
 
-  // Load available instruments (via param-generation proxy backed by inventory)
+  // pobranie listy instrumentów dostępnych w lokalnej bazie sampli (inventory)
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -184,7 +202,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
         const list = Array.isArray(data?.available) ? (data.available as string[]) : [];
         if (!mounted) return;
         setAvailable(list);
-        // In this view, show only real instruments (no placeholders)
+        // w tym widoku pokazujemy tylko realne instrumenty (bez placeholderów)
         setSelectable(list);
       } catch { }
     })();
@@ -193,7 +211,8 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
 
   const pretty = useCallback((v: unknown) => { try { return JSON.stringify(v, null, 2); } catch { return String(v); } }, []);
 
-  // Sync selectedSamples to parent and persist to backend parameter_plan.json when runId is known
+  // aktualizuje wybór sampli oraz (jeśli znamy runId) zapisuje to do backendu.
+  // zapis do backendu jest "best-effort" i nie powinien blokować UX.
   const updateSelectedSamples = useCallback(
     async (next: Record<string, string | undefined>) => {
       setSelectedSamples(next);
@@ -212,13 +231,14 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
           body: JSON.stringify({ selected_samples: cleaned }),
         });
       } catch {
-        // silently ignore PATCH errors; UI state remains source of truth
+        // ignorujemy błędy patch; stan UI pozostaje źródłem prawdy
       }
     },
     [runId],
   );
 
-  // Persist full meta (ParamPlan) to backend parameter_plan.json when runId is known
+  // zapisuje pełne meta (ParamPlan) do backendu, jeśli znamy runId.
+  // backend ma kopię stanu, ale UI nadal jest źródłem prawdy.
   const persistMeta = useCallback(
     async (nextMeta: ParamPlan) => {
       if (!runId) return;
@@ -231,7 +251,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
           body: JSON.stringify({ meta: nextMeta }),
         });
       } catch {
-        // backend sync failure nie powinien blokować UX; frontend pozostaje źródłem prawdy
+        // błąd synchronizacji nie powinien blokować UX; frontend pozostaje źródłem prawdy
       }
     },
     [runId],
@@ -288,7 +308,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
       setParsed(parsed);
       const norm = parsed?.meta ? { midi: parsed.meta } : null;
       setNormalized(norm);
-      // Initialize editor state if MIDI meta present
+      // inicjalizacja stanu panelu edycji, jeśli w odpowiedzi mamy meta
       const midiPart = norm?.midi ?? null;
       if (midiPart && typeof midiPart === 'object') {
         const normalizedMidi = normalizeParamPlan(midiPart as any);
@@ -298,7 +318,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
         });
         setMidi(cloned);
         if (onMetaReady) onMetaReady(cloned);
-        // reset selected samples for a fresh plan; PATCH is handled inside helper
+        // resetujemy wybór sampli dla świeżego planu; patch jest robiony wewnątrz helpera
         await updateSelectedSamples({});
         setShouldScroll(true);
       } else {
@@ -311,7 +331,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
       if (!hasMeta) warn.push("Brak pełnych danych z modelu.");
       if (errorsArr.length) warn.push(...errorsArr.map((e: string) => (e.trim().toLowerCase().startsWith("parse:") ? e : `parse: ${e}`)));
 
-      // Inventory mismatch warning (same concept as ParamPanel banner)
+      // ostrzeżenie o brakach w inventory (ta sama idea co baner w ParamPanel)
       if (Array.isArray(available) && available.length > 0) {
         const instRaw = (midiPart && typeof midiPart === 'object') ? (midiPart as any).instruments : null;
         const inst = Array.isArray(instRaw) ? instRaw.filter((x: any) => typeof x === 'string' && x.trim()) : [];
@@ -368,10 +388,10 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
       />
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-3xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-purple-100 to-fuchsia-500 animate-pulse">Krok 1 • Generowanie parametrów</h2>
-        {/* Button moved to panel */}
+        {/* przycisk przeniesiony do panelu niżej */}
       </div>
       <p className="text-xs text-gray-400 max-w-2xl">Model generuje <span className="text-purple-300">parametry muzyczne</span> w formacie JSON. Wynik będzie podstawą do późniejszego tworzenia planu MIDI i renderu audio.</p>
-      {/* Layout: lewa kolumna 1/4 (provider, model), prawa 3/4 (prompt) */}
+      {/* układ: lewa kolumna 1/4 (provider, model), prawa 3/4 (prompt) */}
       <div className="grid md:grid-cols-4 gap-4 items-start">
         <div className="md:col-span-1 space-y-3">
           <div>
@@ -420,7 +440,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
           />
         </div>
       </div>
-      {/* Action button full width */}
+      {/* przycisk akcji na całą szerokość */}
       <div>
         <ElectricBorder
           as="button"
@@ -461,7 +481,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
           </div>
         </div>
       )}
-      {/* Panel dostosowania parametrów - widoczny po wygenerowaniu */}
+      {/* panel dostosowania parametrów - widoczny po wygenerowaniu */}
       {midi && (
         <div ref={panelRef} className="bg-black/30 border border-purple-800/40 rounded-2xl p-4 space-y-3 text-xs">
           <div className="flex items-center justify-between">
@@ -484,7 +504,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
             selectableInstruments={selectable}
             apiBase={API_BASE}
             apiPrefix={API_PREFIX}
-            // Use param-generation proxy endpoints (internally backed by inventory)
+            // używamy endpointów proxy param-generation (wewnętrznie opartych o inventory)
             modulePrefix={"/air/param-generation"}
             compact
             columns={4}
@@ -499,7 +519,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
                 if (!prev) return prev;
                 const exists = prev.instruments.includes(inst);
                 const nextInstruments = exists ? prev.instruments.filter((i: string) => i !== inst) : [...prev.instruments, inst];
-                // Cleanup sample selection for removed
+                // sprzątamy wybór sampla dla usuniętego instrumentu
                 if (exists) {
                   setSelectedSamples((ss: Record<string, string | undefined>) => {
                     const copy = { ...ss }; delete copy[inst]; return copy;
@@ -574,7 +594,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
           </div>
         </div>
       )}
-      {/* Podgląd promptu i odpowiedzi modelu */}
+      {/* podgląd promptu i odpowiedzi modelu */}
       {(systemPrompt || userPrompt || normalized || raw) && (
         <details className="bg-gray-900/30 rounded-xl px-3 py-2 border border-purple-800/30">
           <summary className="cursor-pointer text-purple-300 text-xs mb-1 hover:text-purple-200 transition-colors">Pełny kontekst wymiany z modelem</summary>
@@ -607,7 +627,7 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
         </details>
       )}
 
-      {/* Loading overlay */}
+      {/* overlay ładowania */}
       <LoadingOverlay
         isVisible={loading}
         message="Generuję zestaw parametrów dla Twojego utworu. To potrwa parę chwil... Serio."

@@ -1,4 +1,5 @@
-/* air-style.css */
+/* animacje i pomocnicze klasy css używane w modułach air.
+   trzymamy to osobno, bo część efektów jest łatwiejsza do opisania w css niż w tailwind. */
 @keyframes float {
     0% { transform: translateY(0px); }
     50% { transform: translateY(-20px); }

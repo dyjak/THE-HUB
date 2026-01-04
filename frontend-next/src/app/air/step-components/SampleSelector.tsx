@@ -1,4 +1,17 @@
 "use client";
+
+/*
+  komponent do wyboru sampla dla konkretnego instrumentu.
+
+  odpowiedzialności:
+  - pobiera z backendu listę dostępnych sampli dla podanego instrumentu
+  - renderuje select z listą oraz prosty podgląd audio wybranego sampla
+  - gdy użytkownik nie wybrał jeszcze sampla, ustawia sensowny wybór startowy
+
+  ważne uwagi:
+  - pobieranie listy sampli zależy od instrumentu; zmiana instrumentu wywołuje nowe pobranie
+  - wybór startowy jest robiony w osobnym efekcie, żeby nie mieszać go z logiką pobierania
+*/
 import { useEffect, useMemo, useState } from "react";
 import { SimpleAudioPlayer } from "./SimpleAudioPlayer";
 import type { SampleListItem, SampleListResponse } from "../lib/paramTypes";
@@ -17,6 +30,9 @@ export function SampleSelector({ apiBase, apiPrefix, modulePrefix, instrument, s
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // pobiera listę sampli z backendu.
+  // używamy flagi "mounted", żeby nie wywołać setState po odmontowaniu komponentu
+  // (np. gdy użytkownik szybko przełączy instrument albo przejdzie do innego kroku).
   useEffect(() => {
     let mounted = true;
     const load = async () => {
@@ -39,24 +55,30 @@ export function SampleSelector({ apiBase, apiPrefix, modulePrefix, instrument, s
     return () => { mounted = false; };
   }, [apiBase, apiPrefix, modulePrefix, instrument]);
 
-  // If there is no selection yet but we have items, pick a stable default
-  // (prefer API-provided default, else first item). This effect is decoupled
-  // from the fetch effect to avoid re-triggering loads when selection changes.
+  // jeśli nie ma jeszcze wybranego sampla, a lista już przyszła z backendu,
+  // ustawiamy wybór startowy.
+  //
+  // mechanizm:
+  // - jeśli backend (opcjonalnie) przekaże podpowiedź domyślnego sampla (items._default), próbujemy go użyć
+  // - w przeciwnym razie losujemy element z listy (żeby nie zawsze brać pierwszy)
+  //
+  // ten efekt jest osobno względem pobierania danych, żeby zmiana selectedId
+  // nie powodowała ponownego pobierania listy z serwera.
   useEffect(() => {
     if (!items || items.length === 0) return;
     if (selectedId) return;
-    const dataDefault = (items as any)._default as SampleListItem | undefined; // optional hint, usually absent
+    const dataDefault = (items as any)._default as SampleListItem | undefined; // opcjonalna podpowiedź z backendu (zwykle brak)
     const preferred = dataDefault && items.find(x => x.id === dataDefault.id);
-    const fallback =
-  preferred ||
-  (items.length > 0 ? items[Math.floor(Math.random() * items.length)] : undefined); //losowy
+    const fallback = preferred || (items.length > 0 ? items[Math.floor(Math.random() * items.length)] : undefined); // losowy wybór startowy
     if (fallback?.id) {
       onChange(instrument, fallback.id);
     }
   }, [items, selectedId, instrument, onChange]);
 
+  // wyszukuje aktualnie wybrany obiekt sampla na podstawie selectedId.
   const current = useMemo(() => (items || []).find(x => x.id === selectedId) || null, [items, selectedId]);
 
+  // wykorzystywane do podświetlenia sytuacji, gdy backend nie ma żadnych sampli dla instrumentu.
   const hasNoLocalSamples = !items || items.length === 0;
 
   return (

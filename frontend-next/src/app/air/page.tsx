@@ -1,5 +1,10 @@
 "use client";
 
+// strona główna modułu air.
+// ten plik jest „orkiestratorem” kroków: parametry -> plan midi -> export/render.
+// trzyma stan aktualnego kroku i wyników pośrednich (np. paramplan, midiresult, run_id),
+// oraz pilnuje ostrzeżenia przy cofaniu się do wcześniejszego kroku.
+
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import AnimatedCard from "../../components/ui/AnimatedCard";
@@ -35,7 +40,9 @@ export default function AirPage() {
 		{ id: "midi-export", name: "Krok 3 • Export + Render", ready: !!midiResult },
 	]), [paramPlan, midiResult]);
 
-	// Helper: persist selected_samples to backend parameter_plan.json for current param run
+	// helper: zapisuje wybrane sample (mapa instrument -> sample_id) do backendu.
+	// backend zapisuje to do artefaktów bieżącego runu (np. parameter_plan.json),
+	// żeby później można było odtworzyć projekt lub pokazać „co było wybrane”.
 	const persistSelectedSamples = async (next: Record<string, string | undefined>) => {
 		setSelectedSamples(next);
 		if (!runIdParam) return;
@@ -54,7 +61,8 @@ export default function AirPage() {
 				body: JSON.stringify({ selected_samples: cleaned }),
 			});
 		} catch {
-			// backend sync failure nie blokuje UX; frontend pozostaje źródłem prawdy
+			// błąd synchronizacji z backendem nie blokuje ux.
+			// frontend nadal jest źródłem prawdy, a użytkownik może kontynuować pracę.
 		}
 	};
 
@@ -64,7 +72,8 @@ export default function AirPage() {
 		const currentIndex = getStepIndex(step);
 		const nextIndex = getStepIndex(newStep);
 
-		// Warning only when going back to an earlier step.
+		// ostrzeżenie pokazujemy tylko wtedy, gdy użytkownik cofa się do wcześniejszego kroku.
+		// cofnięcie może unieważnić wygenerowane dane (np. midi) i „zgubić postęp”.
 		if (nextIndex !== -1 && currentIndex !== -1 && nextIndex < currentIndex) {
 			setPendingStep(newStep);
 			setShowConfirmDialog(true);
@@ -126,7 +135,7 @@ export default function AirPage() {
 				</div>
 			)}
 
-			{/* Step navigation */}
+			{/* nawigacja kroków: przyciski są aktywne tylko, gdy dany krok ma wymagane dane wejściowe */}
 			<div className="flex flex-wrap gap-2">
 				{steps.map(s => {
 					let activeClass = "";
@@ -157,13 +166,13 @@ export default function AirPage() {
 				})}
 			</div>
 
-			{/* Active step panel */}
+			{/* panel aktualnego kroku */}
 			<div>
 				{step === "param-plan" && (
 					<ParamPlanStep
 						onMetaReady={(_meta) => {
-							// meta można nadal użyć w przyszłości, ale źródłem prawdy
-							// dla kolejnych kroków jest pełny paramPlan z onPlanChange.
+							// meta można nadal użyć w przyszłości,
+							// ale źródłem prawdy dla kolejnych kroków jest pełny paramplan z onplanchange.
 						}}
 						onNavigateNext={() => {
 							if (paramPlan) setStep("midi-plan");
@@ -220,7 +229,7 @@ export default function AirPage() {
 				)}
 			</div>
 
-			{/* Confirmation Dialog */}
+			{/* dialog potwierdzenia cofnięcia kroku (renderowany przez portal nad całą stroną) */}
 			{showConfirmDialog && typeof document !== 'undefined' && createPortal(
 				<div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] animate-in fade-in duration-200">
 					<div className="bg-gray-900/95 border border-gray-500/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-gray-500/10 animate-in zoom-in-95 duration-200">

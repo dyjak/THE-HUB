@@ -1,5 +1,8 @@
 "use client";
 
+// galeria (portfolio) przykładów audio.
+// próbuje pobrać listę z backendu; jeśli się nie uda, pokazuje fallback_items.
+
 import React, { useEffect, useState } from "react";
 import ParticleText from "@/components/ui/ParticleText";
 
@@ -15,7 +18,7 @@ type GalleryItem = {
 function buildSoundCloudEmbedSrc(soundcloudUrl: string): string {
   const base = "https://w.soundcloud.com/player/";
   const url = encodeURIComponent(soundcloudUrl);
-  // Compact player to avoid huge embeds.
+  // „compact player”, żeby embed nie był ogromny.
   return `${base}?url=${url}&auto_play=false&show_teaser=false&visual=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false`;
 }
 

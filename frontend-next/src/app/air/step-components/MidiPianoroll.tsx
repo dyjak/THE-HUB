@@ -32,8 +32,17 @@ type Props = {
 };
 
 /**
- * Bardzo lekki pianoroll na froncie, bez canvasów.
- * Zakładamy 8 kroków na takt (tak jak w backendowym promptcie).
+ * bardzo lekki pianoroll na froncie, bez canvasów.
+ * domyślnie zakładamy 8 kroków na takt (tak jak w backendowym promptcie).
+ *
+ * co robi:
+ * - przyjmuje midi w postaci json (pattern/layers + meta)
+ * - rozbija dane na "ścieżki" (lanes) per instrument, żeby dało się czytać wynik
+ * - renderuje siatkę czas x wysokość nuty oraz prostokąty nut w html/css
+ *
+ * uwagi:
+ * - dla perkusji (pattern) próbujemy przypisać nuty gm do nazw instrumentów (kick, snare itd.)
+ * - jeśli model nie zwróci eventów, pokazujemy komunikat o pustym patternie
  */
 export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPerBar = 8 }, ref) => {
   const [colors] = useState<Record<string, string>>(() => ({}));
@@ -125,15 +134,15 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
       }
     };
 
-    // layers per instrument z midi.layers (bez specjalnego traktowania pattern)
+    // warstwy per instrument z midi.layers (bez specjalnego traktowania pattern)
     if (midi.layers && typeof midi.layers === "object") {
       for (const key of Object.keys(midi.layers)) {
         pushLayer(key, midi.layers[key]);
       }
     }
 
-    // pattern (perkusja) -> rozbijamy na lane per instrument na podstawie nut GM.
-    // Bez placeholderów: jeśli instrument nie ma eventów, nie pojawi się jako lane.
+    // pattern (perkusja): rozbijamy na lane per instrument na podstawie nut gm.
+    // bez placeholderów: jeśli instrument nie ma eventów, nie pojawi się jako lane.
     if (Array.isArray(midi.pattern) && midi.pattern.length > 0) {
       const meta = (midi.meta && typeof midi.meta === "object") ? midi.meta : {};
       const configsRaw = Array.isArray((meta as any).instrument_configs) ? (meta as any).instrument_configs as any[] : [];
@@ -146,7 +155,7 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
         if (role === "percussion" && name) percSet.add(name);
       }
 
-      // If instrument_configs are missing/empty, fall back to meta.instruments.
+      // jeśli instrument_configs są puste/brak, bierzemy instrumenty z meta.instruments
       const instrumentsRaw = Array.isArray((meta as any).instruments) ? (meta as any).instruments as any[] : [];
       for (const inst of instrumentsRaw) {
         const name = String(inst || "").trim();
@@ -154,21 +163,22 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
         if (notesForPercussionInstrument(name)) percSet.add(name);
       }
 
-      // Last resort: standard GM drum set names.
+      // ostateczny wariant awaryjny: standardowe nazwy zestawu perkusyjnego
       if (percSet.size === 0) {
         ["Kick", "Snare", "Hat", "Crash", "Ride", "Tom"].forEach(n => percSet.add(n));
       }
 
       const percNames = Array.from(percSet);
 
-      // Build note->instrument mapping with priority for more specific instruments.
+      // budujemy mapowanie nuta -> instrument.
+      // priorytet: bardziej specyficzne instrumenty (z mniejszą liczbą nut) są sprawdzane jako pierwsze.
       const percMap = percNames
         .map(name => {
           const notes = notesForPercussionInstrument(name);
           return { name, notes: notes || [] };
         })
         .filter(x => x.notes.length > 0)
-        .sort((a, b) => a.notes.length - b.notes.length); // 1-note instruments first
+        .sort((a, b) => a.notes.length - b.notes.length); // instrumenty z 1 nutą jako pierwsze
 
       const byInst: Record<string, MidiLayer[]> = {};
       const fallbackName = "Drums";
@@ -202,14 +212,14 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
       }
 
       for (const inst of Object.keys(byInst)) {
-        // sort bars for stability
+        // sortujemy takty dla stabilności (żeby wynik nie "skakał" między renderami)
         byInst[inst].sort((a, b) => (a.bar || 0) - (b.bar || 0));
         pushLayer(inst, byInst[inst]);
       }
     }
 
-    // Ensure we always expose lanes for every requested instrument from meta,
-    // even if the model produced no events for some of them.
+    // zapewniamy, że pokażemy lane dla każdego instrumentu z meta,
+    // nawet jeśli model nie wygenerował dla niego żadnych eventów.
     try {
       const meta = (midi.meta && typeof midi.meta === "object") ? midi.meta : {};
       const requested = Array.isArray((meta as any).instruments) ? ((meta as any).instruments as any[]) : [];
@@ -226,7 +236,7 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
         }
       }
     } catch {
-      // best-effort only
+      // best-effort: to tylko ułatwienie podglądu, więc nie chcemy blokować renderu
     }
 
     const flatEvents = (mergedEvents.length ? mergedEvents : lanes.flatMap(l => l.events));
@@ -294,7 +304,7 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
 
   const noteRange = Math.max(1, maxNote - minNote + 1);
   const baseCellWidth = 36;
-  const baseCellHeight = 14; // slightly taller for better visibility
+  const baseCellHeight = 14; // trochę wyższe komórki dla czytelności
   const cellWidth = baseCellWidth * zoomX;
   const cellHeight = baseCellHeight * zoomY;
   const width = Math.max(1, totalSteps || 1) * cellWidth;
@@ -383,7 +393,7 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
                     "rgba(249, 115, 22, 0.03) 0 1px, transparent 1px 36px," +
                     "rgba(249, 115, 22, 0.07) 36px 37px, transparent 37px 288px)," +
                     "repeating-linear-gradient(to bottom," +
-                    "rgba(255,255,255,0.02) 0 1px, transparent 1px 12px)", // subtler grid
+                    "rgba(255,255,255,0.02) 0 1px, transparent 1px 12px)", // subtelniejsza siatka
                   backgroundSize: `${cellWidth}px ${cellHeight}px`,
                 }}
               >
@@ -391,7 +401,7 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
                   const abs = ev.bar * stepsPerBar + ev.step;
                   const x = (abs - (minAbsStep ?? 0)) * cellWidth;
                   const y = (maxNote - ev.note) * cellHeight;
-                  const w = Math.max(cellWidth * (ev.len || 1) - 1, 3); // -1 for gap
+                  const w = Math.max(cellWidth * (ev.len || 1) - 1, 3); // -1 to przerwa między nutami
                   const h = cellHeight - 2;
                   const opacity = Math.min(1, Math.max(0.4, (ev.vel || 80) / 127));
                   const noteLabel = midiNoteName(ev.note);
@@ -457,7 +467,7 @@ export const MidiPianoroll = forwardRef<HTMLDivElement, Props>(({ midi, stepsPer
                   {lane.events.map((ev, idx) => {
                     const abs = ev.bar * stepsPerBar + ev.step;
                     const x = (abs - (minAbsStep ?? 0)) * cellWidth;
-                    const y = (laneMax - ev.note) * cellHeight; // wyżej = wyższa nuta w obrębie lane'a
+                    const y = (laneMax - ev.note) * cellHeight; // wyżej = wyższa nuta w obrębie lane
                     const w = Math.max(cellWidth * (ev.len || 1) - 1, 3);
                     const h = cellHeight - 2;
                     const opacity = Math.min(1, Math.max(0.4, (ev.vel || 80) / 127));

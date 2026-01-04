@@ -1,3 +1,6 @@
+// stałe i listy opcji dla formularzy air.
+// to są „sugerowane wartości” do wyboru w ui; backend/model może zwracać też inne stringi.
+
 export const STYLE_OPTIONS = [
   "Ambient","Jazz","Rock","Techno","Classical","Orchestral","Lofi","Hiphop","House","Metal","Trap","Pop","Cinematic","Folk","World","Experimental"
 ] as const;
@@ -40,9 +43,9 @@ export type DynamicRangeOption = (typeof DYNAMIC_RANGE_OPTIONS)[number];
 
 export const DEFAULT_INSTRUMENTS = ["Piano","Pad","Strings"] as const;
 
-// Instrument choices exposed in the main AIR UI. Keep drums in sync with
-// backend "Drums" subtypes: Kick, Snare, Hat, Clap, Tom, Rim, Crash,
-// Ride, Splash, Shake.
+// instrumenty pokazywane w głównym ui air.
+// ważne: nazwy perkusji trzymajmy spójne z backendem (drums subtypes):
+// kick, snare, hat, clap, tom, rim, crash, ride, splash, shake.
 export const INSTRUMENT_CHOICES = [
   "Piano","Pad","Strings","Bass","Guitar","Lead","Choir","Flute","Trumpet","Saxophone",
   "Kick","Snare","Hat","Clap","Tom","Rim","Crash","Ride","Splash","Shake",

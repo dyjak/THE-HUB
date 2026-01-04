@@ -1,5 +1,11 @@
 "use client";
 
+// cosmicbutton: przycisk z dwoma canvasami:
+// - tło (gwiazdy) jako delikatnie poruszające się punkty,
+// - „obwódka” (cząsteczki) krążąca po obrysie zaokrąglonego prostokąta,
+//   z lekkim ruchem ambient i reakcją na mysz.
+// uwaga: przy `disabled` efekt jest wyłączony (brak inicjalizacji animacji).
+
 import React, { useRef, useEffect, ButtonHTMLAttributes } from "react";
 
 interface CosmicButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -73,7 +79,7 @@ export default function CosmicButton({
             particleCanvas.width = width;
             particleCanvas.height = height;
 
-            // Initialize stars (half speed)
+            // inicjalizacja gwiazd (wolniejszy, subtelny ruch)
             starsRef.current = Array.from({ length: starCount }, () => ({
                 x: Math.random() * width,
                 y: Math.random() * height,
@@ -83,7 +89,7 @@ export default function CosmicButton({
                 twinkle: Math.random() * Math.PI * 2,
             }));
 
-            // Initialize particles around border (some clockwise, some counterclockwise)
+            // inicjalizacja cząsteczek na obwodzie (część zgodnie z ruchem wskazówek, część przeciwnie)
             particlesRef.current = Array.from({ length: particleCount }, (_, i) => ({
                 angle: (i / particleCount) * Math.PI * 2,
                 distance: 0,
@@ -100,11 +106,11 @@ export default function CosmicButton({
         const animate = () => {
             timeRef.current += 0.02;
 
-            // Clear canvases
+            // czyszczenie canvasów (nowa klatka animacji)
             starCtx.clearRect(0, 0, width, height);
             particleCtx.clearRect(0, 0, width, height);
 
-            // Draw stars
+            // rysowanie gwiazd
             starsRef.current.forEach((star) => {
                 const twinkle = Math.sin(timeRef.current * 2 + star.twinkle) * 0.3 + 0.7;
                 starCtx.fillStyle = `rgba(255, 255, 255, ${star.opacity * twinkle})`;
@@ -112,7 +118,7 @@ export default function CosmicButton({
                 starCtx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
                 starCtx.fill();
 
-                // Gentle star movement
+                // delikatny ruch gwiazd (płynięcie w dół, reset po wyjściu poza ekran)
                 star.y += star.speed * 0.1;
                 if (star.y > height) {
                     star.y = 0;
@@ -120,53 +126,53 @@ export default function CosmicButton({
                 }
             });
 
-            // Draw particles
+            // rysowanie cząsteczek na obrysie
             particlesRef.current.forEach((particle) => {
-                // Calculate position on rounded rectangle perimeter
+                // wyliczenie pozycji na obrysie zaokrąglonego prostokąta
                 particle.angle += particle.speed;
 
-                const radius = 12; // Border radius
+                const radius = 12; // promień zaokrąglenia „obwódki”
                 const w2 = width / 2;
                 const h2 = height / 2;
 
-                // Ambient floating motion
+                // ruch ambient: lekkie „pływanie” cząsteczek wokół obrysu
                 const ambient = Math.sin(timeRef.current + particle.offset) * 3;
                 const distance = particle.baseDistance + ambient;
 
-                // Position on rounded rect
+                // mapowanie kąta -> pozycja na zaokrąglonym prostokącie
                 const angle = particle.angle;
                 const cornerAngle = Math.atan2(h2 - radius, w2 - radius);
 
                 let x, y;
 
-                // Determine which side/corner we're on
+                // określamy, na której krawędzi / w którym narożniku aktualnie jesteśmy
                 const normalizedAngle = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
 
                 if (normalizedAngle < cornerAngle) {
-                    // Right side
+                    // prawa krawędź
                     x = w2 + (w2 - radius) + distance;
                     y = h2 + Math.tan(normalizedAngle) * (w2 - radius);
                 } else if (normalizedAngle < Math.PI - cornerAngle) {
-                    // Top right to top left
+                    // górna krawędź (od prawego do lewego „narożnika”)
                     const t = (normalizedAngle - cornerAngle) / (Math.PI - 2 * cornerAngle);
                     x = w2 + (w2 - radius) - t * 2 * (w2 - radius);
                     y = h2 - (h2 - radius) - distance;
                 } else if (normalizedAngle < Math.PI + cornerAngle) {
-                    // Left side
+                    // lewa krawędź
                     x = w2 - (w2 - radius) - distance;
                     y = h2 - Math.tan(normalizedAngle - Math.PI) * (w2 - radius);
                 } else if (normalizedAngle < 2 * Math.PI - cornerAngle) {
-                    // Bottom left to bottom right
+                    // dolna krawędź (od lewego do prawego „narożnika”)
                     const t = (normalizedAngle - Math.PI - cornerAngle) / (Math.PI - 2 * cornerAngle);
                     x = w2 - (w2 - radius) + t * 2 * (w2 - radius);
                     y = h2 + (h2 - radius) + distance;
                 } else {
-                    // Bottom right corner area
+                    // domknięcie po prawej stronie (obszar przy dolnym prawym narożniku)
                     x = w2 + (w2 - radius) + distance;
                     y = h2 + Math.tan(normalizedAngle - 2 * Math.PI) * (w2 - radius);
                 }
 
-                // Mouse interaction
+                // interakcja z myszą: odpychanie cząsteczek, gdy kursor jest blisko
                 if (mouseRef.current.active) {
                     const dx = mouseRef.current.x - x;
                     const dy = mouseRef.current.y - y;
@@ -179,7 +185,7 @@ export default function CosmicButton({
                     }
                 }
 
-                // Draw particle
+                // rysowanie pojedynczej cząsteczki (z poświatą)
                 particleCtx.fillStyle = particle.color;
                 particleCtx.shadowBlur = 10;
                 particleCtx.shadowColor = particle.color;
@@ -224,17 +230,17 @@ export default function CosmicButton({
             disabled={disabled}
             {...props}
         >
-            {/* Star background canvas */}
+            {/* canvas tła: gwiazdy */}
             <canvas
                 ref={starCanvasRef}
                 className="absolute inset-0 pointer-events-none"
                 style={{ opacity: disabled ? 0 : 1 }}
             />
 
-            {/* Content */}
+            {/* treść przycisku nad canvasami */}
             <span className="relative z-10">{children}</span>
 
-            {/* Particle border canvas */}
+            {/* canvas obwódki: cząsteczki krążące po obrysie */}
             <canvas
                 ref={particleCanvasRef}
                 className="absolute inset-0 pointer-events-none"

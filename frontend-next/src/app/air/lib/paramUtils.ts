@@ -15,6 +15,10 @@ import {
 } from "./constants";
 import type { InstrumentConfig, ParamPlan } from "./paramTypes";
 
+// helpery normalizacji danych z modelu/backendu.
+// cel: przyjmować „luźne” wejście (często częściowe), a zwracać bezpieczny paramplan
+// z wartościami domyślnymi i ujednoliconymi stringami.
+
 type StringOptions = readonly string[];
 
 export const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -37,10 +41,10 @@ export const pickFrom = <T extends StringOptions>(value: unknown, options: T, fa
   return fallback;
 };
 
-// For creative/string parameters coming from the model, we want to keep
-// custom values while still snapping to our suggested options when they match.
-// If the value is empty/undefined we fall back, otherwise we return either the
-// canonical option (case-insensitive match) or the raw trimmed string.
+// dla kreatywnych parametrów-stringów z modelu chcemy zachować wartości niestandardowe,
+// ale jeśli pasują (nawet bez uwzględniania wielkości liter) do naszych sugestii,
+// to „podmieniamy” na kanoniczną wersję z listy opcji.
+// jeśli wartość jest pusta/undefined -> wartość domyślna.
 export const normalizeWithSuggestions = <T extends StringOptions>(
   value: unknown,
   options: T,
@@ -118,8 +122,8 @@ export const toInstrumentConfig = (raw: unknown): InstrumentConfig | null => {
 };
 
 export const ensureInstrumentConfigs = (instruments: string[], existing: InstrumentConfig[]): InstrumentConfig[] => {
-  // Build lookup maps by exact name and by lowercase name to tolerate
-  // casing differences or minor naming mismatches from the model.
+  // budujemy mapy lookup po nazwie dokładnej i po nazwie lower-case,
+  // żeby tolerować różnice w wielkości liter lub drobne rozjazdy z modelu.
   const byExact = new Map(existing.map(cfg => [cfg.name, cfg] as const));
   const byLower = new Map(existing.map(cfg => [cfg.name.toLowerCase(), cfg] as const));
 
@@ -132,7 +136,7 @@ export const ensureInstrumentConfigs = (instruments: string[], existing: Instrum
     if (lower) {
       return { ...lower, name: inst };
     }
-    // No config provided by the model – fall back to heuristic defaults.
+    // model nie dostarczył konfiguracji -> heurystyczne domyślne wartości.
     return createDefaultInstrumentConfig(inst, index);
   });
 };

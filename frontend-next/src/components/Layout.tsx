@@ -1,5 +1,11 @@
 "use client";
 
+// layout aplikacji: wspólny „shell” dla podstron.
+// odpowiedzialności:
+// - tło (StarField) renderowane pod całą zawartością,
+// - na wierzchu nawigacja, główny content i stopka.
+// uwaga: ten komponent nie zmienia routingu ani sesji; tylko układ.
+
 import Link from "next/link";
 import StarField from '../components/ui/StarField';
 import { useSession, signOut } from "next-auth/react";
@@ -13,9 +19,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return (
 
     <div className="w-full relative h-screen flex flex-col bg-transparent text-white overflow-x-hidden">
-           {/* Tło */}
+           {/* tło: efekt gwiazd na canvasie */}
            <StarField />
-           {/* Zawartość nad tłem */}
+           {/* zawartość nad tłem: nav + main + footer */}
            <div className="relative z-10 flex flex-col h-full w-full">
                <Nav />
                <main className="w-full flex-grow overflow-y-auto scroll-container bg-transparent px-4 py-4">

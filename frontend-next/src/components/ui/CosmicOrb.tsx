@@ -1,5 +1,9 @@
 "use client";
 
+// cosmicorb: efekt „kuli” z cząsteczek na canvasie.
+// cząsteczki mają proste prędkości, separację (żeby się nie zlepiały),
+// przyciąganie do środka i opcjonalną reakcję na kursor po najechaniu.
+
 import React, { useRef, useEffect } from "react";
 
 export interface CosmicOrbProps {
@@ -25,6 +29,7 @@ export default function CosmicOrb({
   width,
   height,
   particleCount = 380,
+  // alternatywna paleta kolorów (zostawiona jako szybki switch)
   // colors = ["#90e0ef", "#ade8f4", "#caf0f8"],
   colors = ["#0096c7", "#023e8a", "#0077b6"],
 
@@ -59,7 +64,7 @@ export default function CosmicOrb({
     const ro = new ResizeObserver(resize);
     if (canvas.parentElement) ro.observe(canvas.parentElement);
 
-    // init particles: start ściśnięte w centrum
+    // inicjalizacja cząsteczek: start ściśnięte w centrum
     const rect = canvas.getBoundingClientRect();
     const cx = rect.width / 2;
     const cy = rect.height / 2;
@@ -69,7 +74,7 @@ export default function CosmicOrb({
       vx: rand(-0.05, 0.05),
       vy: rand(-0.05, 0.05),
       r: rand(2, 4),
-      // ensure color is valid CSS format
+      // dbamy, żeby kolor był poprawnym stringiem css (czasem ktoś wklei coś „dziwnego”)
       color: colors[Math.floor(Math.random() * colors.length)].replace(/[^#a-fA-F0-9]/g, ''),
     }));
 
@@ -154,7 +159,7 @@ export default function CosmicOrb({
 
         const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 6);
         grad.addColorStop(0, p.color);
-        grad.addColorStop(0.3, p.color + "55".slice(0, 2)); // only valid hex alpha
+        grad.addColorStop(0.3, p.color + "55".slice(0, 2)); // dodajemy „alphę” tylko w formacie hex
         grad.addColorStop(1, "rgba(0,0,0,0)");
         ctx.beginPath();
         ctx.fillStyle = grad as unknown as string;

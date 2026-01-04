@@ -1,4 +1,17 @@
 "use client";
+
+/*
+    odtwarzacz audio z prostą wizualizacją widma (paski na canvasie).
+
+    co robi:
+    - steruje elementem <audio> (play/pause, głośność, przewijanie)
+    - tworzy audio context + analyser node, żeby pobierać dane o częstotliwościach
+    - rysuje animowany wizualizer na canvasie tylko w trakcie odtwarzania
+
+    ważne uwagi:
+    - audio context w przeglądarce zwykle wymaga "gestu użytkownika" (klik), więc tworzymy go przy pierwszym odtworzeniu
+    - requestAnimationFrame jest zatrzymywany, gdy audio nie gra (żeby oszczędzać zasoby)
+*/
 import React, { useEffect, useRef, useState, useCallback } from "react";
 
 interface VisualAudioPlayerProps {
@@ -6,7 +19,7 @@ interface VisualAudioPlayerProps {
     className?: string;
     title?: string;
     accentColor?: string;
-    accentColor2?: string; // Color for visualizer bars
+    accentColor2?: string; // kolor pasków wizualizera
 }
 
 export const VisualAudioPlayer: React.FC<VisualAudioPlayerProps> = ({
@@ -14,7 +27,7 @@ export const VisualAudioPlayer: React.FC<VisualAudioPlayerProps> = ({
     className = "",
     title,
     accentColor = "#ef4444",
-    accentColor2 = "#634bffff", // green-500 default for visualizer
+    accentColor2 = "#634bffff", // domyślny kolor pasków wizualizera
 }) => {
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const progressRef = useRef<HTMLDivElement | null>(null);
@@ -31,6 +44,8 @@ export const VisualAudioPlayer: React.FC<VisualAudioPlayerProps> = ({
     const [current, setCurrent] = useState(0);
     const [volume, setVolume] = useState(0.75);
 
+    // inicjalizuje web audio (audio context + analyser) i podpina <audio> jako źródło.
+    // robimy to tylko raz, przy pierwszym użyciu, bo createMediaElementSource nie może być tworzony wielokrotnie dla tego samego elementu.
     const setupAudioContext = useCallback(() => {
         const audio = audioRef.current;
         if (!audio || audioContextRef.current) return;
@@ -53,6 +68,9 @@ export const VisualAudioPlayer: React.FC<VisualAudioPlayerProps> = ({
         }
     }, []);
 
+    // uruchamia pętlę rysowania wizualizera.
+    // analyser.getByteFrequencyData zwraca "głośność" w pasmach częstotliwości (0-255).
+    // na tej podstawie rysujemy pionowe słupki na canvasie.
     const drawVisualizer = useCallback(() => {
         const canvas = canvasRef.current;
         const analyser = analyserRef.current;
@@ -64,6 +82,8 @@ export const VisualAudioPlayer: React.FC<VisualAudioPlayerProps> = ({
         const barColor = accentColor2.length > 7 ? accentColor2.slice(0, 7) : accentColor2;
         const bufferLength = analyser.frequencyBinCount;
 
+        // przechowujemy losowe mnożniki szerokości słupków w refie, żeby wizualizer wyglądał "żywiej",
+        // ale jednocześnie był stabilny w trakcie jednego odtwarzania.
         if (barPropsRef.current.length !== bufferLength) {
             barPropsRef.current = Array.from({ length: bufferLength }, () => ({
                 widthMult: 0.2 + Math.random() * 1.0,
@@ -129,6 +149,7 @@ export const VisualAudioPlayer: React.FC<VisualAudioPlayerProps> = ({
         draw();
     }, [playing, accentColor]);
 
+    // gdy włączamy odtwarzanie, startujemy rysowanie; gdy wyłączamy, sprzątamy requestAnimationFrame.
     useEffect(() => {
         if (playing && analyserRef.current) {
             drawVisualizer();
@@ -140,6 +161,8 @@ export const VisualAudioPlayer: React.FC<VisualAudioPlayerProps> = ({
         };
     }, [playing, drawVisualizer]);
 
+    // play/pause.
+    // dodatkowo: przy pierwszym kliknięciu inicjalizujemy audio context, a gdy jest "suspended" (częste w przeglądarkach), wznawiamy go.
     const toggle = useCallback(() => {
         const el = audioRef.current;
         if (!el || !ready) return;
@@ -168,6 +191,7 @@ export const VisualAudioPlayer: React.FC<VisualAudioPlayerProps> = ({
         return `${m}:${s.toString().padStart(2, "0")}`;
     };
 
+    // podpina zdarzenia z elementu <audio> do stanu reactowego.
     useEffect(() => {
         const el = audioRef.current;
         if (!el) return;
@@ -192,6 +216,7 @@ export const VisualAudioPlayer: React.FC<VisualAudioPlayerProps> = ({
         };
     }, [src]);
 
+    // przewijanie po kliknięciu w pasek postępu (tak jak w prostszym odtwarzaczu).
     const seek = useCallback(
         (e: React.MouseEvent) => {
             const bar = progressRef.current;
@@ -206,12 +231,14 @@ export const VisualAudioPlayer: React.FC<VisualAudioPlayerProps> = ({
         [duration]
     );
 
+    // synchronizuje suwak głośności z elementem <audio>.
     useEffect(() => {
         const el = audioRef.current;
         if (!el) return;
         el.volume = volume;
     }, [volume]);
 
+    // sprzątanie po odmontowaniu: zatrzymujemy animację i zamykamy audio context.
     useEffect(() => {
         return () => {
             if (animationRef.current) {

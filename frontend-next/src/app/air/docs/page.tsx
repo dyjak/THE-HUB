@@ -1,5 +1,8 @@
 import Link from "next/link";
 
+// prosta strona dokumentacji air.
+// wyświetla pdf z /public/docs w iframe (najprościej), z opcją otwarcia w nowej karcie.
+
 const DEFAULT_PDF_PATH = "/docs/air.pdf";
 
 export default function AirDocsPage() {
@@ -22,7 +25,8 @@ export default function AirDocsPage() {
 			</div>
 
 			<div className="w-full rounded-xl border border-gray-800 bg-black/30 overflow-hidden">
-				{/* Prefer iframe (najprościej). object daje fallback, gdy iframe blokowany. */}
+				{/* preferujemy iframe (najprościej i najczytelniej w ui).
+				    gdyby przeglądarka blokowała osadzanie, użytkownik i tak ma link „otwórz pdf”. */}
 				<iframe
 					title="AIR Dokumentacja (PDF)"
 					src={`${DEFAULT_PDF_PATH}#view=FitH`}

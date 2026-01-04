@@ -1,4 +1,6 @@
-// pages/index.js or app/page.js
+// strona startowa aplikacji.
+// uwaga: w aktualnej wersji projekt od razu przekierowuje do /air,
+// więc poniższy jsx jest „martwy” (zostawiony jako szkic / stara home-page).
 "use client";
 
 import { FaBeer, FaLock, FaHome } from "react-icons/fa";

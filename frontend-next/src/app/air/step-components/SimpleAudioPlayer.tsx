@@ -1,4 +1,17 @@
 "use client";
+
+/*
+  prosty odtwarzacz audio używany jako podgląd sampla lub ścieżki.
+
+  co robi:
+  - zarządza elementem <audio> (play/pause, głośność)
+  - pokazuje pasek postępu, który można kliknąć, aby przewinąć
+  - wyświetla czas bieżący i całkowity
+
+  ważne uwagi:
+  - stan "ready" ustawiamy dopiero po wczytaniu metadanych (czas trwania)
+  - aktualny czas jest synchronizowany zdarzeniem timeupdate
+*/
 import React, { useEffect, useRef, useState, useCallback } from "react";
 
 interface SimpleAudioPlayerProps {
@@ -18,11 +31,13 @@ export const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({ src, class
   const [current, setCurrent] = useState(0);
   const [volume, setVolume] = useState(1);
 
+  // przełącza odtwarzanie (play/pause). jeśli audio nie jest gotowe, nic nie robi.
   const toggle = useCallback(() => {
     const el = audioRef.current; if (!el || !ready) return;
     if (el.paused) { el.play(); setPlaying(true); } else { el.pause(); setPlaying(false); }
   }, [ready]);
 
+  // formatuje sekundy jako "m:ss".
   const fmt = (sec: number) => {
     if (!Number.isFinite(sec)) return "0:00";
     const m = Math.floor(sec / 60);
@@ -30,6 +45,10 @@ export const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({ src, class
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
+  // podpina zdarzenia z elementu <audio>:
+  // - loadedmetadata: znamy duration i możemy odblokować przycisk
+  // - timeupdate: aktualizujemy postęp
+  // - ended: ustawiamy stan na zakończone odtwarzanie
   useEffect(() => {
     const el = audioRef.current; if (!el) return;
     const onLoaded = () => { setDuration(el.duration || 0); setReady(true); };
@@ -45,6 +64,8 @@ export const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({ src, class
     };
   }, [src]);
 
+  // pozwala przewijać kliknięciem w pasek postępu.
+  // przelicza pozycję kursora w pikselach na ułamek długości utworu.
   const seek = useCallback((e: React.MouseEvent) => {
     const bar = progressRef.current; const el = audioRef.current;
     if (!bar || !el || duration <= 0) return;
@@ -55,6 +76,7 @@ export const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({ src, class
     setCurrent(el.currentTime);
   }, [duration]);
 
+  // synchronizuje suwak głośności ze stanem elementu <audio>.
   useEffect(() => {
     const el = audioRef.current; if (!el) return;
     el.volume = volume;

@@ -1,5 +1,17 @@
 "use client";
 
+/*
+  uniwersalny dialog do pokazywania problemów/ostrzeżeń w krokach air.
+
+  co robi:
+  - pokazuje tytuł, opis i listę szczegółów (np. błędy parsowania, braki plików eksportu)
+  - opcjonalnie pozwala zmienić provider/model, gdy komponent rodzica przekaże listy oraz callbacki
+  - ma dwa wyjścia: "kontynuuj" (zamknij) oraz "ponów generowanie" (wywołaj akcję w rodzicu)
+
+  uwaga:
+  - to jest komponent prezentacyjny; logika generowania jest w krokach (np. ParamPlanStep, MidiPlanStep)
+*/
+
 import type { ReactNode } from "react";
 
 type Props = {
@@ -37,7 +49,12 @@ export default function ProblemDialog({
 }: Props) {
   if (!open) return null;
 
+  // filtrujemy wejściowe dane defensywnie, bo czasem backend/model może zwrócić nieoczekiwany typ.
   const items = Array.isArray(details) ? details.filter((x) => typeof x === "string" && x.trim()) : [];
+
+  // normalizacja providerów i modeli jest po to, żeby:
+  // - nie mieć duplikatów w selectach
+  // - nie wywalić reacta przez niepoprawne key lub puste wartości
   const providers = Array.isArray(availableProviders)
     ? Array.from(
         new Map(

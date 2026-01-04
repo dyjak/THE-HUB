@@ -1,9 +1,10 @@
-// app/api/auth/[...nextauth]/route.ts
+// konfiguracja next-auth dla app router (route handler).
+// używamy credentials provider i delegujemy weryfikację do backendu fastapi (/api/login).
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import axios from "axios";
 
-// Backend FastAPI URL
+// bazowy url backendu fastapi (uwaga: dokładamy /api).
 const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL
   ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api`
   : "http://127.0.0.1:8000/api";
@@ -56,20 +57,24 @@ const handler = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        const existingUser =
+          typeof (token as any).user === "object" && (token as any).user !== null
+            ? ((token as any).user as Record<string, unknown>)
+            : {};
         token.user = {
-          ...token.user,
-          ...user,
+          ...existingUser,
+          ...(user as unknown as Record<string, unknown>),
         };
       }
       return token;
     },
     async session({ session, token }) {
-      // @ts-ignore
+      // @ts-ignore - next-auth ma tu luźny typ user, a my dokładamy własne pola (id, accessToken)
       session.user = token.user;
       return session;
     },
   },
-  debug: true, // Włącz tryb debugowania, aby zobaczyć więcej szczegółów
+  debug: true, // tryb debug (więcej logów w dev)
 });
 
 export { handler as GET, handler as POST };
