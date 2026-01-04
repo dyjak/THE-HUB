@@ -1,1 +1,19 @@
+# Local env files
+backend-fastapi/.env
+
+# Python caches
+**/__pycache__/
+*.pyc
+
+# Node
+frontend-next/.next/
+frontend-next/node_modules/
 venv
+
+
+**/output/
+
+
+*.wav
+*.dwp
+*.fst

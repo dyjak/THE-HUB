@@ -1,0 +1,63 @@
+{
+  "run_id": "128f2dfb7814",
+  "instruments": [
+    "pad",
+    "snare"
+  ],
+  "samples": [
+    {
+      "instrument": "pad",
+      "id": "99Sounds x Monosounds - PAD - C",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Instrument Oneshots\\Instruments\\99Sounds x Monosounds - PAD - C.wav",
+      "source": "local",
+      "subtype": "pad",
+      "family": "melodic",
+      "category": "loop",
+      "pitch": "C"
+    },
+    {
+      "instrument": "snare",
+      "id": "99Sounds x Monosounds - Snare - 01 - C",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Drum Oneshots\\Moon - Hip-Hop Drum Kit\\Snares\\99Sounds x Monosounds - Snare - 01 - C.wav",
+      "source": "local",
+      "subtype": "snare",
+      "family": "drum",
+      "category": "loop",
+      "pitch": "C"
+    }
+  ],
+  "instrument_configs": [
+    {
+      "name": "pad",
+      "register": "full",
+      "role": "pad",
+      "volume": 0.85,
+      "pan": -0.2,
+      "articulation": "sustain",
+      "dynamic_range": "moderate",
+      "effects": [
+        "reverb",
+        "chorus"
+      ]
+    },
+    {
+      "name": "snare",
+      "register": "low",
+      "role": "percussion",
+      "volume": 0.95,
+      "pan": 0.0,
+      "articulation": "percussive",
+      "dynamic_range": "intense",
+      "effects": [
+        "compression"
+      ]
+    }
+  ],
+  "form": [
+    "intro",
+    "verse",
+    "chorus",
+    "bridge",
+    "outro"
+  ]
+}

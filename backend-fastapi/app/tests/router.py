@@ -11,7 +11,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 router = APIRouter(prefix="/music-tests", tags=["music-tests"])
 
 # Ścieżka do katalogu tests
-TESTS_DIR = Path(__file__).parent.parent / "tests"
+TESTS_DIR = Path(__file__).parent / "simple-sample-test"
 
 
 def run_script(script_name: str):

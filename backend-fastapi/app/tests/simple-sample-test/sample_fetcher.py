@@ -1,0 +1,1 @@
+from ..sample_fetcher import *  # re-export legacy

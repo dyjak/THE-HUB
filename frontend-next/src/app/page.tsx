@@ -1,4 +1,6 @@
-// pages/index.js or app/page.js
+// strona startowa aplikacji.
+// uwaga: w aktualnej wersji projekt od razu przekierowuje do /air,
+// więc poniższy jsx jest „martwy” (zostawiony jako szkic / stara home-page).
 "use client";
 
 import { FaBeer, FaLock, FaHome } from "react-icons/fa";
@@ -6,6 +8,10 @@ import { FaBeer, FaLock, FaHome } from "react-icons/fa";
 import AnimatedHeading from '../components/ui/AnimatedHeading';
 import TypedText from '../components/ui/TypedText';
 import AnimatedCard from "@/components/ui/AnimatedCard";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+
+redirect("/air");
 
 const apps = [
     { name: "AIR 4.2", path: "/air" },
@@ -57,7 +63,15 @@ export default function Home() {
             </div>
 
 
-            <div className="text-red-500 text-2xl font-bold mt-10">Tailwind</div>
+                            <div className="mt-10 flex flex-col items-center gap-4">
+                                    <div className="text-red-500 text-2xl font-bold">Tailwind</div>
+                                    <Link
+                                        href="/air/ai-param-test/chat-smoke"
+                                        className="px-6 py-3 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                                    >
+                                        Open AI Chat Smoke Test
+                                    </Link>
+                            </div>
 
         </main>
     );

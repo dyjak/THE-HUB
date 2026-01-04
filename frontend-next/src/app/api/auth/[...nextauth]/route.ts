@@ -1,47 +1,50 @@
-// app/api/auth/[...nextauth]/route.ts
+// konfiguracja next-auth dla app router (route handler).
+// używamy credentials provider i delegujemy weryfikację do backendu fastapi (/api/login).
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import axios from "axios";
 
-// Upewnij się, że ten adres jest poprawny
-const API_URL = "http://127.0.0.1:8000/api";
-//const API_URL = "https://the-hub-onwb.onrender.com//api";
+// bazowy url backendu fastapi (uwaga: dokładamy /api).
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL
+  ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api`
+  : "http://127.0.0.1:8000/api";
 
 const handler = NextAuth({
   providers: [
     CredentialsProvider({
-      name: "PIN",
+      name: "Login",
       credentials: {
-        pin: { label: "PIN", type: "text" }
+        username: { label: "Nazwa użytkownika", type: "text" },
+        pin: { label: "PIN", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.pin) {
-          throw new Error("PIN jest wymagany");
+        if (!credentials?.username || !credentials?.pin) {
+          throw new Error("Nazwa użytkownika i PIN są wymagane");
         }
 
         try {
-          console.log("Próba logowania z PIN:", credentials.pin);
-          // Połączenie z FastAPI
           const response = await axios.post(`${API_URL}/login`, {
-            pin: credentials.pin
+            username: credentials.username,
+            pin: credentials.pin,
           });
 
-          console.log("Odpowiedź z serwera:", response.data);
+          const data = response.data;
 
-          // Zwracamy dane użytkownika
-          if (response.data.message === "Login successful") {
+          if (data?.message === "Login successful" && data?.access_token) {
             return {
-              id: response.data.username,
-              name: response.data.username,
-            };
+              id: data.id,
+              name: data.username,
+              username: data.username,
+              accessToken: data.access_token,
+            } as any;
           }
 
           return null;
-        } catch (error) {
-          console.error("Login error:", error);
+        } catch (error: any) {
+          console.error("Login error:", error?.response?.data || error?.message || error);
           throw new Error("Błąd podczas logowania");
         }
-      }
+      },
     })
   ],
   session: {
@@ -54,17 +57,24 @@ const handler = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.user = user;
+        const existingUser =
+          typeof (token as any).user === "object" && (token as any).user !== null
+            ? ((token as any).user as Record<string, unknown>)
+            : {};
+        token.user = {
+          ...existingUser,
+          ...(user as unknown as Record<string, unknown>),
+        };
       }
       return token;
     },
     async session({ session, token }) {
-      // @ts-ignore
+      // @ts-ignore - next-auth ma tu luźny typ user, a my dokładamy własne pola (id, accessToken)
       session.user = token.user;
       return session;
-    }
+    },
   },
-  debug: true, // Włącz tryb debugowania, aby zobaczyć więcej szczegółów
+  debug: true, // tryb debug (więcej logów w dev)
 });
 
 export { handler as GET, handler as POST };

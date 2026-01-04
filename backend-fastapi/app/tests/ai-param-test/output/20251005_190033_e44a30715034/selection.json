@@ -1,0 +1,63 @@
+{
+  "run_id": "e44a30715034",
+  "instruments": [
+    "flute",
+    "fx"
+  ],
+  "samples": [
+    {
+      "instrument": "flute",
+      "id": "99Sounds x Monosounds - Flute - C",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Instrument Oneshots\\Instruments\\99Sounds x Monosounds - Flute - C.wav",
+      "source": "local",
+      "subtype": "flute",
+      "family": "melodic",
+      "category": "loop",
+      "pitch": "C"
+    },
+    {
+      "instrument": "fx",
+      "id": "99Sounds x Monosounds - FX - Swell",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\FX\\99Sounds x Monosounds - FX - Swell.wav",
+      "source": "local",
+      "subtype": "fx",
+      "family": "fx",
+      "category": "loop",
+      "pitch": null
+    }
+  ],
+  "instrument_configs": [
+    {
+      "name": "flute",
+      "register": "high",
+      "role": "lead",
+      "volume": 0.9,
+      "pan": -0.2,
+      "articulation": "legato",
+      "dynamic_range": "moderate",
+      "effects": [
+        "reverb",
+        "delay"
+      ]
+    },
+    {
+      "name": "fx",
+      "register": "mid",
+      "role": "accompaniment",
+      "volume": 0.8,
+      "pan": 0.09999999999999998,
+      "articulation": "sustain",
+      "dynamic_range": "moderate",
+      "effects": [
+        "reverb"
+      ]
+    }
+  ],
+  "form": [
+    "intro",
+    "verse",
+    "chorus",
+    "bridge",
+    "outro"
+  ]
+}

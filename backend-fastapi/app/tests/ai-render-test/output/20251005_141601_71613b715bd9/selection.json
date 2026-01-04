@@ -1,0 +1,29 @@
+{
+  "run_id": "71613b715bd9",
+  "instruments": [
+    "lead",
+    "bass"
+  ],
+  "samples": [
+    {
+      "instrument": "lead",
+      "id": "99Sounds x Monosounds - Lead - 01 - F",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Instrument Oneshots\\Leads\\99Sounds x Monosounds - Lead - 01 - F.wav",
+      "source": "local",
+      "subtype": "lead",
+      "family": "melodic",
+      "category": "loop",
+      "pitch": "F"
+    },
+    {
+      "instrument": "bass",
+      "id": "Monosounds - Dusty - Analog Bass - F - 002",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Instrument Oneshots\\Bass Guitar\\Monosounds - Dusty - Analog Bass - F - 002.wav",
+      "source": "local",
+      "subtype": "bass",
+      "family": "bass",
+      "category": "loop",
+      "pitch": "F"
+    }
+  ]
+}

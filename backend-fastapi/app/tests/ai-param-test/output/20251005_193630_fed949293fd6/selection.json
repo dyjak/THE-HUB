@@ -1,0 +1,38 @@
+{
+  "run_id": "fed949293fd6",
+  "instruments": [
+    "flute"
+  ],
+  "samples": [
+    {
+      "instrument": "flute",
+      "id": "99Sounds x Monosounds - Flute - C",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Instrument Oneshots\\Instruments\\99Sounds x Monosounds - Flute - C.wav",
+      "source": "local",
+      "subtype": "flute",
+      "family": "melodic",
+      "category": "loop",
+      "pitch": "C"
+    }
+  ],
+  "instrument_configs": [
+    {
+      "name": "flute",
+      "register": "mid",
+      "role": "accompaniment",
+      "volume": 0.8,
+      "pan": 0.0,
+      "articulation": "legato",
+      "dynamic_range": "moderate",
+      "effects": [
+        "reverb_long",
+        "delay_subtle"
+      ]
+    }
+  ],
+  "form": [
+    "intro",
+    "theme_A",
+    "outro"
+  ]
+}

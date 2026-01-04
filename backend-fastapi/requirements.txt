@@ -20,3 +20,9 @@ pydub
 
 # Sample fetching
 requests
+matplotlib
+python-dotenv
+openai
+anthropic
+google-generativeai
+python-jose

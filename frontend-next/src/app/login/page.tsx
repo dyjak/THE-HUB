@@ -1,28 +1,37 @@
 'use client';
 
+// strona logowania.
+// logowanie jest oparte o next-auth (provider credentials) i backend fastapi.
+// pin jest wpisywany w 6 polach; po wpisaniu kompletu cyfr uruchamiamy logowanie automatycznie.
+
 import { useState, useEffect, useRef } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import ElectricBorder from "@/components/ui/ElectricBorder";
 
 export default function LoginPage() {
+    const [username, setUsername] = useState("");
     const [pin, setPin] = useState<string[]>(Array(6).fill(''));
-    const [activeIndex, setActiveIndex] = useState(0); // tylko do focusu / highlightu
+    const [activeIndex, setActiveIndex] = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const router = useRouter();
 
     const inputRefs = useRef<(HTMLInputElement | null)[]>(Array(6).fill(null));
 
-    // Uniwersalna funkcja logowania (można przekazać świeżo złożony PIN)
     const handleLogin = async (pinOverride?: string) => {
         const pinString = pinOverride ?? pin.join('');
+
+        if (!username.trim()) {
+            setError("Nazwa użytkownika jest wymagana");
+            return;
+        }
 
         if (pinString.length !== 6) {
             setError("PIN musi składać się z 6 cyfr");
             return;
         }
-        if (loading) return; // zapobiega wielokrotnemu wysyłaniu
+        if (loading) return;
 
         setLoading(true);
         setError("");
@@ -30,11 +39,12 @@ export default function LoginPage() {
         try {
             const result = await signIn("credentials", {
                 redirect: false,
+                username: username.trim(),
                 pin: pinString,
             });
 
             if (result?.error) {
-                setError("Nieprawidłowy PIN. Spróbuj ponownie.");
+                setError("Nieprawidłowa nazwa użytkownika lub PIN.");
                 setPin(Array(6).fill(''));
                 setActiveIndex(0);
             } else {
@@ -51,41 +61,11 @@ export default function LoginPage() {
         }
     };
 
-    // Wirtualna klawiatura: zawsze wstawia cyfrę w pierwsze puste miejsce
-    const handleKeyPress = (digit: string) => {
-        if (loading) return;
-        const firstEmpty = pin.findIndex(d => d === '');
-        if (firstEmpty === -1) return; // już pełny
-
-        const newPin = [...pin];
-        newPin[firstEmpty] = digit;
-        setPin(newPin);
-        setActiveIndex(Math.min(firstEmpty + 1, 5));
-
-        if (firstEmpty === 5) {
-            // Mamy komplet 6 cyfr -> natychmiast logowanie na podstawie newPin
-            handleLogin(newPin.join(''));
-        }
-    };
-
-    // Backspace usuwa poprzednią wypełnioną cyfrę (ostatnią nie‑pustą)
-    const handleBackspace = () => {
-        if (loading) return;
-        // znajdź ostatni wypełniony indeks
-        const lastFilled = [...pin].map((v,i)=>({v,i})).filter(o=>o.v !== '').map(o=>o.i).pop();
-        if (lastFilled === undefined) return;
-        const newPin = [...pin];
-        newPin[lastFilled] = '';
-        setPin(newPin);
-        setActiveIndex(lastFilled);
-    };
-
-    // Focus aktualnego indeksu
+    // logika focusu: aktywne pole pinu powinno być zawsze „na wierzchu”.
     useEffect(() => {
         inputRefs.current[activeIndex]?.focus();
     }, [activeIndex]);
 
-    // Zmiana w pojedynczym input (klawiatura fizyczna)
     const handleInputChange = (index: number, value: string) => {
         if (!/^\d*$/.test(value) || loading) return;
 
@@ -96,7 +76,6 @@ export default function LoginPage() {
         if (value && index < 5) {
             setActiveIndex(index + 1);
         }
-        // Jeśli po tej zmianie mamy komplet -> logowanie
         if (newPin.every(d => d !== '')) {
             handleLogin(newPin.join(''));
         }
@@ -105,99 +84,104 @@ export default function LoginPage() {
     const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
         if (e.key === 'Backspace') {
             if (pin[index] === '') {
-                // cofamy się do poprzedniego uzupełnionego
-                const prevFilled = [...pin].map((v,i)=>({v,i})).filter(o=>o.v !== '' && o.i < index).map(o=>o.i).pop();
+                const prevFilled = [...pin].map((v, i) => ({ v, i })).filter(o => o.v !== '' && o.i < index).map(o => o.i).pop();
                 if (prevFilled !== undefined) setActiveIndex(prevFilled);
+                else if (index > 0) setActiveIndex(index - 1);
             }
         } else if (e.key === 'Enter' && pin.every(d => d !== '')) {
             handleLogin();
         }
     };
 
+    const handleKeyUp = (index: number, e: React.KeyboardEvent) => {
+        if (e.key === 'Backspace' && pin[index] === '' && index > 0) {
+            setActiveIndex(index - 1);
+        }
+    }
+
     const isPinComplete = pin.every(d => d !== '');
 
     return (
-        <main className="relative flex flex-col items-center justify-center min-h-screen bg-transparent text-white">
-            <motion.div
-                className="w-full max-w-md p-8 border border-gray-500 rounded-xl bg-gray-900/80"
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8 }}
-            >
-                <div className="text-center mb-8">
-                    <h1 className="text-5xl font-bold mb-2">🚀</h1>
-                    <h2 className="text-2xl font-semibold">Panel logowania</h2>
+        <section className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 text-white overflow-hidden">
+            <div className="w-full max-w-md bg-gray-900/30 border border-cyan-700/30 rounded-2xl shadow-lg shadow-cyan-900/10 p-8 space-y-8 relative overflow-hidden backdrop-blur-sm mx-4">
+
+                {/* nagłówek */}
+                <div className="text-center space-y-2 relative z-10">
+                    <h2 className="text-3xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-cyan-100 to-blue-500 animate-pulse tracking-tight">
+                        Panel logowania
+                    </h2>
+                    <p className="text-xs text-cyan-400/60 uppercase tracking-widest">każdy ma jakieś swoje przywileje</p>
                 </div>
 
-                <div className="mb-8">
-                    <label className="block text-center text-lg font-medium mb-4">
-                        Wprowadź 6-cyfrowy PIN
-                    </label>
-
-                    {/* Pola PIN */}
-                    <div className="flex justify-center space-x-3 mb-6">
-                        {Array(6).fill(0).map((_, index) => (
-                            <input
-                                key={index}
-                                ref={(el) => { inputRefs.current[index] = el; }}
-                                type="password"
-                                className={`w-12 h-16 text-center text-2xl bg-gray-800 border ${
-                                    activeIndex === index ? 'border-blue-500' : 'border-gray-600'
-                                } rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                                maxLength={1}
-                                value={pin[index] || ''}
-                                onChange={(e) => handleInputChange(index, e.target.value)}
-                                onKeyDown={(e) => handleKeyDown(index, e)}
-                                onFocus={() => setActiveIndex(index)}
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                            />
-                        ))}
+                <div className="space-y-6 relative z-10">
+                    <div>
+                        <label className="block text-xs uppercase tracking-widest text-cyan-300 mb-2 text-center">
+                            Nazwa użytkownika
+                        </label>
+                        <input
+                            type="text"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            className="w-full bg-black/50 border border-cyan-800/40 rounded-xl px-4 py-3 text-sm text-center focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:border-cyan-500 transition-all placeholder:text-gray-600"
+                            placeholder="tożsamość"
+                            autoComplete="username"
+                        />
                     </div>
 
-                    {/* Panel numeryczny */}
-                    <div className="grid grid-cols-3 gap-3">
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(digit => (
-                            <button
-                                key={digit}
-                                onClick={() => handleKeyPress(digit.toString())}
-                                className="p-4 bg-gray-700 hover:bg-gray-600 text-2xl font-bold rounded-lg transition duration-200"
-                            >
-                                {digit}
-                            </button>
-                        ))}
-                        <button
-                            onClick={handleBackspace}
-                            className="p-4 bg-gray-700 hover:bg-gray-600 text-xl font-bold rounded-lg transition duration-200"
-                        >
-                            ⌫
-                        </button>
-                        <button
-                            onClick={() => handleKeyPress('0')}
-                            className="p-4 bg-gray-700 hover:bg-gray-600 text-2xl font-bold rounded-lg transition duration-200"
-                        >
-                            0
-                        </button>
-                        <button
-                            onClick={() => handleLogin()}
-                            disabled={!isPinComplete || loading}
-                            className="p-4 bg-blue-600 hover:bg-blue-700 text-xl font-bold rounded-lg transition duration-200 disabled:opacity-50 disabled:bg-blue-800"
-                        >
-                            {loading ? "..." : "✓"}
-                        </button>
+                    <div>
+                        <label className="block text-xs uppercase tracking-widest text-cyan-300 mb-4 text-center">
+                            PIN (6 cyfr)
+                        </label>
+                        <div className="flex justify-center gap-2 sm:gap-3">
+                            {Array(6).fill(0).map((_, index) => (
+                                <input
+                                    key={index}
+                                    ref={(el) => { inputRefs.current[index] = el; }}
+                                    type="password"
+                                    className={`w-10 h-12 sm:w-12 sm:h-14 text-center text-xl bg-black/50 border rounded-lg text-white focus:outline-none focus:ring-2 transition-all ${activeIndex === index
+                                        ? 'border-cyan-400 ring-cyan-400/20 shadow-[0_0_15px_rgba(34,211,238,0.3)]'
+                                        : 'border-cyan-900/40 hover:border-cyan-700/60'
+                                        }`}
+                                    maxLength={1}
+                                    value={pin[index] || ''}
+                                    onChange={(e) => handleInputChange(index, e.target.value)}
+                                    onKeyDown={(e) => handleKeyDown(index, e)}
+                                    onKeyUp={(e) => handleKeyUp(index, e)}
+                                    onFocus={() => setActiveIndex(index)}
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                />
+                            ))}
+                        </div>
                     </div>
 
                     {error && (
-                        <div className="mt-4 text-red-500 text-sm p-2 bg-red-900/30 border border-red-800 rounded text-center">
+                        <div className="bg-red-900/30 border border-red-800/70 text-red-200 text-xs rounded-xl px-4 py-3 text-center">
                             {error}
                         </div>
                     )}
 
-                    <div className="mt-6 text-xs text-center text-gray-400">
-                        Przykładowe konta: admin (123456), user1 (654321), user2 (111111)
+                    <div className="pt-2">
+                        <ElectricBorder
+                            as="button"
+                            onClick={() => handleLogin()}
+                            disabled={!isPinComplete || loading}
+                            className={`w-full py-3.5 text-base font-bold text-white bg-black/50 rounded-xl transition-all duration-300 ${!isPinComplete || loading
+                                ? 'opacity-30 cursor-not-allowed grayscale'
+                                : 'hover:scale-[1.02] hover:brightness-125 hover:bg-black/70 hover:shadow-lg hover:shadow-cyan-400/20'
+                                }`}
+                            color="#06b6d4" // Cyan-500
+                            speed={0.2}
+                            chaos={0.3}
+                        >
+                            {loading ? "Weryfikacja..." : "Zaloguj się"}
+                        </ElectricBorder>
                     </div>
                 </div>
-            </motion.div>
-        </main>
+
+                {/* tło dekoracyjne */}
+                <div className="absolute inset-0 bg-gradient-to-b from-cyan-900/5 to-transparent pointer-events-none" />
+            </div>
+        </section>
     );
 }

@@ -1,0 +1,18 @@
+{
+  "run_id": "a4b8e529eaca",
+  "instruments": [
+    "bass"
+  ],
+  "samples": [
+    {
+      "instrument": "bass",
+      "id": "Monosounds - Dusty - Analog Bass - F - 001",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Instrument Oneshots\\Bass Guitar\\Monosounds - Dusty - Analog Bass - F - 001.wav",
+      "source": "local",
+      "subtype": "bass",
+      "family": "bass",
+      "category": "loop",
+      "pitch": "F"
+    }
+  ]
+}

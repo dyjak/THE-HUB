@@ -1,0 +1,65 @@
+{
+  "run_id": "5968bbff16d7",
+  "instruments": [
+    "flute",
+    "piano"
+  ],
+  "samples": [
+    {
+      "instrument": "flute",
+      "id": "99Sounds x Monosounds - Flute - C",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Instrument Oneshots\\Instruments\\99Sounds x Monosounds - Flute - C.wav",
+      "source": "local",
+      "subtype": "flute",
+      "family": "melodic",
+      "category": "loop",
+      "pitch": "C"
+    },
+    {
+      "instrument": "piano",
+      "id": "99Sounds x Monosounds - Piano - C",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Instrument Oneshots\\Instruments\\99Sounds x Monosounds - Piano - C.wav",
+      "source": "local",
+      "subtype": "piano",
+      "family": "melodic",
+      "category": "loop",
+      "pitch": "C"
+    }
+  ],
+  "instrument_configs": [
+    {
+      "name": "flute",
+      "register": "high",
+      "role": "accompaniment",
+      "volume": 0.9,
+      "pan": 0.0,
+      "articulation": "legato",
+      "dynamic_range": "moderate",
+      "effects": [
+        "reverb",
+        "delay"
+      ]
+    },
+    {
+      "name": "piano",
+      "register": "mid",
+      "role": "accompaniment",
+      "volume": 0.7,
+      "pan": -0.2,
+      "articulation": "arpeggiated",
+      "dynamic_range": "moderate",
+      "effects": [
+        "reverb",
+        "sustain"
+      ]
+    }
+  ],
+  "form": [
+    "intro",
+    "theme_A",
+    "build_up",
+    "climax",
+    "decrescendo",
+    "outro"
+  ]
+}

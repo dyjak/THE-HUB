@@ -6,6 +6,18 @@
   <component name="ChangeListManager">
     <list default="true" id="ef57549e-657e-452d-a664-0549a6f13605" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/backend-fastapi/.env.example" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/backend-fastapi/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend-fastapi/app/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/app/tests/ai-param-test/audio_renderer.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend-fastapi/app/tests/ai-param-test/audio_renderer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/app/tests/ai-param-test/midi_visualizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend-fastapi/app/tests/ai-param-test/midi_visualizer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/app/tests/ai-param-test/pipeline.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend-fastapi/app/tests/ai-param-test/pipeline.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/app/tests/ai-param-test/router.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend-fastapi/app/tests/ai-param-test/router.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-fastapi/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/backend-fastapi/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend-next/src/app/air/ai-param-test/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend-next/src/app/air/ai-param-test/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend-next/src/app/air/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend-next/src/app/air/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend-next/src/app/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend-next/src/app/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj_struct.txt" beforeDir="false" afterPath="$PROJECT_DIR$/proj_struct.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -44,8 +56,8 @@
     &quot;Python tests.pytest in test_basic_generation.py.executor&quot;: &quot;Run&quot;,
     &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;test-samples&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/Informatyka URZ/THE-HUB/backend-fastapi/app/tests/readme&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;test-ai&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/Informatyka URZ/THE-HUB&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
@@ -186,11 +198,19 @@
       <workItem from="1748849546449" duration="39000" />
       <workItem from="1748871246475" duration="5599000" />
       <workItem from="1748878271699" duration="24000" />
+      <workItem from="1759680361625" duration="502000" />
+      <workItem from="1760030621536" duration="38000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+    <option name="exactExcludedFiles">
+      <list>
+        <option value="$PROJECT_DIR$/frontend-next/src/components/ui/TypedText.jsx" />
+        <option value="$PROJECT_DIR$/frontend-next/src/components/ui/AnimatedCard.jsx" />
+      </list>
+    </option>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/THE_HUB$pytest_for_test_basic_generation_test_full_pipeline.coverage" NAME="pytest for test_basic_generation.test_full_pipeline Coverage Results" MODIFIED="1748811984442" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/backend-fastapi/app/tests" />

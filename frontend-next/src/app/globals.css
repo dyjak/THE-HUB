@@ -2,37 +2,205 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Zdefiniowanie zmiennych kolorów */
+:root {
+    --primary-color: #acacaca7;
+    /* fioletowy */
+    --secondary-color: #7c7c7c;
+    /* jasny fiolet */
+    --accent-color: #ffffff;
+    /* różowy */
+    --highlight-color: #a8a8a8;
+    /* jasny różowy */
+    --background-dark: #0a0a19;
+    /* ciemny niebieski */
+    --background-gradient-start: rgba(10, 10, 25, 1);
+    /* początek gradientu */
+    --background-gradient-end: rgb(172, 172, 172);
+    /* koniec gradientu */
+    --scroll-thumb-radius: 4px;
+    /* promień zaokrąglenia scrolla */
+    --scrollbar-width: 4px;
+    /* szerokość scrolla */
+}
+
+/* Tło i tekst */
 body {
-    background: radial-gradient(circle, rgba(10,10,25,1) 0%, rgb(161, 66, 224) 100%);
+    background: radial-gradient(circle, var(--background-gradient-start) 0%, var(--background-gradient-end) 100%);
     color: white;
 }
 
-html, body, #__next {
+html,
+body,
+#__next {
     height: 100%;
 }
 
 body {
-    overflow: hidden; /* blokuje globalny scroll */
+    overflow: hidden;
+    /* blokuje globalny scroll */
 }
 
-/* Estetyczny scrollbar tylko tam gdzie nadamy klasę scroll-container */
+/* Scrollbar */
 .scroll-container::-webkit-scrollbar {
-    width: 8px;
+    width: var(--scrollbar-width);
 }
+
 .scroll-container::-webkit-scrollbar-track {
     background: transparent;
 }
+
 .scroll-container::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg,#4f46e5,#9333ea);
-    border-radius: 4px;
+    background: linear-gradient(180deg, var(--secondary-color), var(--accent-color));
+    border-radius: var(--scroll-thumb-radius);
 }
+
 .scroll-container::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg,#6366f1,#a855f7);
+    background: linear-gradient(180deg, var(--highlight-color), var(--secondary-color));
 }
 
+/* Zielony wariant scrolla */
+.scroll-container-green::-webkit-scrollbar {
+    width: var(--scrollbar-width);
+}
 
+.scroll-container-green::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.scroll-container-green::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #16a34a, #22c55e);
+    border-radius: var(--scroll-thumb-radius);
+}
+
+.scroll-container-green::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #22c55e, #4ade80);
+}
+
+/* Animacja gradientu */
+.animate-gradient-x {
+    background-size: 200% 200%;
+    animation: gradient-x 2s ease infinite;
+}
+
+@keyframes gradient-x {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+/* Scrollbar globalny */
+*::-webkit-scrollbar {
+    width: var(--scrollbar-width);
+    height: var(--scrollbar-width);
+    opacity: 0.2;
+
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+    opacity: 0.2;
+
+}
+
+*::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--secondary-color), var(--accent-color));
+    border-radius: var(--scroll-thumb-radius);
+    opacity: 0.2;
+
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, var(--highlight-color), var(--secondary-color));
+    opacity: 0.2;
+}
+
+/* Style range inputs */
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    height: 0.5rem;
+    background: linear-gradient(to right, var(--primary-color), var(--secondary-color), var(--accent-color));
+    border-radius: 0.25rem;
+}
+
+input[type="range"]::-webkit-slider-track {
+    background: linear-gradient(to right, var(--primary-color), var(--secondary-color), var(--accent-color));
+    height: 0.5rem;
+    border-radius: 0.25rem;
+    opacity: 0.2;
+}
+
+input[type="range"]::-moz-range-track {
+    background: linear-gradient(to right, var(--primary-color), var(--secondary-color), var(--accent-color));
+    height: 0.5rem;
+    border-radius: 0.25rem;
+    opacity: 0.2;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    background: var(--highlight-color);
+    border: 2px solid var(--secondary-color);
+    cursor: pointer;
+    transition: all 0.2s;
+
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    background: #abfcac;
+    border-color: var(--highlight-color);
+    transform: scale(1.1);
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    background: var(--highlight-color);
+    border: 2px solid var(--secondary-color);
+    cursor: pointer;
+    transition: all 0.2s;
+    opacity: 0.2;
+
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+    background: #abfcc5;
+    border-color: var(--highlight-color);
+    transform: scale(1.1);
+    opacity: 0.2;
+
+}
+
+/* Globalne style dla select option */
+select option {
+    background: var(--background-dark);
+    color: var(--highlight-color);
+}
+
+select option:checked,
+select option:hover {
+    background: #2d1b4e;
+    color: #fae8ff;
+}
+
+/* Shade */
 .shade {
-    background-color: #00254f;
+    background-color: #000000;
     position: relative;
 }
 
@@ -43,6 +211,58 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    box-shadow: 0px 0px 30px 20px #00254f;
-    z-index: -1; /* Places shadow behind the element */
+    box-shadow: 0px 0px 30px 20px #000000;
+    z-index: -1;
+}
+
+/* Rainbow hover (candy) */
+@keyframes rainbow-shift {
+    0% {
+        background-position: 0% 50%;
+        filter: hue-rotate(0deg);
+    }
+    50% {
+        background-position: 100% 50%;
+        filter: hue-rotate(180deg);
+    }
+    100% {
+        background-position: 0% 50%;
+        filter: hue-rotate(360deg);
+    }
+}
+
+.rainbow-hover {
+    position: relative;
+    transition: color 150ms ease, border-color 150ms ease;
+}
+
+.rainbow-hover:hover {
+    background-image: linear-gradient(90deg,
+        #ff0080,
+        #ff8c00,
+        #ffee00,
+        #00ff85,
+        #00c3ff,
+        #7a00ff,
+        #ff0080
+    );
+    background-size: 300% 100%;
+    animation: rainbow-shift 1.8s linear infinite;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.rainbow-text {
+    background-image: linear-gradient(90deg,
+        #ff0080,
+        #ff8c00,
+        #ffee00,
+        #00ff85,
+        #00c3ff,
+        #7a00ff
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
 }

@@ -1,0 +1,88 @@
+{
+  "run_id": "c34cc032ed33",
+  "instruments": [
+    "piano",
+    "pad",
+    "strings"
+  ],
+  "samples": [
+    {
+      "instrument": "piano",
+      "id": "99Sounds x Monosounds - E Piano - C",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Instrument Oneshots\\Instruments\\99Sounds x Monosounds - E Piano - C.wav",
+      "source": "local",
+      "subtype": "piano",
+      "family": "melodic",
+      "category": "loop",
+      "pitch": "E"
+    },
+    {
+      "instrument": "pad",
+      "id": "99Sounds x Monosounds - PAD 2 - C",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Instrument Oneshots\\Instruments\\99Sounds x Monosounds - PAD 2 - C.wav",
+      "source": "local",
+      "subtype": "pad",
+      "family": "melodic",
+      "category": "loop",
+      "pitch": "C"
+    },
+    {
+      "instrument": "strings",
+      "id": "99Sounds x Monosounds - Violin 3 - C",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Instrument Oneshots\\Instruments\\99Sounds x Monosounds - Violin 3 - C.wav",
+      "source": "local",
+      "subtype": "strings",
+      "family": "melodic",
+      "category": "loop",
+      "pitch": "C"
+    }
+  ],
+  "instrument_configs": [
+    {
+      "name": "piano",
+      "register": "mid",
+      "role": "lead",
+      "volume": 0.9,
+      "pan": -0.2,
+      "articulation": "sustain",
+      "dynamic_range": "moderate",
+      "effects": [
+        "reverb",
+        "delay"
+      ]
+    },
+    {
+      "name": "pad",
+      "register": "full",
+      "role": "pad",
+      "volume": 0.85,
+      "pan": 0.09999999999999998,
+      "articulation": "sustain",
+      "dynamic_range": "moderate",
+      "effects": [
+        "reverb",
+        "chorus"
+      ]
+    },
+    {
+      "name": "strings",
+      "register": "full",
+      "role": "pad",
+      "volume": 0.85,
+      "pan": 0.39999999999999997,
+      "articulation": "sustain",
+      "dynamic_range": "moderate",
+      "effects": [
+        "reverb",
+        "chorus"
+      ]
+    }
+  ],
+  "form": [
+    "intro",
+    "verse",
+    "chorus",
+    "bridge",
+    "outro"
+  ]
+}

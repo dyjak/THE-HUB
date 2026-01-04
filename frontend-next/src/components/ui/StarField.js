@@ -3,7 +3,7 @@ import React, { Component } from 'react'
 import StarfieldAnimation from 'react-starfield'
 
 export default class Starfield extends Component {
-    render () {
+    render() {
         return (
             <div
                 aria-hidden
@@ -13,7 +13,7 @@ export default class Starfield extends Component {
                     width: '100%',
                     height: '100%',
                     zIndex: 0,
-                    background: 'linear-gradient(to bottom right, #00172D, #00498D)',
+                    background: 'linear-gradient(to bottom right, #1f247dff rgba(49, 37, 95, 1)38)',
                     overflow: 'hidden',
                     pointerEvents: 'none'
                 }}
