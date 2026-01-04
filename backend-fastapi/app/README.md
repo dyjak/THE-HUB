@@ -1,4 +1,4 @@
-# `app/` — backend FastAPI (punkt wejścia: `main.py`)
+# `app/` - backend FastAPI (punkt wejścia: `main.py`)
 
 Ten katalog to właściwa aplikacja backendu (FastAPI) dla repo.
 
