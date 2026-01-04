@@ -1,0 +1,73 @@
+INFO:air.render:[render] start project=Trap run_id=20251203_235748_dc36274d-2c74-449f-9079-0e38ea5dc03e tracks=['Kick', 'Snare', 'Clap', 'Hat', 'Bass', 'Piano', 'Pads']
+INFO:air.render:[render] inventory loaded instruments=['Acoustic Guitar', 'Bass', 'Bass Guitar', 'Choirs', 'Clap', 'Crash', 'Electric Guitar', 'FX', 'Hat', 'Kick', 'Pads', 'Piano', 'Ride', 'Rim', 'Sax', 'Shake', 'Snare', 'Strings', 'Tom', 'Trombone']
+INFO:air.render:[render] instrument=Kick bars=16 events=35 duration=30.00s
+INFO:air.render:[render] instrument=Snare bars=15 events=15 duration=30.00s
+INFO:air.render:[render] instrument=Clap bars=4 events=4 duration=30.00s
+INFO:air.render:[render] instrument=Hat bars=15 events=98 duration=30.00s
+D:\Informatyka URZ\THE-HUB\backend-fastapi\app\air\render\engine.py:89: WavFileWarning: Chunk (non-data) not understood, skipping it.
+  sr, data = wavfile.read(str(path))
+INFO:air.render:[render] instrument=Bass bars=12 events=12 duration=30.00s
+DEBUG:air.render:[pitch] inst=Bass note=29 base_midi=36 raw_semi=-7 compressed=-5.331 ratio=0.7350 base_freq=65.41 target_freq=48.07
+DEBUG:air.render:[pitch] inst=Bass note=37 base_midi=36 raw_semi=1 compressed=0.993 ratio=1.0591 base_freq=65.41 target_freq=69.27
+DEBUG:air.render:[pitch] inst=Bass note=32 base_midi=36 raw_semi=-4 compressed=-3.615 ratio=0.8116 base_freq=65.41 target_freq=53.08
+DEBUG:air.render:[pitch] inst=Bass note=36 base_midi=36 raw_semi=0 compressed=0.000 ratio=1.0000 base_freq=65.41 target_freq=65.41
+DEBUG:air.render:[pitch] inst=Bass note=29 base_midi=36 raw_semi=-7 compressed=-5.331 ratio=0.7350 base_freq=65.41 target_freq=48.07
+DEBUG:air.render:[pitch] inst=Bass note=37 base_midi=36 raw_semi=1 compressed=0.993 ratio=1.0591 base_freq=65.41 target_freq=69.27
+DEBUG:air.render:[pitch] inst=Bass note=32 base_midi=36 raw_semi=-4 compressed=-3.615 ratio=0.8116 base_freq=65.41 target_freq=53.08
+DEBUG:air.render:[pitch] inst=Bass note=36 base_midi=36 raw_semi=0 compressed=0.000 ratio=1.0000 base_freq=65.41 target_freq=65.41
+DEBUG:air.render:[pitch] inst=Bass note=29 base_midi=36 raw_semi=-7 compressed=-5.331 ratio=0.7350 base_freq=65.41 target_freq=48.07
+DEBUG:air.render:[pitch] inst=Bass note=37 base_midi=36 raw_semi=1 compressed=0.993 ratio=1.0591 base_freq=65.41 target_freq=69.27
+DEBUG:air.render:[pitch] inst=Bass note=32 base_midi=36 raw_semi=-4 compressed=-3.615 ratio=0.8116 base_freq=65.41 target_freq=53.08
+DEBUG:air.render:[pitch] inst=Bass note=36 base_midi=36 raw_semi=0 compressed=0.000 ratio=1.0000 base_freq=65.41 target_freq=65.41
+INFO:air.render:[render] instrument=Piano bars=16 events=32 duration=30.00s
+DEBUG:air.render:[pitch] inst=Piano note=60 base_midi=34 raw_semi=26 compressed=19.066 ratio=3.0081 base_freq=58.27 target_freq=175.28
+DEBUG:air.render:[pitch] inst=Piano note=68 base_midi=34 raw_semi=34 compressed=21.334 ratio=3.4290 base_freq=58.27 target_freq=199.81
+DEBUG:air.render:[pitch] inst=Piano note=60 base_midi=34 raw_semi=26 compressed=19.066 ratio=3.0081 base_freq=58.27 target_freq=175.28
+DEBUG:air.render:[pitch] inst=Piano note=57 base_midi=34 raw_semi=23 compressed=17.845 ratio=2.8032 base_freq=58.27 target_freq=163.34
+DEBUG:air.render:[pitch] inst=Piano note=60 base_midi=34 raw_semi=26 compressed=19.066 ratio=3.0081 base_freq=58.27 target_freq=175.28
+DEBUG:air.render:[pitch] inst=Piano note=63 base_midi=34 raw_semi=29 compressed=20.068 ratio=3.1874 base_freq=58.27 target_freq=185.73
+DEBUG:air.render:[pitch] inst=Piano note=63 base_midi=34 raw_semi=29 compressed=20.068 ratio=3.1874 base_freq=58.27 target_freq=185.73
+DEBUG:air.render:[pitch] inst=Piano note=67 base_midi=34 raw_semi=33 compressed=21.116 ratio=3.3862 base_freq=58.27 target_freq=197.31
+DEBUG:air.render:[pitch] inst=Piano note=60 base_midi=34 raw_semi=26 compressed=19.066 ratio=3.0081 base_freq=58.27 target_freq=175.28
+DEBUG:air.render:[pitch] inst=Piano note=68 base_midi=34 raw_semi=34 compressed=21.334 ratio=3.4290 base_freq=58.27 target_freq=199.81
+DEBUG:air.render:[pitch] inst=Piano note=60 base_midi=34 raw_semi=26 compressed=19.066 ratio=3.0081 base_freq=58.27 target_freq=175.28
+DEBUG:air.render:[pitch] inst=Piano note=57 base_midi=34 raw_semi=23 compressed=17.845 ratio=2.8032 base_freq=58.27 target_freq=163.34
+DEBUG:air.render:[pitch] inst=Piano note=60 base_midi=34 raw_semi=26 compressed=19.066 ratio=3.0081 base_freq=58.27 target_freq=175.28
+DEBUG:air.render:[pitch] inst=Piano note=63 base_midi=34 raw_semi=29 compressed=20.068 ratio=3.1874 base_freq=58.27 target_freq=185.73
+DEBUG:air.render:[pitch] inst=Piano note=63 base_midi=34 raw_semi=29 compressed=20.068 ratio=3.1874 base_freq=58.27 target_freq=185.73
+DEBUG:air.render:[pitch] inst=Piano note=67 base_midi=34 raw_semi=33 compressed=21.116 ratio=3.3862 base_freq=58.27 target_freq=197.31
+DEBUG:air.render:[pitch] inst=Piano note=60 base_midi=34 raw_semi=26 compressed=19.066 ratio=3.0081 base_freq=58.27 target_freq=175.28
+DEBUG:air.render:[pitch] inst=Piano note=68 base_midi=34 raw_semi=34 compressed=21.334 ratio=3.4290 base_freq=58.27 target_freq=199.81
+DEBUG:air.render:[pitch] inst=Piano note=60 base_midi=34 raw_semi=26 compressed=19.066 ratio=3.0081 base_freq=58.27 target_freq=175.28
+DEBUG:air.render:[pitch] inst=Piano note=57 base_midi=34 raw_semi=23 compressed=17.845 ratio=2.8032 base_freq=58.27 target_freq=163.34
+DEBUG:air.render:[pitch] inst=Piano note=60 base_midi=34 raw_semi=26 compressed=19.066 ratio=3.0081 base_freq=58.27 target_freq=175.28
+DEBUG:air.render:[pitch] inst=Piano note=63 base_midi=34 raw_semi=29 compressed=20.068 ratio=3.1874 base_freq=58.27 target_freq=185.73
+DEBUG:air.render:[pitch] inst=Piano note=63 base_midi=34 raw_semi=29 compressed=20.068 ratio=3.1874 base_freq=58.27 target_freq=185.73
+DEBUG:air.render:[pitch] inst=Piano note=67 base_midi=34 raw_semi=33 compressed=21.116 ratio=3.3862 base_freq=58.27 target_freq=197.31
+DEBUG:air.render:[pitch] inst=Piano note=60 base_midi=34 raw_semi=26 compressed=19.066 ratio=3.0081 base_freq=58.27 target_freq=175.28
+DEBUG:air.render:[pitch] inst=Piano note=68 base_midi=34 raw_semi=34 compressed=21.334 ratio=3.4290 base_freq=58.27 target_freq=199.81
+DEBUG:air.render:[pitch] inst=Piano note=60 base_midi=34 raw_semi=26 compressed=19.066 ratio=3.0081 base_freq=58.27 target_freq=175.28
+DEBUG:air.render:[pitch] inst=Piano note=57 base_midi=34 raw_semi=23 compressed=17.845 ratio=2.8032 base_freq=58.27 target_freq=163.34
+DEBUG:air.render:[pitch] inst=Piano note=60 base_midi=34 raw_semi=26 compressed=19.066 ratio=3.0081 base_freq=58.27 target_freq=175.28
+DEBUG:air.render:[pitch] inst=Piano note=63 base_midi=34 raw_semi=29 compressed=20.068 ratio=3.1874 base_freq=58.27 target_freq=185.73
+DEBUG:air.render:[pitch] inst=Piano note=63 base_midi=34 raw_semi=29 compressed=20.068 ratio=3.1874 base_freq=58.27 target_freq=185.73
+DEBUG:air.render:[pitch] inst=Piano note=67 base_midi=34 raw_semi=33 compressed=21.116 ratio=3.3862 base_freq=58.27 target_freq=197.31
+INFO:air.render:[render] instrument=Pads bars=8 events=16 duration=30.00s
+DEBUG:air.render:[pitch] inst=Pads note=53 base_midi=33 raw_semi=20 compressed=16.374 ratio=2.5749 base_freq=55.00 target_freq=141.62
+DEBUG:air.render:[pitch] inst=Pads note=55 base_midi=33 raw_semi=22 compressed=17.384 ratio=2.7295 base_freq=55.00 target_freq=150.12
+DEBUG:air.render:[pitch] inst=Pads note=57 base_midi=33 raw_semi=24 compressed=18.278 ratio=2.8743 base_freq=55.00 target_freq=158.08
+DEBUG:air.render:[pitch] inst=Pads note=59 base_midi=33 raw_semi=26 compressed=19.066 ratio=3.0081 base_freq=55.00 target_freq=165.45
+DEBUG:air.render:[pitch] inst=Pads note=56 base_midi=33 raw_semi=23 compressed=17.845 ratio=2.8032 base_freq=55.00 target_freq=154.17
+DEBUG:air.render:[pitch] inst=Pads note=58 base_midi=33 raw_semi=25 compressed=18.685 ratio=2.9426 base_freq=55.00 target_freq=161.84
+DEBUG:air.render:[pitch] inst=Pads note=60 base_midi=33 raw_semi=27 compressed=19.423 ratio=3.0708 base_freq=55.00 target_freq=168.89
+DEBUG:air.render:[pitch] inst=Pads note=61 base_midi=33 raw_semi=28 compressed=19.757 ratio=3.1305 base_freq=55.00 target_freq=172.18
+DEBUG:air.render:[pitch] inst=Pads note=53 base_midi=33 raw_semi=20 compressed=16.374 ratio=2.5749 base_freq=55.00 target_freq=141.62
+DEBUG:air.render:[pitch] inst=Pads note=55 base_midi=33 raw_semi=22 compressed=17.384 ratio=2.7295 base_freq=55.00 target_freq=150.12
+DEBUG:air.render:[pitch] inst=Pads note=57 base_midi=33 raw_semi=24 compressed=18.278 ratio=2.8743 base_freq=55.00 target_freq=158.08
+DEBUG:air.render:[pitch] inst=Pads note=59 base_midi=33 raw_semi=26 compressed=19.066 ratio=3.0081 base_freq=55.00 target_freq=165.45
+DEBUG:air.render:[pitch] inst=Pads note=56 base_midi=33 raw_semi=23 compressed=17.845 ratio=2.8032 base_freq=55.00 target_freq=154.17
+DEBUG:air.render:[pitch] inst=Pads note=58 base_midi=33 raw_semi=25 compressed=18.685 ratio=2.9426 base_freq=55.00 target_freq=161.84
+DEBUG:air.render:[pitch] inst=Pads note=60 base_midi=33 raw_semi=27 compressed=19.423 ratio=3.0708 base_freq=55.00 target_freq=168.89
+DEBUG:air.render:[pitch] inst=Pads note=61 base_midi=33 raw_semi=28 compressed=19.757 ratio=3.1305 base_freq=55.00 target_freq=172.18
+INFO:air.render:[render] done project=Trap run_id=20251203_235748_dc36274d-2c74-449f-9079-0e38ea5dc03e mix=D:\Informatyka URZ\THE-HUB\backend-fastapi\app\air\render\output\20251203_235748_dc36274d-2c74-449f-9079-0e38ea5dc03e\Trap_mix_1764811311.wav stems=7 duration=30.00s
+Render result: project_name='Trap' run_id='20251203_235748_dc36274d-2c74-449f-9079-0e38ea5dc03e' mix_wav_rel='output\\20251203_235748_dc36274d-2c74-449f-9079-0e38ea5dc03e\\Trap_mix_1764811311.wav' stems=[RenderedStem(instrument='Kick', audio_rel='output\\20251203_235748_dc36274d-2c74-449f-9079-0e38ea5dc03e\\Trap_Kick_1764811311.wav'), RenderedStem(instrument='Snare', audio_rel='output\\20251203_235748_dc36274d-2c74-449f-9079-0e38ea5dc03e\\Trap_Snare_1764811311.wav'), RenderedStem(instrument='Clap', audio_rel='output\\20251203_235748_dc36274d-2c74-449f-9079-0e38ea5dc03e\\Trap_Clap_1764811311.wav'), RenderedStem(instrument='Hat', audio_rel='output\\20251203_235748_dc36274d-2c74-449f-9079-0e38ea5dc03e\\Trap_Hat_1764811311.wav'), RenderedStem(instrument='Bass', audio_rel='output\\20251203_235748_dc36274d-2c74-449f-9079-0e38ea5dc03e\\Trap_Bass_1764811311.wav'), RenderedStem(instrument='Piano', audio_rel='output\\20251203_235748_dc36274d-2c74-449f-9079-0e38ea5dc03e\\Trap_Piano_1764811311.wav'), RenderedStem(instrument='Pads', audio_rel='output\\20251203_235748_dc36274d-2c74-449f-9079-0e38ea5dc03e\\Trap_Pads_1764811311.wav')] sample_rate=44100 duration_seconds=30.0

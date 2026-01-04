@@ -1,0 +1,29 @@
+{
+  "run_id": "c206542d4eb7",
+  "instruments": [
+    "kick",
+    "snare"
+  ],
+  "samples": [
+    {
+      "instrument": "kick",
+      "id": "99Sounds x Monosounds - Kick - 001 - G#",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Drum Oneshots\\Moon - Hip-Hop Drum Kit\\Kicks\\99Sounds x Monosounds - Kick - 001 - G#.wav",
+      "source": "local",
+      "subtype": "kick",
+      "family": "drum",
+      "category": "loop",
+      "pitch": "G#"
+    },
+    {
+      "instrument": "snare",
+      "id": "99Sounds x Monosounds - Snare - 01 - C",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Drum Oneshots\\Moon - Hip-Hop Drum Kit\\Snares\\99Sounds x Monosounds - Snare - 01 - C.wav",
+      "source": "local",
+      "subtype": "snare",
+      "family": "drum",
+      "category": "loop",
+      "pitch": "C"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "run_id": "495bb1fb131a",
+  "instruments": [
+    "snare",
+    "kick"
+  ],
+  "samples": [
+    {
+      "instrument": "snare",
+      "id": "99Sounds x Monosounds - Uplifter 7(with snares)",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\FX\\99Sounds x Monosounds - Uplifter 7(with snares).wav",
+      "source": "local",
+      "subtype": "snare",
+      "family": "drum",
+      "category": "loop",
+      "pitch": null
+    },
+    {
+      "instrument": "kick",
+      "id": "99Sounds x Monosounds - Kick - 002 - C",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Drum Oneshots\\Moon - Hip-Hop Drum Kit\\Kicks\\99Sounds x Monosounds - Kick - 002 - C.wav",
+      "source": "local",
+      "subtype": "kick",
+      "family": "drum",
+      "category": "loop",
+      "pitch": "C"
+    }
+  ]
+}

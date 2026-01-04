@@ -1,0 +1,29 @@
+{
+  "run_id": "40e49bcd85ef",
+  "instruments": [
+    "piano",
+    "pad"
+  ],
+  "samples": [
+    {
+      "instrument": "piano",
+      "id": "99Sounds x Monosounds - E Piano - C",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Instrument Oneshots\\Instruments\\99Sounds x Monosounds - E Piano - C.wav",
+      "source": "local",
+      "subtype": "piano",
+      "family": "melodic",
+      "category": "loop",
+      "pitch": "E"
+    },
+    {
+      "instrument": "pad",
+      "id": "99Sounds x Monosounds - PAD 2 - C",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\Instrument Oneshots\\Instruments\\99Sounds x Monosounds - PAD 2 - C.wav",
+      "source": "local",
+      "subtype": "pad",
+      "family": "melodic",
+      "category": "loop",
+      "pitch": "C"
+    }
+  ]
+}

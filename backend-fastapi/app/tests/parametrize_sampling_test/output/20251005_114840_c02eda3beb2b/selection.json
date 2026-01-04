@@ -1,0 +1,18 @@
+{
+  "run_id": "c02eda3beb2b",
+  "instruments": [
+    "snare"
+  ],
+  "samples": [
+    {
+      "instrument": "snare",
+      "id": "99Sounds x Monosounds - Uplifter 7(with snares)",
+      "file": "D:\\Informatyka URZ\\THE-HUB\\local_samples\\99Sounds x Monosounds - Music Loops\\FX\\99Sounds x Monosounds - Uplifter 7(with snares).wav",
+      "source": "local",
+      "subtype": "snare",
+      "family": "drum",
+      "category": "loop",
+      "pitch": null
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='340' height='80' viewBox='0 0 340 80'>
+<rect x='0' y='0' width='100%' height='100%' fill='black' />
+<line x1='10' y1='10' x2='10' y2='70' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='170' y1='10' x2='170' y2='70' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='330' y1='10' x2='330' y2='70' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='10' y1='64' x2='330' y2='64' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<rect x='7850' y='40' width='20' height='5' fill='rgba(0,255,128,0.74)' rx='1' ry='1' />
+<rect x='7890' y='28' width='20' height='5' fill='rgba(0,255,128,0.69)' rx='1' ry='1' />
+<rect x='7910' y='40' width='20' height='5' fill='rgba(0,255,128,0.74)' rx='1' ry='1' />
+<rect x='7950' y='10' width='20' height='5' fill='rgba(0,255,128,0.80)' rx='1' ry='1' />
+<rect x='7970' y='28' width='20' height='5' fill='rgba(0,255,128,0.74)' rx='1' ry='1' />
+<rect x='8330' y='40' width='20' height='5' fill='rgba(0,255,128,0.80)' rx='1' ry='1' />
+<rect x='8370' y='28' width='20' height='5' fill='rgba(0,255,128,0.77)' rx='1' ry='1' />
+<rect x='8410' y='10' width='20' height='5' fill='rgba(0,255,128,0.85)' rx='1' ry='1' />
+<rect x='8450' y='64' width='20' height='5' fill='rgba(0,255,128,0.91)' rx='1' ry='1' />
+</svg>

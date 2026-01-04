@@ -1,0 +1,59 @@
+{
+    "meta": {
+        "style": "Lo-Fi Hip Hop",
+        "mood": "Relaxed",
+        "tempo": 85,
+        "key": "C Minor",
+        "scale": "Natural Minor",
+        "meter": "4/4",
+        "bars": 32,
+        "length_seconds": 180,
+        "dynamic_profile": "Soft",
+        "arrangement_density": "Sparse",
+        "harmonic_color": "Mellow",
+        "instruments": [
+            "Piano", 
+            "Bass Guitar", 
+            "Kick", 
+            "Hat", 
+            "Snare"
+        ],
+        "instrument_configs": [
+            {
+                "name": "Piano",
+                "role": "Harmony",
+                "register": "Mid",
+                "articulation": "Legato",
+                "dynamic_range": "Delicate"
+            },
+            {
+                "name": "Bass Guitar",
+                "role": "Bass",
+                "register": "Low",
+                "articulation": "Sustain",
+                "dynamic_range": "Moderate"
+            },
+            {
+                "name": "Kick",
+                "role": "Percussion",
+                "register": "Sub",
+                "articulation": "Percussive",
+                "dynamic_range": "Moderate"
+            },
+            {
+                "name": "Hat",
+                "role": "Percussion",
+                "register": "High",
+                "articulation": "Staccato",
+                "dynamic_range": "Delicate"
+            },
+            {
+                "name": "Snare",
+                "role": "Percussion",
+                "register": "Mid",
+                "articulation": "Percussive",
+                "dynamic_range": "Moderate"
+            }
+        ]
+    }
+}
