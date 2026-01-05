@@ -25,6 +25,12 @@ class Candidate:
     run_dir: Path
 
 
+class CleanupMode:
+    ORPHANED = "orphaned"  # Proj.user_id IS NULL
+    UNTRACKED = "untracked"  # folder exists on disk but no matching Proj.render in DB
+    BOTH = "both"
+
+
 def _default_db_path() -> Path:
     # By convention, when backend is started from `backend-fastapi/`, DB ends up here.
     return _BACKEND_ROOT / "users.db"
@@ -58,6 +64,29 @@ def _safe_run_dir(run_id: str) -> Path | None:
     return candidate
 
 
+def _load_db_run_ids(db_path: Path) -> set[str]:
+    SessionLocal = _make_session(db_path)
+    db = SessionLocal()
+    try:
+        rows = db.query(Proj.render).filter(Proj.render.isnot(None)).distinct().all()
+    finally:
+        db.close()
+
+    out: set[str] = set()
+    for (render_run_id,) in rows:
+        if not isinstance(render_run_id, str):
+            continue
+        rid = render_run_id.strip()
+        if not rid:
+            continue
+        # Only keep safe ids; anything weird should not be used for deletion decisions.
+        if _safe_run_dir(rid) is None:
+            continue
+        out.add(rid)
+
+    return out
+
+
 def _load_orphan_candidates(db_path: Path) -> list[Candidate]:
     SessionLocal = _make_session(db_path)
     db = SessionLocal()
@@ -86,9 +115,37 @@ def _load_orphan_candidates(db_path: Path) -> list[Candidate]:
     return candidates
 
 
+def _load_untracked_candidates(db_path: Path) -> list[Candidate]:
+    known = _load_db_run_ids(db_path)
+
+    out_root = OUTPUT_ROOT.resolve()
+    candidates: list[Candidate] = []
+    try:
+        for p in out_root.iterdir():
+            if not p.is_dir():
+                continue
+            run_id = p.name
+            safe_dir = _safe_run_dir(run_id)
+            if safe_dir is None:
+                continue
+            # Be conservative: only treat it as render output if it has state file.
+            if not (safe_dir / "render_state.json").exists():
+                continue
+            if run_id not in known:
+                candidates.append(Candidate(run_id=run_id, run_dir=safe_dir))
+    except Exception:
+        return []
+
+    candidates.sort(key=lambda c: c.run_id)
+    return candidates
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Usuń foldery renderu (app/air/render/output/<run_id>) bez właściciela (Proj.user_id IS NULL).",
+        description=(
+            "Usuń foldery renderu (app/air/render/output/<run_id>) które nie mają właściciela "
+            "(Proj.user_id IS NULL) oraz/lub nie istnieją w DB (brak run_id w Proj.render)."
+        ),
     )
     parser.add_argument(
         "--db-path",
@@ -102,6 +159,13 @@ def main() -> int:
         help="Wykonaj usunięcie. Bez tej flagi działa jako dry-run.",
     )
 
+    parser.add_argument(
+        "--mode",
+        choices=[CleanupMode.ORPHANED, CleanupMode.UNTRACKED, CleanupMode.BOTH],
+        default=CleanupMode.BOTH,
+        help="Zakres sprzątania: orphaned=user_id NULL, untracked=foldery bez rekordu w DB, both=oba.",
+    )
+
     args = parser.parse_args()
 
     db_path: Path = args.db_path
@@ -110,15 +174,35 @@ def main() -> int:
         print("Hint: uruchom backend przynajmniej raz albo podaj --db-path do właściwego users.db")
         return 2
 
-    candidates = _load_orphan_candidates(db_path)
+    orphaned: list[Candidate] = []
+    untracked: list[Candidate] = []
+    if args.mode in (CleanupMode.ORPHANED, CleanupMode.BOTH):
+        orphaned = _load_orphan_candidates(db_path)
+    if args.mode in (CleanupMode.UNTRACKED, CleanupMode.BOTH):
+        untracked = _load_untracked_candidates(db_path)
+
+    # De-dup: if a run is orphaned, it can also be untracked only if DB is inconsistent.
+    orphaned_ids = {c.run_id for c in orphaned}
+    untracked = [c for c in untracked if c.run_id not in orphaned_ids]
+
+    candidates = [*orphaned, *untracked]
+    candidates.sort(key=lambda c: c.run_id)
 
     if not candidates:
-        print("No orphaned runs found (Proj.user_id IS NULL).")
+        msg = "No candidates found."
+        if args.mode == CleanupMode.ORPHANED:
+            msg = "No orphaned runs found (Proj.user_id IS NULL)."
+        elif args.mode == CleanupMode.UNTRACKED:
+            msg = "No untracked run folders found (no matching Proj.render in DB)."
+        else:
+            msg = "No orphaned or untracked runs found."
+        print(msg)
         return 0
 
     print(f"OUTPUT_ROOT: {OUTPUT_ROOT.resolve()}")
     print(f"DB: {db_path.resolve()}")
-    print(f"Candidates: {len(candidates)}")
+    print(f"Mode: {args.mode}")
+    print(f"Candidates: {len(candidates)} (orphaned={len(orphaned)} untracked={len(untracked)})")
 
     removed = 0
     missing = 0
