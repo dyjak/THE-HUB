@@ -1,3 +1,20 @@
+# step-components — index dokumentacji (AIR)
+
+Ten folder zawiera komponenty UI dla kroków AIR. Szczegółowa dokumentacja przepływu i wywołań backendu jest rozbita na osobne pliki, żeby nie dublować treści i ograniczyć drift.
+
+## Dokumenty
+
+- Krok 1 (Param generation): [ParamPlan.md](./ParamPlan.md)
+- Krok 2 (MIDI generation): [MidiPlan.md](./MidiPlan.md)
+- Krok 3 (Render + export): [Render.md](./Render.md)
+- Pianoroll (szczegóły wizualizacji): [MidiPianoroll.README.md](./MidiPianoroll.README.md)
+- Orkiestracja całego flow ("mózg" — `page.tsx`): [AirOrchestrator.md](../AirOrchestrator.md)
+
+---
+
+<details>
+<summary>Archiwum: poprzedni opis README (legacy, może być nieaktualny)</summary>
+
 # step-components — dokumentacja modułów UI (AIR)
 
 Ten folder zawiera komponenty frontendu odpowiedzialne za **kroki działania aplikacji AIR od strony wizualnej**:
@@ -655,3 +672,5 @@ Rekomendowana kolejność analizy:
 5) `RenderStep.tsx` — payload renderu, rekomendacje sampli, eksport.
 6) `SimpleAudioPlayer.tsx` / `VisualAudioPlayer.tsx` — odsłuch i wizualizacje.
 7) `ProblemDialog.tsx` — wspólna warstwa UX dla problemów.
+
+</details>
