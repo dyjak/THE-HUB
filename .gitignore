@@ -19,3 +19,4 @@ venv
 *.fst
 
 *.env
+backend-fastapi/.env

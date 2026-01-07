@@ -5,4 +5,5 @@ app/tests/parametrize_sampling_test/output/
 app/tests/parametrize_advanced_test/output/
 *.wav
 *.mid
-*.env
+.env
+.env.*
