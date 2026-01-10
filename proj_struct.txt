@@ -1,380 +1,190 @@
-THE-HUB/
-├── backend-fastapi/
-│   ├── app/
-│   │   ├── auth/
-│   │   │   ├── __init__.py
-│   │   │   ├── models.py
-│   │   │   ├── router.py
-│   │   │   └── schemas.py
-│   │   ├── database/
-│   │   │   ├── __init__.py
-│   │   │   ├── connection.py
-│   │   │   ├── migrate_db.py
-│   │   │   └── seeder.py
-│   │   ├── tests/
-│   │   │   ├── ai-param-test/
-│   │   │   │   ├── chat_smoke/
-│   │   │   │   │   ├── client.py
-│   │   │   │   │   ├── router.py
-│   │   │   │   │   └── run_local.py
-│   │   │   │   ├── output/
-│   │   │   │   │   ├── 20251005_130551_09dadd2255e9/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── pianoroll_09dadd2255e9.png
-│   │   │   │   │   │   └── selection.json
-│   │   │   │   │   ├── 20251005_140820_732a9f450eba/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── pianoroll_732a9f450eba.png
-│   │   │   │   │   │   └── selection.json
-│   │   │   │   │   ├── 20251005_141601_71613b715bd9/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── pianoroll_71613b715bd9.png
-│   │   │   │   │   │   └── selection.json
-│   │   │   │   │   ├── 20251005_141648_a4b8e529eaca/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── pianoroll_a4b8e529eaca.png
-│   │   │   │   │   │   └── selection.json
-│   │   │   │   │   ├── 20251005_142435_837c8b5a63e5/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── pianoroll_837c8b5a63e5.png
-│   │   │   │   │   │   └── selection.json
-│   │   │   │   │   ├── 20251005_144142_bede40d29db0/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── pianoroll_bede40d29db0.png
-│   │   │   │   │   │   └── selection.json
-│   │   │   │   │   ├── 20251005_145544_908894affa12/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── midi_pad.mid
-│   │   │   │   │   │   ├── midi_piano.mid
-│   │   │   │   │   │   ├── midi_strings.mid
-│   │   │   │   │   │   ├── pianoroll_908894affa12.png
-│   │   │   │   │   │   └── selection.json
-│   │   │   │   │   ├── 20251005_150204_3653a6ba04c0/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── midi_pad.mid
-│   │   │   │   │   │   ├── midi_piano.mid
-│   │   │   │   │   │   ├── midi_strings.mid
-│   │   │   │   │   │   ├── pianoroll_3653a6ba04c0.png
-│   │   │   │   │   │   └── selection.json
-│   │   │   │   │   ├── 20251005_150403_bd8ef089a3ae/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── midi_pad.mid
-│   │   │   │   │   │   ├── midi_piano.mid
-│   │   │   │   │   │   ├── midi_strings.mid
-│   │   │   │   │   │   ├── pianoroll_bd8ef089a3ae.png
-│   │   │   │   │   │   ├── pianoroll_bd8ef089a3ae_pad.png
-│   │   │   │   │   │   ├── pianoroll_bd8ef089a3ae_piano.png
-│   │   │   │   │   │   ├── pianoroll_bd8ef089a3ae_strings.png
-│   │   │   │   │   │   ├── selection.json
-│   │   │   │   │   │   └── stem_strings.wav
-│   │   │   │   │   ├── 20251005_151152_092c39f4fb0f/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── midi_pad.mid
-│   │   │   │   │   │   ├── midi_piano.mid
-│   │   │   │   │   │   ├── midi_strings.mid
-│   │   │   │   │   │   ├── pianoroll_092c39f4fb0f.png
-│   │   │   │   │   │   ├── pianoroll_092c39f4fb0f_pad.png
-│   │   │   │   │   │   ├── pianoroll_092c39f4fb0f_piano.png
-│   │   │   │   │   │   ├── pianoroll_092c39f4fb0f_strings.png
-│   │   │   │   │   │   ├── selection.json
-│   │   │   │   │   │   └── stem_strings.wav
-│   │   │   │   │   ├── 20251005_151300_b3a8dd0e7e60/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── midi_pad.mid
-│   │   │   │   │   │   ├── midi_piano.mid
-│   │   │   │   │   │   ├── midi_strings.mid
-│   │   │   │   │   │   ├── pianoroll_b3a8dd0e7e60.png
-│   │   │   │   │   │   ├── pianoroll_b3a8dd0e7e60_pad.png
-│   │   │   │   │   │   ├── pianoroll_b3a8dd0e7e60_piano.png
-│   │   │   │   │   │   ├── pianoroll_b3a8dd0e7e60_strings.png
-│   │   │   │   │   │   ├── selection.json
-│   │   │   │   │   │   ├── stem_pad.wav
-│   │   │   │   │   │   ├── stem_piano.wav
-│   │   │   │   │   │   └── stem_strings.wav
-│   │   │   │   │   ├── 20251005_151419_4610d922c2e7/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── midi_hihat.mid
-│   │   │   │   │   │   ├── midi_pad.mid
-│   │   │   │   │   │   ├── pianoroll_4610d922c2e7.png
-│   │   │   │   │   │   ├── pianoroll_4610d922c2e7_hihat.png
-│   │   │   │   │   │   ├── pianoroll_4610d922c2e7_pad.png
-│   │   │   │   │   │   ├── selection.json
-│   │   │   │   │   │   ├── stem_hihat.wav
-│   │   │   │   │   │   └── stem_pad.wav
-│   │   │   │   │   ├── 20251005_151525_2e289bc74b5d/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── midi_hihat.mid
-│   │   │   │   │   │   ├── midi_pad.mid
-│   │   │   │   │   │   ├── pianoroll_2e289bc74b5d.png
-│   │   │   │   │   │   ├── pianoroll_2e289bc74b5d_hihat.png
-│   │   │   │   │   │   ├── pianoroll_2e289bc74b5d_pad.png
-│   │   │   │   │   │   ├── selection.json
-│   │   │   │   │   │   ├── stem_hihat.wav
-│   │   │   │   │   │   └── stem_pad.wav
-│   │   │   │   │   ├── 20251005_151600_128f2dfb7814/
-│   │   │   │   │       ├── audio.wav
-│   │   │   │   │       ├── midi.json
-│   │   │   │   │       ├── midi.mid
-│   │   │   │   │       ├── midi_pad.mid
-│   │   │   │   │       ├── midi_snare.mid
-│   │   │   │   │       ├── pianoroll_128f2dfb7814.png
-│   │   │   │   │       ├── pianoroll_128f2dfb7814_pad.png
-│   │   │   │   │       ├── pianoroll_128f2dfb7814_snare.png
-│   │   │   │   │       ├── selection.json
-│   │   │   │   │       ├── stem_pad.wav
-│   │   │   │   │       └── stem_snare.wav
-│   │   │   │   ├── README.md
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── audio_renderer.py
-│   │   │   │   ├── debug_store.py
-│   │   │   │   ├── inventory.json
-│   │   │   │   ├── inventory.py
-│   │   │   │   ├── local_library.py
-│   │   │   │   ├── midi_engine.py
-│   │   │   │   ├── midi_visualizer.py
-│   │   │   │   ├── parameters.py
-│   │   │   │   ├── pipeline.py
-│   │   │   │   └── router.py
-│   │   │   ├── parametrize_advanced_test/
-│   │   │   │   ├── output/
-│   │   │   │   │   ├── samples/
-│   │   │   │   │   │   ├── drums_kit.wav
-│   │   │   │   │   │   ├── sax_c4.wav
-│   │   │   │   │   │   └── trumpet_c4.wav
-│   │   │   │   │   ├── pattern.mid
-│   │   │   │   │   ├── pattern_drums.mid
-│   │   │   │   │   ├── pattern_pad.mid
-│   │   │   │   │   ├── pattern_piano.mid
-│   │   │   │   │   ├── pattern_saxophone.mid
-│   │   │   │   │   ├── pattern_strings.mid
-│   │   │   │   │   ├── pattern_trumpet.mid
-│   │   │   │   │   ├── pianoroll.png
-│   │   │   │   │   ├── pianoroll_drums.png
-│   │   │   │   │   ├── pianoroll_pad.png
-│   │   │   │   │   ├── pianoroll_piano.png
-│   │   │   │   │   ├── pianoroll_saxophone.png
-│   │   │   │   │   ├── pianoroll_strings.png
-│   │   │   │   │   ├── pianoroll_trumpet.png
-│   │   │   │   │   └── preview.wav
-│   │   │   │   ├── README.md
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── audio_renderer.py
-│   │   │   │   ├── debug_store.py
-│   │   │   │   ├── midi_engine.py
-│   │   │   │   ├── midi_visualizer.py
-│   │   │   │   ├── parameters.py
-│   │   │   │   ├── pipeline.py
-│   │   │   │   ├── router.py
-│   │   │   │   ├── sample_adapter.py
-│   │   │   │   └── sample_library.py
-│   │   │   ├── parametrize_sampling_test/
-│   │   │   │   ├── output/
-│   │   │   │   │   ├── 20250925_224508_40e49bcd85ef/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── pianoroll_40e49bcd85ef.png
-│   │   │   │   │   │   └── selection.json
-│   │   │   │   │   ├── 20250925_224534_4f7a776138f5/
-│   │   │   │   │   ├── 20250925_224545_5f7185050658/
-│   │   │   │   │   ├── 20250925_224600_c20e783cb367/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── pianoroll_c20e783cb367.png
-│   │   │   │   │   │   └── selection.json
-│   │   │   │   │   ├── 20251005_105707_64a6bb80c9d5/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── pianoroll_64a6bb80c9d5.png
-│   │   │   │   │   │   └── selection.json
-│   │   │   │   │   ├── 20251005_105740_98e216c96e70/
-│   │   │   │   │   ├── 20251005_105823_910d6d1ea655/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── pianoroll_910d6d1ea655.png
-│   │   │   │   │   │   └── selection.json
-│   │   │   │   │   ├── 20251005_113257_58d9758c3555/
-│   │   │   │   │   ├── 20251005_114745_84554cd820f9/
-│   │   │   │   │   ├── 20251005_114818_89c9156e41c2/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── pianoroll_89c9156e41c2.png
-│   │   │   │   │   │   └── selection.json
-│   │   │   │   │   ├── 20251005_114840_c02eda3beb2b/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── pianoroll_c02eda3beb2b.png
-│   │   │   │   │   │   └── selection.json
-│   │   │   │   │   ├── 20251005_114914_495bb1fb131a/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── pianoroll_495bb1fb131a.png
-│   │   │   │   │   │   └── selection.json
-│   │   │   │   │   ├── 20251005_114942_de677f884a8b/
-│   │   │   │   │   ├── 20251005_115025_cc534b4b4ac5/
-│   │   │   │   │   ├── 20251005_115030_094cd3d83640/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── pianoroll_094cd3d83640.png
-│   │   │   │   │   │   └── selection.json
-│   │   │   │   │   ├── 20251005_115401_75573eb54c07/
-│   │   │   │   │   ├── 20251005_120759_9124e5108541/
-│   │   │   │   │   ├── 20251005_120802_66b5df74d75c/
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   └── pianoroll_66b5df74d75c.png
-│   │   │   │   │   ├── 20251005_120812_46a1f5eb1b28/
-│   │   │   │   │   ├── 20251005_120837_8955cd95eaf1/
-│   │   │   │   │   ├── 20251005_120846_cce53ab5b07b/
-│   │   │   │   │   ├── 20251005_120851_8e2459ab4941/
-│   │   │   │   │   ├── 20251005_120855_af3e7033fd2b/
-│   │   │   │   │   ├── 20251005_120907_2f6ef20155e4/
-│   │   │   │   │   ├── 20251005_121149_30b857d0e852/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── pianoroll_30b857d0e852.png
-│   │   │   │   │   │   └── selection.json
-│   │   │   │   │   ├── 20251005_121211_c206542d4eb7/
-│   │   │   │   │   │   ├── audio.wav
-│   │   │   │   │   │   ├── midi.json
-│   │   │   │   │   │   ├── midi.mid
-│   │   │   │   │   │   ├── pianoroll_c206542d4eb7.png
-│   │   │   │   │   │   └── selection.json
-│   │   │   │   │   ├── 20251005_121225_12fb15c8aae9/
-│   │   │   │   │       ├── audio.wav
-│   │   │   │   │       ├── midi.json
-│   │   │   │   │       ├── midi.mid
-│   │   │   │   │       ├── pianoroll_12fb15c8aae9.png
-│   │   │   │   │       └── selection.json
-│   │   │   │   ├── README.md
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── audio_renderer.py
-│   │   │   │   ├── debug_store.py
-│   │   │   │   ├── inventory.json
-│   │   │   │   ├── inventory.py
-│   │   │   │   ├── local_library.py
-│   │   │   │   ├── midi_engine.py
-│   │   │   │   ├── midi_visualizer.py
-│   │   │   │   ├── parameters.py
-│   │   │   │   ├── pipeline.py
-│   │   │   │   └── router.py
-│   │   │   ├── simple-sample-test/
-│   │   │   │   ├── output/
-│   │   │   │   │   ├── audio/
-│   │   │   │   │   ├── midi/
-│   │   │   │   │   ├── samples/
-│   │   │   │   ├── readme/
-│   │   │   │   │   ├── fl_test_notes.png
-│   │   │   │   │   └── spectogram.png
-│   │   │   │   ├── audio_synthesizer.py
-│   │   │   │   ├── midi_generator.py
-│   │   │   │   ├── sample_fetcher.py
-│   │   │   │   └── test_basic_generation.py
-│   │   │   ├── __init__.py
-│   │   │   ├── audio_synthesizer.py
-│   │   │   ├── midi_generator.py
-│   │   │   ├── readme.md
-│   │   │   ├── router.py
-│   │   │   ├── sample_fetcher.py
-│   │   │   ├── test_basic_generation.py
-│   │   │   └── test_query_relaxation.py
-│   │   ├── main.py
-│   │   └── users.py
-│   ├── requirements.txt
-│   └── users.db
-├── frontend-next/
-│   ├── public/
-│   │   ├── file.svg
-│   │   ├── globe.svg
-│   │   ├── next.svg
-│   │   ├── vercel.svg
-│   │   └── window.svg
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── air/
-│   │   │   │   ├── ai-param-test/
-│   │   │   │   │   ├── chat-smoke/
-│   │   │   │   │   │   └── page.tsx
-│   │   │   │   │   └── page.tsx
-│   │   │   │   ├── music-test/
-│   │   │   │   │   └── page.tsx
-│   │   │   │   ├── param-adv/
-│   │   │   │   │   └── page.tsx
-│   │   │   │   ├── param-sampling/
-│   │   │   │   │   └── page.tsx
-│   │   │   │   ├── air-style.css
-│   │   │   │   └── page.tsx
-│   │   │   ├── api/
-│   │   │   │   ├── auth/
-│   │   │   │       ├── [...nextauth]/
-│   │   │   │           └── route.ts
-│   │   │   ├── login/
-│   │   │   │   └── page.tsx
-│   │   │   ├── favicon.ico
-│   │   │   ├── globals.css
-│   │   │   ├── layout.tsx
-│   │   │   ├── page.tsx
-│   │   │   └── providers.tsx
-│   │   ├── components/
-│   │       ├── ui/
-│   │       │   ├── AnimatedCard.jsx
-│   │       │   ├── AnimatedCard.tsx
-│   │       │   ├── AnimatedHeading.jsx
-│   │       │   ├── StarField.js
-│   │       │   ├── TypedText.d.ts
-│   │       │   ├── TypedText.jsx
-│   │       │   └── TypedText.tsx
-│   │       ├── Footer.tsx
-│   │       ├── Layout.tsx
-│   │       └── Nav.tsx
-│   ├── README.md
-│   ├── eslint.config.mjs
-│   ├── next-env.d.ts
-│   ├── next.config.ts
-│   ├── package-lock.json
-│   ├── package.json
-│   ├── pnpm-lock.yaml
-│   ├── postcss.config.js
-│   ├── postcss.config.mjs
-│   ├── reset-next.bat
-│   ├── tailwind.config.js
-│   ├── tsconfig.json
-│   └── vercel.json
-├── curl-test.txt
-├── hard_reset.bat
-├── proj_struct.txt
-└── start.bat
+﻿THE-HUB/
+|-- backend-fastapi/
+|   |-- app/
+|   |   |-- air/
+|   |   |   |-- export/
+|   |   |   |   |-- collector.py
+|   |   |   |   |-- links.py
+|   |   |   |   |-- README.md
+|   |   |   |   |-- router.py
+|   |   |   |   `-- schemas.py
+|   |   |   |-- gallery/
+|   |   |   |   |-- __init__.py
+|   |   |   |   |-- README.md
+|   |   |   |   `-- router.py
+|   |   |   |-- inventory/
+|   |   |   |   |-- __init__.py
+|   |   |   |   |-- access.py
+|   |   |   |   |-- analyze_pitch_fft.py
+|   |   |   |   |-- inventory.json
+|   |   |   |   |-- inventory.py
+|   |   |   |   |-- local_library.py
+|   |   |   |   |-- pitch_analysis.json
+|   |   |   |   |-- README.md
+|   |   |   |   `-- router.py
+|   |   |   |-- midi_generation/
+|   |   |   |   |-- __init__.py
+|   |   |   |   |-- engine.py
+|   |   |   |   |-- README.md
+|   |   |   |   |-- router.py
+|   |   |   |   `-- schemas.py
+|   |   |   |-- param_generation/
+|   |   |   |   |-- __init__.py
+|   |   |   |   |-- debug_store.py
+|   |   |   |   |-- README.md
+|   |   |   |   |-- router.py
+|   |   |   |   `-- schemas.py
+|   |   |   |-- projects/
+|   |   |   |   |-- README.md
+|   |   |   |   `-- store.py
+|   |   |   |-- providers/
+|   |   |   |   |-- client.py
+|   |   |   |   `-- README.md
+|   |   |   |-- render/
+|   |   |   |   |-- engine.py
+|   |   |   |   |-- mini_pipeline_test.py
+|   |   |   |   |-- README.md
+|   |   |   |   |-- router.py
+|   |   |   |   `-- schemas.py
+|   |   |   |-- readme.md
+|   |   |   |-- TODO.md
+|   |   |   `-- user_projects_router.py
+|   |   |-- auth/
+|   |   |   |-- __init__.py
+|   |   |   |-- dependencies.py
+|   |   |   |-- models.py
+|   |   |   |-- README.md
+|   |   |   |-- router.py
+|   |   |   `-- schemas.py
+|   |   |-- database/
+|   |   |   |-- __init__.py
+|   |   |   |-- add_user.py
+|   |   |   |-- connection.py
+|   |   |   |-- migrate_db.py
+|   |   |   |-- README.md
+|   |   |   `-- seeder.py
+|   |   |-- main.py
+|   |   |-- README.md
+|   |   |-- users.md
+|   |   `-- users.py
+|   |-- scripts/
+|   |   `-- cleanup_orphaned_render_output.py
+|   |-- venv/
+|   |-- .env
+|   |-- .env.example
+|   |-- .gitignore
+|   |-- backend_libs.md
+|   |-- requirements.txt
+|   `-- users.db
+|-- doctech/
+|   |-- database.png
+|   `-- e-minor.png
+|-- frontend-next/
+|   |-- node_modules/
+|   |-- public/
+|   |   |-- docs/
+|   |   |   `-- air.pdf
+|   |   |-- file.svg
+|   |   |-- globe.svg
+|   |   |-- next.svg
+|   |   |-- vercel.svg
+|   |   `-- window.svg
+|   |-- src/
+|   |   |-- app/
+|   |   |   |-- air/
+|   |   |   |   |-- docs/
+|   |   |   |   |   `-- page.tsx
+|   |   |   |   |-- gallery/
+|   |   |   |   |   `-- page.tsx
+|   |   |   |   |-- inventory/
+|   |   |   |   |   |-- ui/
+|   |   |   |   |   |   `-- InventoryBrowser.tsx
+|   |   |   |   |   `-- page.tsx
+|   |   |   |   |-- lib/
+|   |   |   |   |   |-- constants.ts
+|   |   |   |   |   |-- paramTypes.ts
+|   |   |   |   |   `-- paramUtils.ts
+|   |   |   |   |-- me/
+|   |   |   |   |   `-- page.tsx
+|   |   |   |   |-- step-components/
+|   |   |   |   |   |-- MidiPianoroll.README.md
+|   |   |   |   |   |-- MidiPianoroll.tsx
+|   |   |   |   |   |-- MidiPlan.md
+|   |   |   |   |   |-- MidiPlanStep.tsx
+|   |   |   |   |   |-- ParamPanel.tsx
+|   |   |   |   |   |-- ParamPlan.md
+|   |   |   |   |   |-- ParamPlanStep.tsx
+|   |   |   |   |   |-- ProblemDialog.tsx
+|   |   |   |   |   |-- README.md
+|   |   |   |   |   |-- Render.md
+|   |   |   |   |   |-- RenderStep.tsx
+|   |   |   |   |   |-- SampleSelector.tsx
+|   |   |   |   |   |-- SimpleAudioPlayer.tsx
+|   |   |   |   |   `-- VisualAudioPlayer.tsx
+|   |   |   |   |-- tests/
+|   |   |   |   |-- AirOrchestrator.md
+|   |   |   |   |-- air-style.css
+|   |   |   |   |-- layout.tsx
+|   |   |   |   `-- page.tsx
+|   |   |   |-- api/
+|   |   |   |   `-- auth/
+|   |   |   |       `-- [...nextauth]/
+|   |   |   |           `-- route.ts
+|   |   |   |-- login/
+|   |   |   |   `-- page.tsx
+|   |   |   |-- favicon.ico
+|   |   |   |-- globals.css
+|   |   |   |-- layout.tsx
+|   |   |   |-- page.tsx
+|   |   |   `-- providers.tsx
+|   |   |-- components/
+|   |   |   |-- ui/
+|   |   |   |   |-- AnimatedCard.jsx
+|   |   |   |   |-- AnimatedCard.tsx
+|   |   |   |   |-- AnimatedHeading.jsx
+|   |   |   |   |-- CosmicButton.tsx
+|   |   |   |   |-- CosmicOrb.tsx
+|   |   |   |   |-- ElectricBorder.README.md
+|   |   |   |   |-- ElectricBorder.tsx
+|   |   |   |   |-- FluidGlassBackground.tsx
+|   |   |   |   |-- LoadingOverlay.tsx
+|   |   |   |   |-- ParticleSpinner.README.md
+|   |   |   |   |-- ParticleSpinner.tsx
+|   |   |   |   |-- ParticleText.README.md
+|   |   |   |   |-- ParticleText.tsx
+|   |   |   |   |-- README.md
+|   |   |   |   |-- StarField.js
+|   |   |   |   |-- TypedText.d.ts
+|   |   |   |   |-- TypedText.jsx
+|   |   |   |   `-- TypedText.tsx
+|   |   |   |-- Footer.tsx
+|   |   |   |-- Layout.tsx
+|   |   |   |-- Nav.tsx
+|   |   |   `-- README.md
+|   |   |-- hooks/
+|   |   `-- lib/
+|   |-- .gitignore
+|   |-- eslint.config.mjs
+|   |-- frontend_libs.md
+|   |-- next.config.ts
+|   |-- next-env.d.ts
+|   |-- package.json
+|   |-- package-lock.json
+|   |-- pnpm-lock.yaml
+|   |-- postcss.config.js
+|   |-- postcss.config.mjs
+|   |-- README.md
+|   |-- reset-next.bat
+|   |-- tailwind.config.js
+|   |-- tsconfig.json
+|   |-- tsconfig.tsbuildinfo
+|   `-- vercel.json
+|-- local_samples/
+|-- .gitignore
+|-- curl-test.txt
+|-- generate_proj_struct.ps1
+|-- hard_reset.bat
+|-- inventory-rebuild.bat
+|-- proj_struct.txt
+|-- start.bat
+`-- test_render.bat
