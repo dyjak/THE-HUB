@@ -143,9 +143,9 @@ def list_providers() -> list[dict[str, str]]:
     """
     return [
         {"id": "openai", "name": "OpenAI", "default_model": os.getenv("OPENAI_MODEL", "gpt-4o-mini")},
-        {"id": "anthropic", "name": "Anthropic Claude", "default_model": os.getenv("ANTHROPIC_MODEL", "claude-3-5-haiku-latest")},
+        {"id": "anthropic", "name": "Anthropic", "default_model": os.getenv("ANTHROPIC_MODEL", "claude-3-5-haiku-latest")},
         {"id": "gemini", "name": "Google Gemini", "default_model": os.getenv("GOOGLE_MODEL", "gemini-3-pro-preview")},
-        {"id": "openrouter", "name": "OpenRouter (OpenAI-compatible)", "default_model": os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")},
+        {"id": "openrouter", "name": "OpenRouter", "default_model": os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")},
     ]
 
 
@@ -153,7 +153,7 @@ def _looks_like_image_model(model_id: str) -> bool:
     mid = (model_id or "").lower()
     # konserwatywna heurystyka: filtrujemy modele wyraźnie do generowania obrazów.
     # celowo nie filtrujemy modeli "vision" (to nadal modele czatu / generacji tekstu).
-    return ("imagen" in mid) or ("image" in mid)
+    return ("imagen" in mid) or ("image" in mid) or ("nanogpt" in mid) or ("dall-e" in mid) or ("stable" in mid)
 
 
 def _env_list(var_name: str) -> list[str]:
@@ -216,34 +216,34 @@ def list_models(provider: str) -> list[str]:
         override = _env_list("GOOGLE_MODELS")
         if override:
             return [m for m in override if m and not _looks_like_image_model(m)]
-        try:
-            g = get_gemini_client()
-            found: list[str] = []
-            for m in g.list_models():
-                mid = getattr(m, "name", "") or getattr(m, "model", "") or ""
-                if mid.startswith("models/"):
-                    mid = mid.split("/", 1)[1]
-                methods = set(getattr(m, "supported_generation_methods", []) or [])
-                if "generateContent" in methods:
-                    # nazwy modeli mogą zawierać wersje; wystawiamy "gołe" id
-                    if mid and not _looks_like_image_model(mid):
-                        found.append(mid)
-            defaults = [os.getenv("GOOGLE_MODEL", "gemini-3-pro-preview")]
-            uniq: list[str] = []
-            for x in defaults + found:
-                if x and x not in uniq:
-                    uniq.append(x)
-            return uniq[:50]
-        except Exception:  # pragma: no cover - fallback
-            return [
-                os.getenv("GOOGLE_MODEL", "gemini-3-pro-preview"),
-                "gemini-3-pro-preview",
-                "gemini-2.5-pro",
-                "gemini-2.5-flash",
-                "gemini-1.5-pro",
-                "gemini-1.5-flash",
-                "gemini-2.0-flash",
-            ]
+        # try:
+        #     g = get_gemini_client()
+        #     found: list[str] = []
+        #     for m in g.list_models():
+        #         mid = getattr(m, "name", "") or getattr(m, "model", "") or ""
+        #         if mid.startswith("models/"):
+        #             mid = mid.split("/", 1)[1]
+        #         methods = set(getattr(m, "supported_generation_methods", []) or [])
+        #         if "generateContent" in methods:
+        #             # nazwy modeli mogą zawierać wersje; wystawiamy "gołe" id
+        #             if mid and not _looks_like_image_model(mid):
+        #                 found.append(mid)
+        #     defaults = [os.getenv("GOOGLE_MODEL", "gemini-3-pro-preview")]
+        #     uniq: list[str] = []
+        #     for x in defaults + found:
+        #         if x and x not in uniq:
+        #             uniq.append(x)
+        #     return uniq[:50]
+        # except Exception:  # pragma: no cover - fallback
+        return [
+            os.getenv("GOOGLE_MODEL", "gemini-3-pro-preview"),
+            "gemini-3-pro-preview",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
+            "gemini-2.0-flash",
+        ]
 
     if p == "openrouter":
         # allow overrides via env: OPENROUTER_MODELS

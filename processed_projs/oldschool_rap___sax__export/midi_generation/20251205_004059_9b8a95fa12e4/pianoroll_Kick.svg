@@ -1,0 +1,70 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='2580' height='26' viewBox='0 0 2580 26'>
+<rect x='0' y='0' width='100%' height='100%' fill='black' />
+<line x1='10' y1='10' x2='10' y2='16' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='170' y1='10' x2='170' y2='16' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='330' y1='10' x2='330' y2='16' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='490' y1='10' x2='490' y2='16' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='650' y1='10' x2='650' y2='16' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='810' y1='10' x2='810' y2='16' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='970' y1='10' x2='970' y2='16' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='1130' y1='10' x2='1130' y2='16' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='1290' y1='10' x2='1290' y2='16' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='1450' y1='10' x2='1450' y2='16' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='1610' y1='10' x2='1610' y2='16' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='1770' y1='10' x2='1770' y2='16' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='1930' y1='10' x2='1930' y2='16' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='2090' y1='10' x2='2090' y2='16' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='2250' y1='10' x2='2250' y2='16' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='2410' y1='10' x2='2410' y2='16' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='2570' y1='10' x2='2570' y2='16' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<line x1='10' y1='10' x2='2570' y2='10' stroke='rgba(255,255,255,0.25)' stroke-width='1' />
+<rect x='170' y='10' width='20' height='5' fill='rgba(0,255,128,0.96)' rx='1' ry='1' />
+<rect x='250' y='10' width='20' height='5' fill='rgba(0,255,128,0.91)' rx='1' ry='1' />
+<rect x='270' y='10' width='20' height='5' fill='rgba(0,255,128,0.88)' rx='1' ry='1' />
+<rect x='330' y='10' width='20' height='5' fill='rgba(0,255,128,0.96)' rx='1' ry='1' />
+<rect x='390' y='10' width='20' height='5' fill='rgba(0,255,128,0.80)' rx='1' ry='1' />
+<rect x='430' y='10' width='20' height='5' fill='rgba(0,255,128,0.93)' rx='1' ry='1' />
+<rect x='490' y='10' width='20' height='5' fill='rgba(0,255,128,0.96)' rx='1' ry='1' />
+<rect x='570' y='10' width='20' height='5' fill='rgba(0,255,128,0.91)' rx='1' ry='1' />
+<rect x='590' y='10' width='20' height='5' fill='rgba(0,255,128,0.88)' rx='1' ry='1' />
+<rect x='650' y='10' width='20' height='5' fill='rgba(0,255,128,0.96)' rx='1' ry='1' />
+<rect x='730' y='10' width='20' height='5' fill='rgba(0,255,128,0.91)' rx='1' ry='1' />
+<rect x='790' y='10' width='20' height='5' fill='rgba(0,255,128,0.85)' rx='1' ry='1' />
+<rect x='810' y='10' width='20' height='5' fill='rgba(0,255,128,0.96)' rx='1' ry='1' />
+<rect x='890' y='10' width='20' height='5' fill='rgba(0,255,128,0.91)' rx='1' ry='1' />
+<rect x='910' y='10' width='20' height='5' fill='rgba(0,255,128,0.88)' rx='1' ry='1' />
+<rect x='970' y='10' width='20' height='5' fill='rgba(0,255,128,0.96)' rx='1' ry='1' />
+<rect x='1030' y='10' width='20' height='5' fill='rgba(0,255,128,0.80)' rx='1' ry='1' />
+<rect x='1070' y='10' width='20' height='5' fill='rgba(0,255,128,0.93)' rx='1' ry='1' />
+<rect x='1130' y='10' width='20' height='5' fill='rgba(0,255,128,0.96)' rx='1' ry='1' />
+<rect x='1210' y='10' width='20' height='5' fill='rgba(0,255,128,0.91)' rx='1' ry='1' />
+<rect x='1230' y='10' width='20' height='5' fill='rgba(0,255,128,0.88)' rx='1' ry='1' />
+<rect x='1290' y='10' width='20' height='5' fill='rgba(0,255,128,0.96)' rx='1' ry='1' />
+<rect x='1370' y='10' width='20' height='5' fill='rgba(0,255,128,0.91)' rx='1' ry='1' />
+<rect x='1410' y='10' width='20' height='5' fill='rgba(0,255,128,0.85)' rx='1' ry='1' />
+<rect x='1430' y='10' width='20' height='5' fill='rgba(0,255,128,0.85)' rx='1' ry='1' />
+<rect x='1450' y='10' width='20' height='5' fill='rgba(0,255,128,0.96)' rx='1' ry='1' />
+<rect x='1530' y='10' width='20' height='5' fill='rgba(0,255,128,0.91)' rx='1' ry='1' />
+<rect x='1550' y='10' width='20' height='5' fill='rgba(0,255,128,0.88)' rx='1' ry='1' />
+<rect x='1610' y='10' width='20' height='5' fill='rgba(0,255,128,0.96)' rx='1' ry='1' />
+<rect x='1670' y='10' width='20' height='5' fill='rgba(0,255,128,0.80)' rx='1' ry='1' />
+<rect x='1710' y='10' width='20' height='5' fill='rgba(0,255,128,0.93)' rx='1' ry='1' />
+<rect x='1770' y='10' width='20' height='5' fill='rgba(0,255,128,0.96)' rx='1' ry='1' />
+<rect x='1850' y='10' width='20' height='5' fill='rgba(0,255,128,0.91)' rx='1' ry='1' />
+<rect x='1870' y='10' width='20' height='5' fill='rgba(0,255,128,0.88)' rx='1' ry='1' />
+<rect x='1930' y='10' width='20' height='5' fill='rgba(0,255,128,0.96)' rx='1' ry='1' />
+<rect x='2010' y='10' width='20' height='5' fill='rgba(0,255,128,0.91)' rx='1' ry='1' />
+<rect x='2070' y='10' width='20' height='5' fill='rgba(0,255,128,0.85)' rx='1' ry='1' />
+<rect x='2090' y='10' width='20' height='5' fill='rgba(0,255,128,0.96)' rx='1' ry='1' />
+<rect x='2170' y='10' width='20' height='5' fill='rgba(0,255,128,0.91)' rx='1' ry='1' />
+<rect x='2190' y='10' width='20' height='5' fill='rgba(0,255,128,0.88)' rx='1' ry='1' />
+<rect x='2250' y='10' width='20' height='5' fill='rgba(0,255,128,0.96)' rx='1' ry='1' />
+<rect x='2310' y='10' width='20' height='5' fill='rgba(0,255,128,0.80)' rx='1' ry='1' />
+<rect x='2350' y='10' width='20' height='5' fill='rgba(0,255,128,0.93)' rx='1' ry='1' />
+<rect x='2410' y='10' width='20' height='5' fill='rgba(0,255,128,0.96)' rx='1' ry='1' />
+<rect x='2490' y='10' width='20' height='5' fill='rgba(0,255,128,0.91)' rx='1' ry='1' />
+<rect x='2510' y='10' width='20' height='5' fill='rgba(0,255,128,0.88)' rx='1' ry='1' />
+<rect x='2570' y='10' width='20' height='5' fill='rgba(0,255,128,0.96)' rx='1' ry='1' />
+<rect x='2610' y='10' width='20' height='5' fill='rgba(0,255,128,0.85)' rx='1' ry='1' />
+<rect x='2650' y='10' width='20' height='5' fill='rgba(0,255,128,0.91)' rx='1' ry='1' />
+</svg>

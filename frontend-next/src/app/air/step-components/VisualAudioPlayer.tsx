@@ -335,7 +335,7 @@ export const VisualAudioPlayer: React.FC<VisualAudioPlayerProps> = ({
                             />
 
                             <div
-                                className="absolute top-0 left-0 h-full rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="absolute top-0 left-0 h-full rounded-full opacity-60 transition-opacity"
                                 style={{
                                     width: `${progressPercent}%`,
                                     background: `linear-gradient(90deg, ${accentColor}40, ${accentColor}80)`,
@@ -344,7 +344,7 @@ export const VisualAudioPlayer: React.FC<VisualAudioPlayerProps> = ({
                             />
 
                             <div
-                                className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg"
+                                className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full opacity-100 transition-all duration-200 shadow-lg"
                                 style={{
                                     left: `calc(${progressPercent}% - 8px)`,
                                     backgroundColor: accentColor,

@@ -28,31 +28,15 @@ router = APIRouter(
 )
 
 
-# uwaga: przykładowe wpisy demo (placeholder). docelowo podmień na własne linki.
+# wpisy
 _DEMO_ITEMS: List[GalleryItem] = [
     GalleryItem(
         id="demo-01",
-        title="Cinematic Pulse (Demo)",
-        description="Przykładowy utwór pokazujący jak brzmią generowane sample po miksie/masterze w DAW. (placeholder)",
-        soundcloud_url="https://soundcloud.com/forss/flickermood",
-        tags=["cinematic", "hybrid", "mix/master"],
-        year=2025,
-    ),
-    GalleryItem(
-        id="demo-02",
-        title="Lo-fi Groove Sketch (Demo)",
-        description="Luźny szkic: groove + tekstury. (placeholder)",
-        soundcloud_url="https://soundcloud.com/forss/stranger",
-        tags=["lofi", "groove"],
-        year=2025,
-    ),
-    GalleryItem(
-        id="demo-03",
-        title="Tech House Drop (Demo)",
-        description="Krótka prezentacja transjentów i subu po obróbce. (placeholder)",
-        soundcloud_url="https://soundcloud.com/forss/sets/ecclesia",
-        tags=["tech-house", "club"],
-        year=2025,
+        title="CORRIDOR",
+        description="Przykładowy utwór pokazujący jak brzmią generowane ścieżki po miksie/masterze w DAW.",
+        soundcloud_url="https://soundcloud.com/ognisty_ogon/corridor-air-42-processed-project",
+        tags=["dark", "typebeat", "mystery", "mix/master"],
+        year=2026,
     ),
 ]
 
