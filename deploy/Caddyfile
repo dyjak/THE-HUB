@@ -1,0 +1,19 @@
+{
+  # No public CA needed (we'll typically access over Tailscale).
+  # Keep it simple: HTTP only by default.
+  auto_https off
+}
+
+:80 {
+  encode gzip
+
+  # Backend (FastAPI) serves /api/* including /api/audio and /api/local-samples
+  handle_path /api/* {
+    reverse_proxy backend:8000
+  }
+
+  # Frontend (Next.js)
+  handle {
+    reverse_proxy frontend:3000
+  }
+}

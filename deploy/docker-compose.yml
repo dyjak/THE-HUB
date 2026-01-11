@@ -1,0 +1,75 @@
+services:
+  backend:
+    build:
+      context: ../backend-fastapi
+    container_name: thehub-backend
+    restart: unless-stopped
+    environment:
+      # Auth
+      AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:-change-me}
+
+      # Optional AI providers
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-}
+
+      # Optional model defaults
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
+      GOOGLE_MODEL: ${GOOGLE_MODEL:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-}
+
+    volumes:
+      # Persist SQLite
+      - ./data/users.db:/app/backend-fastapi/users.db
+      # Persist inventory.json built from local_samples
+      - ./data/inventory.json:/app/backend-fastapi/app/air/inventory/inventory.json
+      # Local sample library (read-only)
+      - ../local_samples:/app/local_samples:ro
+      # Persist pipeline outputs (optional but useful)
+      - ./data/render_output:/app/backend-fastapi/app/air/render/output
+      - ./data/midi_output:/app/backend-fastapi/app/air/midi_generation/output
+      - ./data/param_output:/app/backend-fastapi/app/air/param_generation/output
+    networks:
+      - thehub
+
+  frontend:
+    build:
+      context: ../frontend-next
+      args:
+        # We point the frontend at the SAME origin (Caddy) so everything is single-origin.
+        # Set HUB_PUBLIC_URL to your Tailscale MagicDNS name, e.g. http://thehub-vps
+        NEXT_PUBLIC_BACKEND_URL: ${HUB_PUBLIC_URL:-http://localhost}
+    container_name: thehub-frontend
+    restart: unless-stopped
+    environment:
+      # NextAuth runtime config
+      NEXTAUTH_URL: ${HUB_PUBLIC_URL:-http://localhost}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change-me}
+
+      # Also available at runtime (some code may read it server-side)
+      NEXT_PUBLIC_BACKEND_URL: ${HUB_PUBLIC_URL:-http://localhost}
+
+    networks:
+      - thehub
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: thehub-caddy
+    restart: unless-stopped
+    ports:
+      # IMPORTANT: map to loopback so it's NOT public on the VPS.
+      # We'll access it via Tailscale (either directly to 127.0.0.1 via tailscale serve,
+      # or by firewall rules). See deploy/README.md.
+      - "127.0.0.1:8080:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      - thehub
+
+networks:
+  thehub:
+    driver: bridge
