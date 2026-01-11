@@ -27,6 +27,8 @@ RUN pnpm build
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0 \
+	PORT=3000
 
 RUN addgroup -S nextjs && adduser -S nextjs -G nextjs
 
@@ -39,4 +41,4 @@ COPY --from=builder /app/next.config.ts ./next.config.ts
 USER nextjs
 EXPOSE 3000
 
-CMD ["pnpm", "start"]
+CMD ["node", "node_modules/next/dist/bin/next", "start", "-H", "0.0.0.0", "-p", "3000"]
