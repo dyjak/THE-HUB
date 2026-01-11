@@ -7,9 +7,40 @@
 :80 {
   encode gzip
 
-  # Backend (FastAPI) serves /api/* including /api/audio and /api/local-samples
-  handle_path /api/* {
+  # Next.js API routes (NextAuth) must be handled by the frontend.
+  handle_path /api/auth/* {
+    reverse_proxy frontend:3000
+  }
+
+  # Backend (FastAPI) API + static mounts
+  handle_path /api/air/* {
     reverse_proxy backend:8000
+  }
+  handle_path /api/login* {
+    reverse_proxy backend:8000
+  }
+  handle_path /api/register* {
+    reverse_proxy backend:8000
+  }
+  handle_path /api/users* {
+    reverse_proxy backend:8000
+  }
+  handle_path /api/local-samples/* {
+    reverse_proxy backend:8000
+  }
+  handle_path /api/audio/* {
+    reverse_proxy backend:8000
+  }
+  handle_path /api/param-generation/output/* {
+    reverse_proxy backend:8000
+  }
+  handle_path /api/midi-generation/output/* {
+    reverse_proxy backend:8000
+  }
+
+  # Any other /api/* routes belong to Next.js
+  handle_path /api/* {
+    reverse_proxy frontend:3000
   }
 
   # Frontend (Next.js)
