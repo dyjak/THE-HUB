@@ -49,7 +49,7 @@ const ElectricBorder = <T extends ElementType = 'div'>({
     const rawId = useId().replace(/[:]/g, '');
     const filterId = `turbulent-displace-${rawId}`;
     const svgRef = useRef<SVGSVGElement | null>(null);
-    const rootRef = useRef<HTMLElement | null>(null);
+    const rootRef = useRef<HTMLDivElement | null>(null);
     const strokeRef = useRef<HTMLDivElement | null>(null);
 
     // gdy komponent jest wyłączony, redukujemy „chaos”, żeby obwódka była stabilna
@@ -156,7 +156,7 @@ const ElectricBorder = <T extends ElementType = 'div'>({
     };
 
     return (
-        <Component ref={rootRef} className={'relative isolate ' + (className ?? '')} style={style} {...props}>
+        <div ref={rootRef} className={'relative isolate ' + (className ?? '')} style={style}>
             <svg
                 ref={svgRef}
                 className="fixed -left-[10000px] -top-[10000px] w-[10px] h-[10px] opacity-[0.001] pointer-events-none"
@@ -207,9 +207,9 @@ const ElectricBorder = <T extends ElementType = 'div'>({
             </div>
 
             <div className="relative" style={inheritRadius}>
-                {children}
+                <Component {...props}>{children}</Component>
             </div>
-        </Component>
+        </div>
     );
 };
 
