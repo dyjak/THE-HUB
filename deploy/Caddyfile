@@ -8,38 +8,44 @@
   encode gzip
 
   # Next.js API routes (NextAuth) must be handled by the frontend.
-  handle_path /api/auth/* {
+  handle /api/auth/* {
     reverse_proxy frontend:3000
   }
 
   # Backend (FastAPI) API + static mounts
-  handle_path /api/air/* {
+  handle /api/air/* {
     reverse_proxy backend:8000
   }
-  handle_path /api/login* {
+  handle /api/login* {
     reverse_proxy backend:8000
   }
-  handle_path /api/register* {
+  handle /api/register* {
     reverse_proxy backend:8000
   }
-  handle_path /api/users* {
+  handle /api/users* {
     reverse_proxy backend:8000
   }
-  handle_path /api/local-samples/* {
+  handle /api/local-samples/* {
     reverse_proxy backend:8000
   }
-  handle_path /api/audio/* {
+  handle /api/audio/* {
     reverse_proxy backend:8000
   }
-  handle_path /api/param-generation/output/* {
+  handle /api/param-generation/output/* {
     reverse_proxy backend:8000
   }
-  handle_path /api/midi-generation/output/* {
+  handle /api/midi-generation/output/* {
+    reverse_proxy backend:8000
+  }
+  handle /api/health {
+    reverse_proxy backend:8000
+  }
+  handle /health {
     reverse_proxy backend:8000
   }
 
   # Any other /api/* routes belong to Next.js
-  handle_path /api/* {
+  handle /api/* {
     reverse_proxy frontend:3000
   }
 
