@@ -8,7 +8,7 @@ RUN corepack enable
 RUN corepack prepare pnpm@9.15.4 --activate
 
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 FROM node:20-alpine AS builder
 WORKDIR /app
