@@ -1,5 +1,10 @@
 services:
   caddy:
+    environment:
+      # Required by Caddyfile.public (env placeholders)
+      HUB_DOMAIN: ${HUB_DOMAIN}
+      BASIC_AUTH_USER: ${BASIC_AUTH_USER}
+      BASIC_AUTH_HASH: ${BASIC_AUTH_HASH}
     ports:
       # Public HTTP/HTTPS (wystawione do Internetu)
       - "80:80"

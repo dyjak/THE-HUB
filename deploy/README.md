@@ -118,6 +118,9 @@ W repo przygotowane jest to jako tryb „public” przez override compose.
 - `HUB_PUBLIC_URL=https://hub.twojadomena.pl`
 - `HUB_DOMAIN=hub.twojadomena.pl`
 - `BASIC_AUTH_USER=jakislogin`
+- `BASIC_AUTH_HASH=...` (hash hasła)
+
+Te zmienne są przekazywane do kontenera Caddy (Caddyfile.public używa placeholderów `{$HUB_DOMAIN}`, `{$BASIC_AUTH_USER}`, `{$BASIC_AUTH_HASH}`), więc muszą być ustawione w `.env`.
 
 2) Wygeneruj hash hasła (na VPS):
 
@@ -130,6 +133,8 @@ Wklej wynik do:
 3) Uruchom w trybie public (bez Tailscale):
 
 - `docker compose -f docker-compose.yml -f docker-compose.public.yml --env-file .env up -d --build`
+
+Jeśli dostaniesz błąd typu: `failed to bind host port 0.0.0.0:80: address already in use`, to znaczy że na VPS już coś słucha na porcie 80 (np. nginx/apache/inny Caddy). Zobacz sekcję „Port 80/443 zajęty” poniżej.
 
 4) (Opcjonalnie) Wyłącz Tailscale Serve, jeśli był włączony:
 
@@ -222,4 +227,40 @@ Szybka kopia bazy (na VPS):
 - Front działa, ale logowanie/NextAuth robi redirect na `/api/auth/error`: sprawdź routing Caddy w `deploy/Caddyfile` i zrób `docker compose restart caddy`.
 - Zmieniłeś adres (MagicDNS/Tailnet URL), a frontend „pamięta stary”: zaktualizuj `deploy/.env` i zrób `docker compose build frontend ; docker compose up -d frontend`.
 - Serve nie działa: `tailscale serve status`, ewentualnie `sudo tailscale serve reset` i ustaw ponownie.
+
+### Port 80/443 zajęty (tryb public)
+
+Objaw przy starcie:
+
+- `failed to bind host port 0.0.0.0:80/tcp: address already in use`
+
+Diagnostyka (na VPS):
+
+```sh
+sudo ss -ltnp | egrep ':(80|443)\s'
+sudo ss -ltnp | grep ':80 '
+sudo ss -ltnp | grep ':443 '
+```
+
+Najczęstsze przyczyny i fix:
+
+```sh
+# nginx
+sudo systemctl stop nginx
+sudo systemctl disable nginx
+
+# apache
+sudo systemctl stop apache2
+sudo systemctl disable apache2
+
+# sprawdź czy nie masz innego kontenera na 80/443
+docker ps --format 'table {{.Names}}\t{{.Ports}}'
+```
+
+Po uwolnieniu portów uruchom ponownie:
+
+```sh
+cd ~/THE-HUB/deploy
+docker compose -f docker-compose.yml -f docker-compose.public.yml --env-file .env up -d --build
+```
 
