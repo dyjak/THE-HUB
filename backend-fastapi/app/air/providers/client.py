@@ -69,10 +69,22 @@ def _make_httpx_client() -> Any:
         import httpx  # type: ignore
 
         timeout = httpx.Timeout(60.0, connect=15.0)
+
+        # niektóre VPS-y mają problematyczne IPv6 (ConnectError / Network unreachable),
+        # a resolver potrafi zwracać AAAA jako pierwsze. Opcjonalnie pozwalamy
+        # wymusić IPv4 przez HUB_HTTP_FORCE_IPV4=1.
+        transport = None
+        try:
+            if (os.getenv("HUB_HTTP_FORCE_IPV4", "").strip() == "1"):
+                transport = httpx.HTTPTransport(local_address="0.0.0.0")
+        except Exception:
+            transport = None
+
         return httpx.Client(
             timeout=timeout,
             follow_redirects=True,
             trust_env=False,
+            transport=transport,
         )
     except Exception:
         return None

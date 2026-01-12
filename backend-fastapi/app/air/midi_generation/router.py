@@ -36,8 +36,20 @@ BASE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _map_provider_exception(e: Exception, *, default_error: str) -> tuple[int, dict[str, str]]:
+    def _exc_chain(err: Exception) -> str:
+        parts: List[str] = []
+        cur: Exception | None = err
+        seen: set[int] = set()
+        while cur is not None and id(cur) not in seen:
+            seen.add(id(cur))
+            msg = str(cur) or cur.__class__.__name__
+            parts.append(f"{cur.__class__.__name__}: {msg}")
+            nxt = cur.__cause__ or cur.__context__
+            cur = nxt if isinstance(nxt, Exception) else None
+        return " | ".join(parts)
+
     name = e.__class__.__name__
-    message = str(e) or name
+    message = _exc_chain(e)
 
     network_names = {
         "APIConnectionError",

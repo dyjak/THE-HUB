@@ -262,8 +262,20 @@ def _map_provider_exception(e: Exception) -> tuple[int, dict[str, str]]:
 
     UI pokazuje `detail.message`, więc tutaj dbamy, żeby było to czytelne.
     """
+    def _exc_chain(err: Exception) -> str:
+        parts: list[str] = []
+        cur: Exception | None = err
+        seen: set[int] = set()
+        while cur is not None and id(cur) not in seen:
+            seen.add(id(cur))
+            msg = str(cur) or cur.__class__.__name__
+            parts.append(f"{cur.__class__.__name__}: {msg}")
+            nxt = cur.__cause__ or cur.__context__
+            cur = nxt if isinstance(nxt, Exception) else None
+        return " | ".join(parts)
+
     name = e.__class__.__name__
-    message = str(e) or name
+    message = _exc_chain(e)
 
     # OpenAI SDK / httpx common cases (bez twardych importów typów)
     network_names = {
