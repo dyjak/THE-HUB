@@ -155,6 +155,20 @@ const ElectricBorder = <T extends ElementType = 'div'>({
         background: `linear-gradient(-30deg, ${hexToRgba(color, 0.8)}, transparent, ${color})`
     };
 
+    const componentProps: any = {
+        ...props,
+        className: 'w-full h-full flex items-center justify-center bg-transparent border-0 p-0 m-0 appearance-none',
+        'aria-disabled': disabled || undefined
+    };
+
+    if (Component === 'button' && componentProps.type == null) {
+        componentProps.type = 'button';
+    }
+
+    if (disabled && (typeof Component !== 'string' || Component === 'button' || Component === 'input' || Component === 'select' || Component === 'textarea')) {
+        componentProps.disabled = true;
+    }
+
     return (
         <div ref={rootRef} className={'relative isolate ' + (className ?? '')} style={style}>
             <svg
@@ -207,7 +221,7 @@ const ElectricBorder = <T extends ElementType = 'div'>({
             </div>
 
             <div className="relative" style={inheritRadius}>
-                <Component {...props}>{children}</Component>
+                <Component {...componentProps}>{children}</Component>
             </div>
         </div>
     );
