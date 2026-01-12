@@ -153,10 +153,27 @@ def _call_model(provider: str, model: Optional[str], system: str, user: str) -> 
     """
     provider = (provider or "gemini").lower()
 
+    def _pick_model(explicit: Optional[str], env_name: str, fallback: str) -> str:
+        # docker-compose potrafi wstrzyknąć zmienną jako pusty string (""),
+        # a wtedy os.getenv zwraca "" zamiast fallbacku. Traktujemy "" jak brak.
+        try:
+            x = (explicit or "").strip()
+            if x:
+                return x
+        except Exception:
+            pass
+        try:
+            x = (os.getenv(env_name) or "").strip()
+            if x:
+                return x
+        except Exception:
+            pass
+        return fallback
+
     # openai
     if provider == "openai":
         client = _get_openai_client()
-        use_model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        use_model = _pick_model(model, "OPENAI_MODEL", "gpt-4o-mini")
         resp = client.chat.completions.create(
             model=use_model,
             messages=[
@@ -170,7 +187,7 @@ def _call_model(provider: str, model: Optional[str], system: str, user: str) -> 
     # anthropic
     if provider == "anthropic":
         client = _get_anthropic_client()
-        use_model = model or os.getenv("ANTHROPIC_MODEL", "claude-3-5-haiku-latest")
+        use_model = _pick_model(model, "ANTHROPIC_MODEL", "claude-3-5-haiku-latest")
         resp = client.messages.create(
             model=use_model,
             system=system,
@@ -189,7 +206,7 @@ def _call_model(provider: str, model: Optional[str], system: str, user: str) -> 
     # gemini / google generative ai
     if provider == "gemini":
         g = _get_gemini_client()
-        use_model = model or os.getenv("GOOGLE_MODEL", "gemini-3-pro-preview")
+        use_model = _pick_model(model, "GOOGLE_MODEL", "gemini-3-pro-preview")
 
         # nowsze sdk czasem oczekuje system_instruction w innym formacie; mamy fallback.
         try:
@@ -227,7 +244,7 @@ def _call_model(provider: str, model: Optional[str], system: str, user: str) -> 
     if provider == "openrouter":
         client = _get_openrouter_client()
         # domyślny model dobrany pod ustrukturyzowane wyjście i darmowy tier
-        use_model = model or os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")
+        use_model = _pick_model(model, "OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")
         resp = client.chat.completions.create(
             model=use_model,
             messages=[
@@ -539,6 +556,8 @@ def _safe_parse_json(raw: str) -> tuple[Optional[Dict[str, Any]], list[str]]:
 def generate_parameter_plan(body: ParameterPlanRequest):
     run = DEBUG_STORE.start()
     run.log("plan", "start", {"provider": body.provider or "gemini", "model": body.model or None})
+    provider_used = (body.provider or "gemini")
+    model_used = body.model or None
     try:
         plan = ParameterPlanIn(**(body.parameters or {}))
     except Exception as e:
@@ -547,20 +566,40 @@ def generate_parameter_plan(body: ParameterPlanRequest):
     system, user = _parameter_plan_system(plan)
     try:
         run.log("provider_call", "request", {
-            "provider": (body.provider or "gemini"),
-            "model": (body.model or None),
+            "provider": provider_used,
+            "model": model_used,
             "system": system,
             "user": user,
         })
-        raw = _call_model(body.provider or "gemini", body.model, system, user)
+        raw = _call_model(provider_used, model_used, system, user)
         run.log("provider_call", "raw_received", {"chars": len(raw)})
     except _ProviderChatError as e:
         # typowo: brak klucza api / brak sdk
         run.log("provider_call", "failed", {"type": e.__class__.__name__, "error": str(e)})
-        raise HTTPException(status_code=400, detail={"error": "provider_config", "message": str(e)})
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "provider_config",
+                "message": str(e),
+                "run_id": run.run_id,
+                "provider": provider_used,
+                "model": model_used,
+            },
+        )
     except Exception as e:
         status, detail = _map_provider_exception(e)
         run.log("provider_call", "failed", {"type": e.__class__.__name__, "error": str(e), "mapped": detail.get("error")})
+        # dołączamy run_id i kontekst do błędu, żeby dało się go zdebugować przez /debug/{run_id}
+        try:
+            if isinstance(detail, dict):
+                detail = {
+                    **detail,
+                    "run_id": run.run_id,
+                    "provider": provider_used,
+                    "model": model_used,
+                }
+        except Exception:
+            pass
         raise HTTPException(status_code=status, detail=detail)
 
     # parsowanie json z kilkoma "barierkami", żeby drobne błędy formatu nie psuły całego ux

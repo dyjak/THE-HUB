@@ -91,6 +91,21 @@ def _call_composer(provider: str, model: Optional[str], meta: Dict[str, Any]) ->
 
     provider = (provider or "gemini").lower()
 
+    def _pick_model(explicit: Optional[str], env_name: str, fallback: str) -> str:
+        try:
+            x = (explicit or "").strip()
+            if x:
+                return x
+        except Exception:
+            pass
+        try:
+            x = (os.getenv(env_name) or "").strip()
+            if x:
+                return x
+        except Exception:
+            pass
+        return fallback
+
     key = str(meta.get("key") or "C")
     scale = str(meta.get("scale") or "Major")
 
@@ -133,7 +148,7 @@ def _call_composer(provider: str, model: Optional[str], meta: Dict[str, Any]) ->
     # openai
     if provider == "openai":
         client = _get_openai_client()
-        use_model = model or os.getenv("OPENAI_MIDI_MODEL", os.getenv("OPENAI_MODEL", "gpt-4o-mini"))
+        use_model = _pick_model(model, "OPENAI_MIDI_MODEL", _pick_model(None, "OPENAI_MODEL", "gpt-4o-mini"))
         resp = client.chat.completions.create(
             model=use_model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -145,7 +160,7 @@ def _call_composer(provider: str, model: Optional[str], meta: Dict[str, Any]) ->
     # anthropic
     if provider == "anthropic":
         client = _get_anthropic_client()
-        use_model = model or os.getenv("ANTHROPIC_MIDI_MODEL", os.getenv("ANTHROPIC_MODEL", "claude-3-5-haiku-latest"))
+        use_model = _pick_model(model, "ANTHROPIC_MIDI_MODEL", _pick_model(None, "ANTHROPIC_MODEL", "claude-3-5-haiku-latest"))
         resp = client.messages.create(
             model=use_model,
             system=system,
@@ -165,7 +180,7 @@ def _call_composer(provider: str, model: Optional[str], meta: Dict[str, Any]) ->
     # gemini
     if provider == "gemini":
         g = _get_gemini_client()
-        use_model = model or os.getenv("GOOGLE_MIDI_MODEL", os.getenv("GOOGLE_MODEL", "gemini-3-pro-preview"))
+        use_model = _pick_model(model, "GOOGLE_MIDI_MODEL", _pick_model(None, "GOOGLE_MODEL", "gemini-3-pro-preview"))
         try:
             m = g.GenerativeModel(use_model, system_instruction=system)
         except TypeError:
@@ -192,7 +207,7 @@ def _call_composer(provider: str, model: Optional[str], meta: Dict[str, Any]) ->
     # openrouter
     if provider == "openrouter":
         client = _get_openrouter_client()
-        use_model = model or os.getenv("OPENROUTER_MIDI_MODEL", os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free"))
+        use_model = _pick_model(model, "OPENROUTER_MIDI_MODEL", _pick_model(None, "OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free"))
         resp = client.chat.completions.create(
             model=use_model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
