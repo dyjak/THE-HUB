@@ -5,6 +5,7 @@
 
 import React, { useEffect, useState } from "react";
 import ParticleText from "@/components/ui/ParticleText";
+import { getApiBaseUrl } from "@/lib/apiBase";
 
 type GalleryItem = {
   id: string;
@@ -57,8 +58,7 @@ export default function GalleryPage() {
   useEffect(() => {
     const run = async () => {
       try {
-        const API_BASE =
-          process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+        const API_BASE = getApiBaseUrl();
         const resp = await fetch(`${API_BASE}/api/air/gallery/items`, {
           method: "GET",
           headers: { Accept: "application/json" },

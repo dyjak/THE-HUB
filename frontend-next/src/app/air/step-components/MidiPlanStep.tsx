@@ -20,8 +20,9 @@ import MidiPianoroll from "./MidiPianoroll";
 import ElectricBorder from "@/components/ui/ElectricBorder";
 import LoadingOverlay from "@/components/ui/LoadingOverlay";
 import ProblemDialog from "./ProblemDialog";
+import { getApiBaseUrl } from "@/lib/apiBase";
 
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+const API_BASE = getApiBaseUrl();
 const API_PREFIX = "/api";
 const MODULE_PREFIX = "/air/midi-generation";
 const PROVIDERS_URL = `${API_BASE}/api/air/param-generation/providers`;

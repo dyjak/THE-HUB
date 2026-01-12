@@ -13,8 +13,9 @@ import { SimpleAudioPlayer } from "../step-components/SimpleAudioPlayer";
 import { VisualAudioPlayer } from "../step-components/VisualAudioPlayer";
 import ParticleText from "@/components/ui/ParticleText";
 import ElectricBorder from "@/components/ui/ElectricBorder";
+import { getApiBaseUrl } from "@/lib/apiBase";
 
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+const API_BASE = getApiBaseUrl();
 const API_PREFIX = "/api";
 
 type RenderResult = {

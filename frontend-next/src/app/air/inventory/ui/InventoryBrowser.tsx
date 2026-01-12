@@ -6,6 +6,7 @@
 // 2) lista sampli dla aktualnie wybranego instrumentu.
 import React, { useEffect, useState } from "react";
 import { SimpleAudioPlayer } from "@/app/air/step-components/SimpleAudioPlayer";
+import { getApiBaseUrl } from "@/lib/apiBase";
 
 type InstrumentListResp = { available: string[]; count: number };
 type SampleItem = {
@@ -27,7 +28,7 @@ type SamplesResp = {
   default?: SampleItem | null;
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+const API_BASE = getApiBaseUrl("http://localhost:8000");
 
 export const InventoryBrowser: React.FC = () => {
   const [loading, setLoading] = useState(false);

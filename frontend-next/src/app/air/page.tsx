@@ -14,6 +14,7 @@ import RenderStep from "./step-components/RenderStep";
 import type { ParamPlan } from "./lib/paramTypes";
 import type { ParamPlanMeta } from "./lib/paramTypes";
 import ParticleText from "@/components/ui/ParticleText";
+import { getApiBaseUrl } from "@/lib/apiBase";
 
 
 type StepId = "param-plan" | "midi-plan" | "midi-export" | "render";
@@ -47,7 +48,7 @@ export default function AirPage() {
 		setSelectedSamples(next);
 		if (!runIdParam) return;
 		try {
-			const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+			const API_BASE = getApiBaseUrl();
 			const API_PREFIX = "/api";
 			const MODULE_PREFIX = "/air/param-generation";
 			const cleaned: Record<string, string> = {};

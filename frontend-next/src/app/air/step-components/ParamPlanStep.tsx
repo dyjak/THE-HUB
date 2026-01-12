@@ -23,10 +23,11 @@ import ElectricBorder from "@/components/ui/ElectricBorder";
 import LoadingOverlay from "@/components/ui/LoadingOverlay";
 import { FaArrowRight } from "react-icons/fa";
 import ProblemDialog from "./ProblemDialog";
+import { getApiBaseUrl } from "@/lib/apiBase";
 
 type ChatProviderInfo = { id: string; name: string; default_model?: string };
 
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+const API_BASE = getApiBaseUrl();
 const API_PREFIX = "/api";
 // ścieżka modułu backendu odpowiedzialnego za generowanie planu parametrów
 const MODULE_PREFIX = "/air/param-generation";
