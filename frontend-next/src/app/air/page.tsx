@@ -46,7 +46,12 @@ export default function AirPage() {
 	// żeby później można było odtworzyć projekt lub pokazać „co było wybrane”.
 	const persistSelectedSamples = async (next: Record<string, string | undefined>) => {
 		setSelectedSamples(next);
-		if (!runIdParam) return;
+		if (!runIdParam) {
+			// Ten callback jest używany m.in. po „Dobierz rekomendowane sample”.
+			// Bez runId (krok 1) nie mamy gdzie tego spiąć w backendzie.
+			console.warn("[AirPage] persistSelectedSamples skipped (missing runIdParam)");
+			return;
+		}
 		try {
 			const API_BASE = getApiBaseUrl();
 			const API_PREFIX = "/api";
@@ -56,14 +61,24 @@ export default function AirPage() {
 				if (!k || !v) continue;
 				cleaned[k] = v;
 			}
-			await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/plan/${encodeURIComponent(runIdParam)}/selected-samples`, {
+			const url = `${API_BASE}${API_PREFIX}${MODULE_PREFIX}/plan/${encodeURIComponent(runIdParam)}/selected-samples`;
+			const res = await fetch(url, {
 				method: "PATCH",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ selected_samples: cleaned }),
 			});
+			if (!res.ok) {
+				const data = await res.json().catch(() => null);
+				console.error("[AirPage] persistSelectedSamples PATCH failed", {
+					url,
+					status: res.status,
+					body: data,
+				});
+			}
 		} catch {
 			// błąd synchronizacji z backendem nie blokuje ux.
 			// frontend nadal jest źródłem prawdy, a użytkownik może kontynuować pracę.
+			console.error("[AirPage] persistSelectedSamples PATCH errored");
 		}
 	};
 

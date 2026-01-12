@@ -286,10 +286,22 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
   };
 
   const handleRecommendSamples = async () => {
-    if (!meta || !midi) return;
+    if (!meta || !midi) {
+      console.warn("[RenderStep] recommend-samples skipped (missing meta or midi)", {
+        hasMeta: !!meta,
+        hasMidi: !!midi,
+      });
+      return;
+    }
     setRecommending(true);
     setError(null);
     try {
+      console.log("[RenderStep] recommend-samples click", {
+        apiBase: API_BASE,
+        runId: midi.run_id,
+        projectName: projectName.trim() || null,
+      });
+
       const body = {
         project_name: projectName.trim() || meta.style || "air_demo",
         run_id: midi.run_id,
@@ -309,6 +321,10 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
+        console.error("[RenderStep] recommend-samples HTTP error", {
+          status: res.status,
+          body: data,
+        });
         throw new Error(data?.detail?.message || `HTTP ${res.status}`);
       }
 
@@ -325,10 +341,18 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
         }
       }
 
+      console.log("[RenderStep] recommend-samples ok", {
+        recommendedCount: Object.keys(recommended).length,
+        mergedCount: Object.keys(merged).length,
+      });
+
       if (onSelectedSamplesChange) {
         onSelectedSamplesChange(merged);
+      } else {
+        console.warn("[RenderStep] onSelectedSamplesChange not provided; recommendations will not persist/update UI");
       }
     } catch (e) {
+      console.error("[RenderStep] recommend-samples failed", e);
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setRecommending(false);

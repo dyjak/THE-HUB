@@ -143,8 +143,6 @@ def get_openai_client() -> Any:
             _OPENAI_IMPORT_ERROR = e
             raise ChatError(f"OpenAI SDK not available: {_OPENAI_IMPORT_ERROR}")
     api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise ChatError("OPENAI_API_KEY is not set. Create backend-fastapi/.env with your key.")
     # docker-compose może wstrzyknąć pusty string; czyścimy, żeby SDK tego nie użyło.
     _unset_if_blank("OPENAI_BASE_URL")
     _unset_if_blank("OPENAI_API_BASE")
@@ -200,8 +198,6 @@ def get_anthropic_client() -> Any:
             _ANTHROPIC_IMPORT_ERROR = e
             raise ChatError(f"Anthropic SDK not available: {_ANTHROPIC_IMPORT_ERROR}")
     api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise ChatError("ANTHROPIC_API_KEY is not set in .env")
     return anthropic.Anthropic(api_key=api_key)
 
 
@@ -216,8 +212,6 @@ def get_gemini_client() -> Any:
             _GEMINI_IMPORT_ERROR = e
             raise ChatError(f"Gemini SDK not available: {_GEMINI_IMPORT_ERROR}")
     api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        raise ChatError("GOOGLE_API_KEY is not set in .env")
     genai.configure(api_key=api_key)
     return genai
 
@@ -228,7 +222,7 @@ def list_providers() -> list[dict[str, str]]:
     uwaga: wartości modeli pochodzą z env, żeby łatwo sterować domyślnym wyborem bez zmian w kodzie.
     """
     return [
-        {"id": "openai", "name": "OpenAI", "default_model": os.getenv("OPENAI_MODEL", "gpt-4o-mini")},
+        {"id": "openai", "name": "OpenAI", "default_model": os.getenv("OPENAI_MODEL", "gpt-5")},
         {"id": "anthropic", "name": "Anthropic", "default_model": os.getenv("ANTHROPIC_MODEL", "claude-3-5-haiku-latest")},
         {"id": "gemini", "name": "Google Gemini", "default_model": os.getenv("GOOGLE_MODEL", "gemini-3-pro-preview")},
         {"id": "openrouter", "name": "OpenRouter", "default_model": os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")},

@@ -88,6 +88,30 @@ def get_render_run(run_id: str) -> RenderResponse:
     except Exception as e:  # noqa: PERF203
         raise HTTPException(status_code=500, detail={"error": "render_read_failed", "message": str(e)})
 
+    # kompatybilność wstecz: starsze runy mogły mieć mix_wav_rel/audio_rel w formie
+    # "output/<run_id>/<file>" albo "output\\<run_id>\\<file>".
+    def _normalize_audio_rel(v: object) -> object:
+        if not isinstance(v, str) or not v:
+            return v
+        s = v.replace("\\\\", "/")
+        if "output/" in s:
+            s = s.split("output/", 1)[1]
+        s = s.lstrip("/")
+        return s
+
+    try:
+        if isinstance(resp, dict):
+            if "mix_wav_rel" in resp:
+                resp["mix_wav_rel"] = _normalize_audio_rel(resp.get("mix_wav_rel"))
+            stems = resp.get("stems")
+            if isinstance(stems, list):
+                for st in stems:
+                    if isinstance(st, dict) and "audio_rel" in st:
+                        st["audio_rel"] = _normalize_audio_rel(st.get("audio_rel"))
+    except Exception:
+        # nie blokujemy /run/{run_id} przez problem w normalizacji
+        pass
+
     try:
         return RenderResponse(**resp)
     except Exception as e:  # noqa: PERF203

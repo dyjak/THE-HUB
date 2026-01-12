@@ -673,7 +673,9 @@ def render_audio(req: RenderRequest) -> RenderResponse:
 
         stem_path = run_folder / f"{req.project_name}_{instrument}_{timestamp}.wav"
         _write_wav_stereo(stem_path, stem_l, stem_r, sr=sr)
-        stems.append(RenderedStem(instrument=instrument, audio_rel=str(stem_path.relative_to(OUTPUT_ROOT.parent))))
+        # /api/audio jest zamontowane na katalogu OUTPUT_ROOT, więc ścieżka powinna być
+        # względna do OUTPUT_ROOT (czyli: <run_id>/<file>), bez prefiksu "output/".
+        stems.append(RenderedStem(instrument=instrument, audio_rel=stem_path.relative_to(OUTPUT_ROOT).as_posix()))
         all_stems_l.append(stem_l)
         all_stems_r.append(stem_r)
 
@@ -711,7 +713,8 @@ def render_audio(req: RenderRequest) -> RenderResponse:
     return RenderResponse(
         project_name=req.project_name,
         run_id=req.run_id,
-        mix_wav_rel=str(mix_path.relative_to(OUTPUT_ROOT.parent)),
+        # jw.: zwracamy ścieżkę względną do OUTPUT_ROOT, żeby frontend nie musiał ucinać "output/".
+        mix_wav_rel=mix_path.relative_to(OUTPUT_ROOT).as_posix(),
         stems=stems,
         sample_rate=sr,
         duration_seconds=duration_sec,
