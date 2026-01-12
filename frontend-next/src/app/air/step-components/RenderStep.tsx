@@ -91,9 +91,18 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
     (rel: string) => {
       if (!rel) return backendAudioBase;
 
-      const marker = "output\\";
-      const idx = rel.indexOf(marker);
-      const tail = idx >= 0 ? rel.slice(idx + marker.length) : rel;
+      // backend może zwrócić ścieżkę z separatorami Windows ("output\\...") lub POSIX ("output/..."),
+      // zależnie od środowiska uruchomieniowego. Dla /api/audio musimy odciąć prefix "output/".
+      const markerBack = "output\\";
+      const markerFwd = "output/";
+      let idx = rel.indexOf(markerBack);
+      let marker = markerBack;
+      if (idx < 0) {
+        idx = rel.indexOf(markerFwd);
+        marker = markerFwd;
+      }
+      const tailRaw = idx >= 0 ? rel.slice(idx + marker.length) : rel;
+      const tail = String(tailRaw).replace(/\\/g, "/").replace(/^\//, "");
 
       const finalUrl = `${backendAudioBase}${tail}`;
       if (process.env.NODE_ENV === "development") {

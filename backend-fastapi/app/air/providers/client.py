@@ -55,6 +55,29 @@ class ChatError(RuntimeError):
     pass
 
 
+def _make_httpx_client() -> Any:
+    """Tworzy klienta HTTP dla SDK providerów.
+
+    Cel: stabilność na VPS/Docker.
+    - `trust_env=False` ignoruje HTTP(S)_PROXY i inne zmienne z hosta,
+      które potrafią psuć wywołania OpenAI/OpenRouter na serwerach.
+    - jawne timeouty dają czytelniejsze błędy (zamiast wiszenia requestu).
+
+    Zwraca obiekt httpx.Client lub None, jeśli httpx nie jest dostępny.
+    """
+    try:
+        import httpx  # type: ignore
+
+        timeout = httpx.Timeout(60.0, connect=15.0)
+        return httpx.Client(
+            timeout=timeout,
+            follow_redirects=True,
+            trust_env=False,
+        )
+    except Exception:
+        return None
+
+
 def get_openai_client() -> Any:
     """zwraca klienta openai skonfigurowanego na bazie env.
 
@@ -76,9 +99,10 @@ def get_openai_client() -> Any:
     if not api_key:
         raise ChatError("OPENAI_API_KEY is not set. Create backend-fastapi/.env with your key.")
     base_url = os.getenv("OPENAI_BASE_URL")
+    http_client = _make_httpx_client()
     if base_url:
-        return OpenAI(api_key=api_key, base_url=base_url)
-    return OpenAI(api_key=api_key)
+        return OpenAI(api_key=api_key, base_url=base_url, http_client=http_client)
+    return OpenAI(api_key=api_key, http_client=http_client)
 
 
 def get_openrouter_client() -> Any:
@@ -100,7 +124,17 @@ def get_openrouter_client() -> Any:
     if not api_key:
         raise ChatError("OPENROUTER_API_KEY is not set in .env")
     base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-    return OpenAI(api_key=api_key, base_url=base_url)
+    http_client = _make_httpx_client()
+    # OpenRouter rekomenduje te nagłówki (nie są sekretami); pomagają w observability.
+    referer = os.getenv("HUB_PUBLIC_URL", "")
+    default_headers = {
+        "HTTP-Referer": referer,
+        "X-Title": "THE-HUB",
+    }
+    # Jeśli HUB_PUBLIC_URL nie jest ustawione, nie wysyłamy pustego referer.
+    if not referer:
+        default_headers.pop("HTTP-Referer", None)
+    return OpenAI(api_key=api_key, base_url=base_url, http_client=http_client, default_headers=default_headers)
 
 
 def get_anthropic_client() -> Any:

@@ -69,9 +69,16 @@ function useResolveRenderUrl() {
     if (!rel) return backendAudioBase;
     // backend w niektórych miejscach zwraca ścieżki „windowsowe” typu output\....
     // tu odcinamy prefix do folderu output i budujemy url do /api/audio/.
-    const marker = "output\\";
-    const idx = rel.indexOf(marker);
-    const tail = idx >= 0 ? rel.slice(idx + marker.length) : rel;
+    const markerBack = "output\\";
+    const markerFwd = "output/";
+    let idx = rel.indexOf(markerBack);
+    let marker = markerBack;
+    if (idx < 0) {
+      idx = rel.indexOf(markerFwd);
+      marker = markerFwd;
+    }
+    const tailRaw = idx >= 0 ? rel.slice(idx + marker.length) : rel;
+    const tail = String(tailRaw).replace(/\\/g, "/").replace(/^\//, "");
     return `${backendAudioBase}${tail}`;
   };
 }
