@@ -130,6 +130,15 @@ Wklej wynik do:
 
 - `BASIC_AUTH_HASH=...`
 
+Uwaga: `docker compose` traktuje znak `$` w pliku `.env` jako interpolację zmiennych. Hash z Caddy wygląda np. jak `$2a$14$...` i bez ucieczki zobaczysz warningi typu: `The "bnOg..." variable is not set`.
+
+Rozwiązanie: w `deploy/.env` zamień każdy znak `$` na `$$`.
+
+Przykład:
+
+- masz z generatora: `$2a$14$abcd...`
+- w `.env` wpisujesz: `$$2a$$14$$abcd...`
+
 3) Uruchom w trybie public (bez Tailscale):
 
 - `docker compose -f docker-compose.yml -f docker-compose.public.yml --env-file .env up -d --build`
