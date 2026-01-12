@@ -55,6 +55,41 @@ class ChatError(RuntimeError):
     pass
 
 
+def _sanitize_base_url(raw: str | None, *, default_scheme: str = "https") -> str | None:
+    """Normalizuje BASE_URL.
+
+    Problem produkcyjny, który widzieliśmy w logach: httpx `UnsupportedProtocol`
+    („Request URL is missing an 'http://' or 'https://' protocol.”).
+    To zwykle oznacza, że w env istnieje np. `OPENAI_BASE_URL=api.openai.com/v1`
+    (bez schematu) albo nawet pusty string (docker-compose potrafi wstrzyknąć "").
+    """
+
+    if raw is None:
+        return None
+    try:
+        v = str(raw).strip()
+    except Exception:
+        return None
+    if not v:
+        return None
+    # jeśli ktoś podał host bez schematu, dopinamy https://
+    if not (v.startswith("http://") or v.startswith("https://")):
+        v = f"{default_scheme}://{v.lstrip('/')}"
+    return v
+
+
+def _unset_if_blank(var_name: str) -> None:
+    """Usuwa zmienną env, jeśli istnieje, ale jest pusta/whitespace.
+
+    Ważne: część SDK czyta env bezpośrednio i traktuje "" jako ustawioną wartość.
+    """
+    try:
+        if var_name in os.environ and not (os.environ.get(var_name) or "").strip():
+            os.environ.pop(var_name, None)
+    except Exception:
+        pass
+
+
 def _make_httpx_client() -> Any:
     """Tworzy klienta HTTP dla SDK providerów.
 
@@ -110,7 +145,11 @@ def get_openai_client() -> Any:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise ChatError("OPENAI_API_KEY is not set. Create backend-fastapi/.env with your key.")
-    base_url = os.getenv("OPENAI_BASE_URL")
+    # docker-compose może wstrzyknąć pusty string; czyścimy, żeby SDK tego nie użyło.
+    _unset_if_blank("OPENAI_BASE_URL")
+    _unset_if_blank("OPENAI_API_BASE")
+
+    base_url = _sanitize_base_url(os.getenv("OPENAI_BASE_URL") or os.getenv("OPENAI_API_BASE"))
     http_client = _make_httpx_client()
     if base_url:
         return OpenAI(api_key=api_key, base_url=base_url, http_client=http_client)
@@ -135,7 +174,8 @@ def get_openrouter_client() -> Any:
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
         raise ChatError("OPENROUTER_API_KEY is not set in .env")
-    base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+    _unset_if_blank("OPENROUTER_BASE_URL")
+    base_url = _sanitize_base_url(os.getenv("OPENROUTER_BASE_URL"), default_scheme="https") or "https://openrouter.ai/api/v1"
     http_client = _make_httpx_client()
     # OpenRouter rekomenduje te nagłówki (nie są sekretami); pomagają w observability.
     referer = os.getenv("HUB_PUBLIC_URL", "")
