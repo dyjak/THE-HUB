@@ -68,7 +68,6 @@ def _map_provider_exception(e: Exception, *, default_error: str) -> tuple[int, d
         err = "provider_timeout" if status == 504 else "provider_connection_error"
         hint = (
             "Nie udało się połączyć z providerem AI (sieć/DNS/firewall). "
-            "Sprawdź, czy kontener backend ma wyjście na internet oraz czy klucz API i (jeśli ustawione) BASE_URL są poprawne."
         )
         if status == 504:
             hint = (

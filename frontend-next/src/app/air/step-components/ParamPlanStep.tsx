@@ -404,8 +404,8 @@ export default function ParamPlanStep({ onMetaReady, onNavigateNext, onPlanChang
                 className="appearance-none w-full bg-black/50 border border-purple-800/40 rounded-lg pr-9 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-500"
               >
                 {providers.map(p => (
-                  <option key={p.id} value={p.id} disabled={(p.id || '').toLowerCase() === 'openai'}>
-                    {p.name}{(p.id || '').toLowerCase() === 'openai' ? ' (disabled)' : ''}
+                  <option key={p.id} value={p.id}>
+                    {p.name}
                   </option>
                 ))}
               </select>
