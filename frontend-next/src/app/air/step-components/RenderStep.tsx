@@ -17,6 +17,7 @@
 
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import type { ParamPlanMeta } from "../lib/paramTypes";
 import type { MidiPlanResult } from "./MidiPlanStep";
 import { SampleSelector } from "./SampleSelector";
@@ -60,6 +61,9 @@ type Props = {
 
 export default function RenderStep({ meta, midi, selectedSamples, initialRunId, onRunIdChange, onSelectedSamplesChange }: Props) {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const debug = searchParams?.get("debug") === "1";
+
   const [projectName, setProjectName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +72,13 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
   const [history, setHistory] = useState<RenderResult[]>([]);
   const [fadeoutMs, setFadeoutMs] = useState(10);
   const [recommending, setRecommending] = useState(false);
+  const [recommendDebug, setRecommendDebug] = useState<{
+    at: string;
+    stage: "idle" | "click" | "start" | "http_error" | "ok" | "error" | "skip";
+    url?: string;
+    status?: number;
+    detail?: any;
+  } | null>(null);
 
   const [tracks, setTracks] = useState(() => {
     const instruments = meta?.instruments || [];
@@ -287,20 +298,25 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
 
   const handleRecommendSamples = async () => {
     if (!meta || !midi) {
-      console.warn("[RenderStep] recommend-samples skipped (missing meta or midi)", {
-        hasMeta: !!meta,
-        hasMidi: !!midi,
-      });
+      if (debug) {
+        setRecommendDebug({
+          at: new Date().toISOString(),
+          stage: "skip",
+          detail: { hasMeta: !!meta, hasMidi: !!midi },
+        });
+      }
       return;
     }
     setRecommending(true);
     setError(null);
     try {
-      console.log("[RenderStep] recommend-samples click", {
-        apiBase: API_BASE,
-        runId: midi.run_id,
-        projectName: projectName.trim() || null,
-      });
+      if (debug) {
+        setRecommendDebug({
+          at: new Date().toISOString(),
+          stage: "click",
+          detail: { apiBase: API_BASE, runId: midi.run_id, projectName: projectName.trim() || null },
+        });
+      }
 
       const body = {
         project_name: projectName.trim() || meta.style || "air_demo",
@@ -312,7 +328,21 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
         fadeout_seconds: Math.max(0, Math.min(100, fadeoutMs)) / 1000,
       };
 
-      const res = await fetch(`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/recommend-samples`, {
+      const url = `${API_BASE}${API_PREFIX}${MODULE_PREFIX}/recommend-samples`;
+      if (debug) {
+        setRecommendDebug({
+          at: new Date().toISOString(),
+          stage: "start",
+          url,
+          detail: {
+            instruments: meta?.instruments?.length ?? 0,
+            tracks: tracks.length,
+            selectedSamplesKeys: Object.keys(selectedSamples).length,
+          },
+        });
+      }
+
+      const res = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -321,10 +351,15 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        console.error("[RenderStep] recommend-samples HTTP error", {
-          status: res.status,
-          body: data,
-        });
+        if (debug) {
+          setRecommendDebug({
+            at: new Date().toISOString(),
+            stage: "http_error",
+            url,
+            status: res.status,
+            detail: data,
+          });
+        }
         throw new Error(data?.detail?.message || `HTTP ${res.status}`);
       }
 
@@ -341,18 +376,37 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
         }
       }
 
-      console.log("[RenderStep] recommend-samples ok", {
-        recommendedCount: Object.keys(recommended).length,
-        mergedCount: Object.keys(merged).length,
-      });
+      if (debug) {
+        setRecommendDebug({
+          at: new Date().toISOString(),
+          stage: "ok",
+          url,
+          status: res.status,
+          detail: {
+            recommendedCount: Object.keys(recommended).length,
+            mergedCount: Object.keys(merged).length,
+          },
+        });
+      }
 
       if (onSelectedSamplesChange) {
         onSelectedSamplesChange(merged);
-      } else {
-        console.warn("[RenderStep] onSelectedSamplesChange not provided; recommendations will not persist/update UI");
+      } else if (debug) {
+        setRecommendDebug({
+          at: new Date().toISOString(),
+          stage: "error",
+          url,
+          detail: { reason: "onSelectedSamplesChange not provided" },
+        });
       }
     } catch (e) {
-      console.error("[RenderStep] recommend-samples failed", e);
+      if (debug) {
+        setRecommendDebug({
+          at: new Date().toISOString(),
+          stage: "error",
+          detail: { message: e instanceof Error ? e.message : String(e) },
+        });
+      }
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setRecommending(false);
@@ -385,6 +439,27 @@ export default function RenderStep({ meta, midi, selectedSamples, initialRunId, 
 
   return (
     <section className="bg-gray-900/40 border border-emerald-700/40 rounded-2xl shadow-lg shadow-emerald-900/10 px-6 pt-6 pb-4 space-y-6">
+      {debug && (
+        <div className="border border-yellow-600/40 bg-yellow-950/20 rounded-xl px-4 py-3 text-[11px] text-yellow-100">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="font-mono">debug=1</div>
+            <div className="text-yellow-200/80">
+              hasMeta: {String(!!meta)} • hasMidi: {String(!!midi)} • recommending: {String(recommending)}
+            </div>
+          </div>
+          <div className="mt-1 font-mono text-yellow-100/90 whitespace-pre-wrap break-words">
+            recommend url: {`${API_BASE}${API_PREFIX}${MODULE_PREFIX}/recommend-samples`}
+          </div>
+          {recommendDebug && (
+            <div className="mt-2 font-mono text-yellow-100/90 whitespace-pre-wrap break-words">
+              recommend: {recommendDebug.stage} @ {recommendDebug.at}
+              {recommendDebug.url ? `\nurl: ${recommendDebug.url}` : ""}
+              {typeof recommendDebug.status === "number" ? `\nstatus: ${recommendDebug.status}` : ""}
+              {recommendDebug.detail ? `\ndetail: ${JSON.stringify(recommendDebug.detail)}` : ""}
+            </div>
+          )}
+        </div>
+      )}
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-3xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-emerald-100 to-green-600 animate-pulse">
           Krok 3 • Export & Render

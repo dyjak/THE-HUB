@@ -7,6 +7,7 @@
 
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useSearchParams } from "next/navigation";
 import AnimatedCard from "../../components/ui/AnimatedCard";
 import ParamPlanStep from "./step-components/ParamPlanStep";
 import MidiPlanStep, { type MidiPlanResult } from "./step-components/MidiPlanStep";
@@ -21,6 +22,9 @@ type StepId = "param-plan" | "midi-plan" | "midi-export" | "render";
 
 
 export default function AirPage() {
+	const searchParams = useSearchParams();
+	const debug = searchParams?.get("debug") === "1";
+
 	const [step, setStep] = useState<StepId>("param-plan");
 	const [showTests, setShowTests] = useState<boolean>(false);
 	const [midiResult, setMidiResult] = useState<MidiPlanResult | null>(null);
@@ -29,6 +33,14 @@ export default function AirPage() {
 	const [runIdParam, setRunIdParam] = useState<string | null>(null);
 	const [runIdMidi, setRunIdMidi] = useState<string | null>(null);
 	const [runIdRender, setRunIdRender] = useState<string | null>(null);
+	const [persistSamplesDebug, setPersistSamplesDebug] = useState<{
+		at: string;
+		stage: "skip" | "start" | "ok" | "http_error" | "error";
+		runIdParam: string | null;
+		url?: string;
+		status?: number;
+		detail?: any;
+	} | null>(null);
 	const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 	const [pendingStep, setPendingStep] = useState<StepId | null>(null);
 
@@ -49,7 +61,14 @@ export default function AirPage() {
 		if (!runIdParam) {
 			// Ten callback jest używany m.in. po „Dobierz rekomendowane sample”.
 			// Bez runId (krok 1) nie mamy gdzie tego spiąć w backendzie.
-			console.warn("[AirPage] persistSelectedSamples skipped (missing runIdParam)");
+			if (debug) {
+				setPersistSamplesDebug({
+					at: new Date().toISOString(),
+					stage: "skip",
+					runIdParam: null,
+					detail: { reason: "missing runIdParam" },
+				});
+			}
 			return;
 		}
 		try {
@@ -62,6 +81,15 @@ export default function AirPage() {
 				cleaned[k] = v;
 			}
 			const url = `${API_BASE}${API_PREFIX}${MODULE_PREFIX}/plan/${encodeURIComponent(runIdParam)}/selected-samples`;
+			if (debug) {
+				setPersistSamplesDebug({
+					at: new Date().toISOString(),
+					stage: "start",
+					runIdParam,
+					url,
+					detail: { cleanedKeys: Object.keys(cleaned) },
+				});
+			}
 			const res = await fetch(url, {
 				method: "PATCH",
 				headers: { "Content-Type": "application/json" },
@@ -69,16 +97,35 @@ export default function AirPage() {
 			});
 			if (!res.ok) {
 				const data = await res.json().catch(() => null);
-				console.error("[AirPage] persistSelectedSamples PATCH failed", {
+				if (debug) {
+					setPersistSamplesDebug({
+						at: new Date().toISOString(),
+						stage: "http_error",
+						runIdParam,
+						url,
+						status: res.status,
+						detail: data,
+					});
+				}
+			} else if (debug) {
+				setPersistSamplesDebug({
+					at: new Date().toISOString(),
+					stage: "ok",
+					runIdParam,
 					url,
 					status: res.status,
-					body: data,
 				});
 			}
 		} catch {
 			// błąd synchronizacji z backendem nie blokuje ux.
 			// frontend nadal jest źródłem prawdy, a użytkownik może kontynuować pracę.
-			console.error("[AirPage] persistSelectedSamples PATCH errored");
+			if (debug) {
+				setPersistSamplesDebug({
+					at: new Date().toISOString(),
+					stage: "error",
+					runIdParam,
+				});
+			}
 		}
 	};
 
@@ -114,6 +161,22 @@ export default function AirPage() {
 
 	return (
 		<div className="min-h-[500px] w-full bg-transparent from-black via-gray-950 to-black text-white px-6 py-6 pb-4 space-y-6">
+			{debug && (
+				<div className="border border-yellow-600/40 bg-yellow-950/20 rounded-xl px-4 py-3 text-[11px] text-yellow-100">
+					<div className="flex flex-wrap items-center justify-between gap-2">
+						<div className="font-mono">debug=1</div>
+						<div className="text-yellow-200/80">runIdParam: {runIdParam || "(null)"} • runIdMidi: {runIdMidi || "(null)"} • runIdRender: {runIdRender || "(null)"}</div>
+					</div>
+					{persistSamplesDebug && (
+						<div className="mt-2 font-mono text-yellow-100/90 whitespace-pre-wrap break-words">
+							persistSelectedSamples: {persistSamplesDebug.stage} @ {persistSamplesDebug.at}
+							{persistSamplesDebug.url ? `\nurl: ${persistSamplesDebug.url}` : ""}
+							{typeof persistSamplesDebug.status === "number" ? `\nstatus: ${persistSamplesDebug.status}` : ""}
+							{persistSamplesDebug.detail ? `\ndetail: ${JSON.stringify(persistSamplesDebug.detail)}` : ""}
+						</div>
+					)}
+				</div>
+			)}
 			<div className="flex items-center justify-between gap-6">
 				<div className="flex-1" />
 				<div className="flex-[1.4] flex flex-col items-center gap-2 select-none">
