@@ -44,17 +44,56 @@ def _read_mono_segment(path: Path, max_seconds: float = 5.0) -> Tuple[np.ndarray
             max_frames = min(n_frames, int(sr * max_seconds))
         frames = wf.readframes(max_frames)
         sampwidth = wf.getsampwidth()
-        if sampwidth != 2:
-            raise ValueError(f"Unsupported sample width: {sampwidth}")
-        import struct
 
+        # Dekodowanie PCM do float32 [-1, 1].
+        # W praktyce biblioteki sampli często są 24-bit WAV (sampwidth=3), więc musimy to wspierać.
         total_samples = max_frames * n_channels
-        fmt = "<" + "h" * total_samples
-        ints = struct.unpack(fmt, frames)
-        if n_channels > 1:
-            ints = ints[0::n_channels]
-        data = np.asarray(ints, dtype="float32") / 32768.0
-        return data, sr
+
+        if sampwidth == 1:
+            # 8-bit WAV jest unsigned
+            raw = np.frombuffer(frames, dtype=np.uint8)
+            if raw.size < total_samples:
+                raw = np.pad(raw, (0, total_samples - raw.size), mode="constant")
+            if n_channels > 1:
+                raw = raw[0::n_channels]
+            data = (raw.astype(np.float32) - 128.0) / 128.0
+            return data, sr
+
+        if sampwidth == 2:
+            raw = np.frombuffer(frames, dtype=np.int16)
+            if raw.size < total_samples:
+                raw = np.pad(raw, (0, total_samples - raw.size), mode="constant")
+            if n_channels > 1:
+                raw = raw[0::n_channels]
+            data = raw.astype(np.float32) / 32768.0
+            return data, sr
+
+        if sampwidth == 3:
+            # signed little-endian 24-bit -> int32 z sign-extension
+            b = np.frombuffer(frames, dtype=np.uint8)
+            needed = total_samples * 3
+            if b.size < needed:
+                b = np.pad(b, (0, needed - b.size), mode="constant")
+            b = b.reshape(-1, 3)
+            x = (b[:, 0].astype(np.int32) | (b[:, 1].astype(np.int32) << 8) | (b[:, 2].astype(np.int32) << 16))
+            sign_bit = 1 << 23
+            x = (x ^ sign_bit) - sign_bit
+            if n_channels > 1:
+                x = x[0::n_channels]
+            data = x.astype(np.float32) / float(1 << 23)
+            return data, sr
+
+        if sampwidth == 4:
+            # zakładamy signed int32 PCM
+            raw = np.frombuffer(frames, dtype=np.int32)
+            if raw.size < total_samples:
+                raw = np.pad(raw, (0, total_samples - raw.size), mode="constant")
+            if n_channels > 1:
+                raw = raw[0::n_channels]
+            data = raw.astype(np.float32) / 2147483648.0
+            return data, sr
+
+        raise ValueError(f"Unsupported sample width: {sampwidth}")
 
 
 _NOTE_NAMES_SHARP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
