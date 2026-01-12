@@ -1,0 +1,16 @@
+services:
+  caddy:
+    ports:
+      # Public HTTP/HTTPS (wystawione do Internetu)
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Public Caddyfile with Basic Auth + automatic HTTPS
+      - ./Caddyfile.public:/etc/caddy/Caddyfile:ro
+      # Persist TLS certs/config
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

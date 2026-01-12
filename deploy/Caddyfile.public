@@ -1,0 +1,96 @@
+# Public mode: domena + automatyczne HTTPS + Basic Auth
+# Wymaga portów 80/443 otwartych na VPS.
+# Ustaw w deploy/.env:
+# - HUB_PUBLIC_URL=https://twoja-domena.pl
+# - BASIC_AUTH_USER=...
+# - BASIC_AUTH_HASH=... (z caddy hash-password)
+
+{$HUB_DOMAIN} {
+  encode gzip
+
+  # Next.js API routes (NextAuth) muszą iść do frontendu
+  handle /api/auth/* {
+    basicauth {
+      {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+    }
+    reverse_proxy frontend:3000
+  }
+
+  # Backend (FastAPI) API + statyczne mounty
+  handle /api/air/* {
+    basicauth {
+      {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+    }
+    reverse_proxy backend:8000
+  }
+  handle /api/login* {
+    basicauth {
+      {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+    }
+    reverse_proxy backend:8000
+  }
+  handle /api/register* {
+    basicauth {
+      {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+    }
+    reverse_proxy backend:8000
+  }
+  handle /api/users* {
+    basicauth {
+      {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+    }
+    reverse_proxy backend:8000
+  }
+  handle /api/local-samples/* {
+    basicauth {
+      {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+    }
+    reverse_proxy backend:8000
+  }
+  handle /api/audio/* {
+    basicauth {
+      {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+    }
+    reverse_proxy backend:8000
+  }
+  handle /api/param-generation/output/* {
+    basicauth {
+      {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+    }
+    reverse_proxy backend:8000
+  }
+  handle /api/midi-generation/output/* {
+    basicauth {
+      {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+    }
+    reverse_proxy backend:8000
+  }
+  handle /api/health {
+    basicauth {
+      {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+    }
+    reverse_proxy backend:8000
+  }
+  handle /health {
+    basicauth {
+      {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+    }
+    reverse_proxy backend:8000
+  }
+
+  # Pozostałe /api/* należą do Next.js
+  handle /api/* {
+    basicauth {
+      {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+    }
+    reverse_proxy frontend:3000
+  }
+
+  # Frontend (Next.js)
+  handle {
+    basicauth {
+      {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+    }
+    reverse_proxy frontend:3000
+  }
+}
