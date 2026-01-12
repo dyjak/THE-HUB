@@ -28,7 +28,7 @@ type SamplesResp = {
   default?: SampleItem | null;
 };
 
-const API_BASE = getApiBaseUrl("http://localhost:8000");
+const API_BASE = getApiBaseUrl();
 
 export const InventoryBrowser: React.FC = () => {
   const [loading, setLoading] = useState(false);

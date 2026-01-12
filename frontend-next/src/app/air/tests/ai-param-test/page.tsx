@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ChatPlanner } from './components/ChatPlanner';
 import { MidiPanel } from './components/MidiPanel';
 import { AudioPanel } from './components/AudioPanel';
+import { getApiBaseUrl } from '@/lib/apiBase';
 import type {
   AudioRenderParameters,
   AvailableInstruments,
@@ -31,7 +32,7 @@ import {
   normalizeMidi,
   uniqueStrings,
 } from './utils';
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+const API_BASE = getApiBaseUrl();
 const API_PREFIX = '/api';
 const MODULE_PREFIX = '/ai-param-test';
 const OUTPUT_PREFIX = `${MODULE_PREFIX}/output`;

@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 import { ChatMidiComposer } from "../components/ChatMidiComposer";
 import { DEFAULT_MIDI, cloneMidi, normalizeMidi, normalizeAudio } from "../utils";
 import type { MidiParameters, AudioRenderParameters, ChatProviderInfo, ParamifyNormalizedPlan } from "../types";
+import { getApiBaseUrl } from '@/lib/apiBase';
 
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+const API_BASE = getApiBaseUrl();
 const API_PREFIX = "/api";
 const MODULE_PREFIX = "/ai-render-test";
 

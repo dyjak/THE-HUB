@@ -33,6 +33,7 @@ from app.air.providers.client import (
     get_anthropic_client as _get_anthropic_client,
     get_gemini_client as _get_gemini_client,
     get_openrouter_client as _get_openrouter_client,
+    ChatError as _ProviderChatError,
     list_providers as _providers_list,
     list_models as _models_list,
 )
@@ -237,6 +238,58 @@ def _call_model(provider: str, model: Optional[str], system: str, user: str) -> 
         )
         return (resp.choices[0].message.content or "").strip()
     raise HTTPException(status_code=400, detail={"error": "unknown_provider", "message": f"Unknown provider: {provider}"})
+
+
+def _map_provider_exception(e: Exception) -> tuple[int, dict[str, str]]:
+    """Mapuje wyjątki z warstwy AI/providerów na sensowne kody HTTP.
+
+    UI pokazuje `detail.message`, więc tutaj dbamy, żeby było to czytelne.
+    """
+    name = e.__class__.__name__
+    message = str(e) or name
+
+    # OpenAI SDK / httpx common cases (bez twardych importów typów)
+    network_names = {
+        "APIConnectionError",
+        "ConnectError",
+        "ConnectTimeout",
+        "ReadTimeout",
+        "TimeoutError",
+        "APITimeoutError",
+        "RemoteProtocolError",
+    }
+    auth_names = {"AuthenticationError", "PermissionDeniedError"}
+    rate_names = {"RateLimitError"}
+
+    if name in rate_names:
+        return 429, {
+            "error": "provider_rate_limited",
+            "message": f"Provider AI zwrócił limit/rate limit. Spróbuj ponownie za chwilę. (details: {message})",
+        }
+
+    if name in auth_names:
+        return 400, {
+            "error": "provider_auth_error",
+            "message": f"Błąd autoryzacji do providera AI. Sprawdź klucz API i ewentualnie BASE_URL. (details: {message})",
+        }
+
+    if name in network_names or "connection" in message.lower() or "timeout" in message.lower():
+        # 502/504 zamiast 400: to nie jest błąd użytkownika.
+        status = 504 if "timeout" in message.lower() else 502
+        err = "provider_timeout" if status == 504 else "provider_connection_error"
+        hint = (
+            "Nie udało się połączyć z providerem AI (sieć/DNS/firewall). "
+            "Sprawdź, czy kontener backend ma wyjście na internet oraz czy klucz API i (jeśli ustawione) BASE_URL są poprawne."
+        )
+        if status == 504:
+            hint = (
+                "Timeout podczas połączenia z providerem AI. "
+                "Sprawdź łączność z internetem z kontenera backend, ewentualny firewall oraz obciążenie providera."
+            )
+        return status, {"error": err, "message": f"{hint} (details: {message})"}
+
+    # Default: błąd provider'a (np. zły model, niepoprawny request)
+    return 400, {"error": "provider_error", "message": f"Błąd providera AI. (details: {message})"}
 
 
 # endpointy proxy do inventory (żeby ui mogło działać w obrębie jednego modułu api)
@@ -503,9 +556,14 @@ def generate_parameter_plan(body: ParameterPlanRequest):
         })
         raw = _call_model(body.provider or "gemini", body.model, system, user)
         run.log("provider_call", "raw_received", {"chars": len(raw)})
+    except _ProviderChatError as e:
+        # typowo: brak klucza api / brak sdk
+        run.log("provider_call", "failed", {"type": e.__class__.__name__, "error": str(e)})
+        raise HTTPException(status_code=400, detail={"error": "provider_config", "message": str(e)})
     except Exception as e:
-        run.log("provider_call", "failed", {"error": str(e)})
-        raise HTTPException(status_code=400, detail={"error": "provider_error", "message": str(e)})
+        status, detail = _map_provider_exception(e)
+        run.log("provider_call", "failed", {"type": e.__class__.__name__, "error": str(e), "mapped": detail.get("error")})
+        raise HTTPException(status_code=status, detail=detail)
 
     # parsowanie json z kilkoma "barierkami", żeby drobne błędy formatu nie psuły całego ux
     parsed, errors = _safe_parse_json(raw)

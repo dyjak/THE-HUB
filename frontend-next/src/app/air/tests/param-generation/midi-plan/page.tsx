@@ -1,9 +1,10 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getApiBaseUrl } from '@/lib/apiBase';
 
 type ProviderInfo = { id: string; name: string; default_model?: string };
 
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+const API_BASE = getApiBaseUrl();
 
 const DEFAULT_PLAN = {
   style: "ambient",

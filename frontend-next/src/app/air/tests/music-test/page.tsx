@@ -1,17 +1,21 @@
 'use client';
 
 import { useState } from 'react';
+import { getApiBaseUrl } from '@/lib/apiBase';
 
 export default function SimpleTestPage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [results, setResults] = useState<any[]>([]);
   const [files, setFiles] = useState<any>({});
 
+  const API_BASE = getApiBaseUrl();
+  const API_PREFIX = '/api';
+
   const runTest = async (testName: string, endpoint: string) => {
     setLoading(testName);
 
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/music-tests/${endpoint}`, {
+      const response = await fetch(`${API_BASE}${API_PREFIX}/music-tests/${endpoint}`, {
         method: 'POST'
       });
 
@@ -36,7 +40,7 @@ export default function SimpleTestPage() {
 
   const loadFiles = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/music-tests/list-files');
+      const response = await fetch(`${API_BASE}${API_PREFIX}/music-tests/list-files`);
       const data = await response.json();
       setFiles(data);
     } catch (error) {

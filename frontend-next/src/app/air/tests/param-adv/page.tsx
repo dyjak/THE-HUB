@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback } from "react";
 import ReactMarkdown from 'react-markdown';
+import { getApiBaseUrl } from '@/lib/apiBase';
 
 // Backend base URL – ustaw zmienną NEXT_PUBLIC_BACKEND_URL w .env.local jeśli backend działa pod innym hostem/portem
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+const API_BASE = getApiBaseUrl();
 const API_PREFIX = '/api';
 
 // ---- Types (mirroring backend dataclasses) ----

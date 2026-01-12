@@ -20,6 +20,7 @@ from app.air.providers.client import (
     get_anthropic_client as _get_anthropic_client,
     get_gemini_client as _get_gemini_client,
     get_openrouter_client as _get_openrouter_client,
+    ChatError as _ProviderChatError,
 )
 from app.auth.dependencies import get_current_user
 
@@ -32,6 +33,51 @@ router = APIRouter(
 
 BASE_OUTPUT_DIR = Path(__file__).parent / "output"
 BASE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _map_provider_exception(e: Exception, *, default_error: str) -> tuple[int, dict[str, str]]:
+    name = e.__class__.__name__
+    message = str(e) or name
+
+    network_names = {
+        "APIConnectionError",
+        "ConnectError",
+        "ConnectTimeout",
+        "ReadTimeout",
+        "TimeoutError",
+        "APITimeoutError",
+        "RemoteProtocolError",
+    }
+    auth_names = {"AuthenticationError", "PermissionDeniedError"}
+    rate_names = {"RateLimitError"}
+
+    if name in rate_names:
+        return 429, {
+            "error": "provider_rate_limited",
+            "message": f"Provider AI zwrócił limit/rate limit. Spróbuj ponownie za chwilę. (details: {message})",
+        }
+
+    if name in auth_names:
+        return 400, {
+            "error": "provider_auth_error",
+            "message": f"Błąd autoryzacji do providera AI. Sprawdź klucz API i ewentualnie BASE_URL. (details: {message})",
+        }
+
+    if name in network_names or "connection" in message.lower() or "timeout" in message.lower():
+        status = 504 if "timeout" in message.lower() else 502
+        err = "provider_timeout" if status == 504 else "provider_connection_error"
+        hint = (
+            "Nie udało się połączyć z providerem AI (sieć/DNS/firewall). "
+            "Sprawdź, czy kontener backend ma wyjście na internet oraz czy klucz API i (jeśli ustawione) BASE_URL są poprawne."
+        )
+        if status == 504:
+            hint = (
+                "Timeout podczas połączenia z providerem AI. "
+                "Sprawdź łączność z internetem z kontenera backend, ewentualny firewall oraz obciążenie providera."
+            )
+        return status, {"error": err, "message": f"{hint} (details: {message})"}
+
+    return 400, {"error": default_error, "message": f"Błąd providera AI. (details: {message})"}
 
 
 def _call_composer(provider: str, model: Optional[str], meta: Dict[str, Any]) -> tuple[str, str, str]:
@@ -186,8 +232,11 @@ def compose(req: MidiGenerationIn) -> MidiGenerationOut:
             system, user, raw_text = _call_composer(provider, model, meta)
         except HTTPException:
             raise
+        except _ProviderChatError as e:
+            raise HTTPException(status_code=400, detail={"error": "provider_config", "message": str(e)})
         except Exception as e:
-            raise HTTPException(status_code=400, detail={"error": "composer_error", "message": str(e)})
+            status, detail = _map_provider_exception(e, default_error="composer_error")
+            raise HTTPException(status_code=status, detail=detail)
         parsed, parse_errors = _safe_parse_midi_json(raw_text)
         raw_midi_json = parsed
         errors.extend(parse_errors)
