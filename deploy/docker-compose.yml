@@ -50,6 +50,10 @@ services:
       NEXTAUTH_URL: ${HUB_PUBLIC_URL:-http://localhost}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change-me}
 
+      # Server-side calls (NextAuth authorize) should use the internal backend,
+      # especially when the public origin is protected by Basic Auth.
+      BACKEND_INTERNAL_URL: http://backend:8000
+
       # Also available at runtime (some code may read it server-side)
       NEXT_PUBLIC_BACKEND_URL: ${HUB_PUBLIC_URL:-http://localhost}
 

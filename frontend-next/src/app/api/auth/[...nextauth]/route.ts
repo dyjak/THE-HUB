@@ -4,10 +4,15 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import axios from "axios";
 
-// bazowy url backendu fastapi (uwaga: dokładamy /api).
-const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL
-  ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api`
-  : "http://127.0.0.1:8000/api";
+// Bazowy url backendu fastapi.
+// w trybie publicznym Caddy może mieć Basic Auth, a wtedy server-side fetch
+// z NextAuth do publicznego URL będzie kończył się 401. Dlatego preferujemy
+// BACKEND_INTERNAL_URL (np. http://backend:8000) w sieci docker-compose.
+const BACKEND_BASE_URL = (process.env.BACKEND_INTERNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000")
+  .replace(/\/$/, "");
+
+// (dokładamy /api)
+const API_URL = `${BACKEND_BASE_URL}/api`;
 
 const handler = NextAuth({
   providers: [

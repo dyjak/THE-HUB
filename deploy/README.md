@@ -156,6 +156,21 @@ Od teraz wchodzisz normalnie: `https://hub.twojadomena.pl` i przeglądarka popro
 - Jeśli nie masz domeny i wejdziesz po samym IP (HTTP), to hasło będzie leciało niezaszyfrowane → niezalecane.
 - Basic Auth to „bramka”, ale nie zastępuje normalnego systemu uprawnień (to nadal publiczny serwis z hasłem).
 
+### Uwaga: NextAuth + Basic Auth
+
+W tym projekcie logowanie działa przez NextAuth (server-side) i wywołuje backend `/api/login`.
+Jeśli cały serwis jest za Basic Auth, a NextAuth próbowałby dzwonić do backendu po publicznym URL, logowanie może kończyć się błędem (401 od Caddy) mimo poprawnych danych.
+
+Rozwiązanie: frontend w docker-compose ma ustawione `BACKEND_INTERNAL_URL=http://backend:8000` i NextAuth używa tego adresu do logowania wewnątrz sieci Docker.
+
+Po aktualizacji tej logiki przebuduj frontend:
+
+```sh
+cd ~/THE-HUB/deploy
+docker compose -f docker-compose.yml -f docker-compose.public.yml --env-file .env build frontend
+docker compose -f docker-compose.yml -f docker-compose.public.yml --env-file .env up -d
+```
+
 ## Najważniejsze komendy „po zmianach” (cheat-sheet)
 
 Wszystkie komendy poniżej uruchamiaj z katalogu `deploy/`.
@@ -272,4 +287,32 @@ Po uwolnieniu portów uruchom ponownie:
 cd ~/THE-HUB/deploy
 docker compose -f docker-compose.yml -f docker-compose.public.yml --env-file .env up -d --build
 ```
+
+### Let's Encrypt: timeout podczas wydawania certyfikatu (tryb public)
+
+Objaw w logach Caddy:
+
+- `Timeout during connect (likely firewall problem)` przy `http-01` lub `tls-alpn-01`
+
+To oznacza, że Let’s Encrypt nie może połączyć się z Twoim serwerem po publicznym IP.
+
+Checklist:
+
+```sh
+# 1) Czy DNS wskazuje na IP VPS?
+getent ahosts $HUB_DOMAIN | head
+
+# 2) Czy VPS faktycznie ma to publiczne IP?
+curl -4 ifconfig.me ; echo
+
+# 3) Czy Caddy słucha na 80/443 lokalnie?
+sudo ss -ltnp | egrep ':(80|443)\s'
+
+# 4) Czy firewall na VPS przepuszcza 80/443?
+sudo ufw status verbose || true
+```
+
+Jeśli używasz DuckDNS i widzisz, że domena wskazuje na inne IP niż `ifconfig.me`, zaktualizuj wpis w DuckDNS na aktualne IP VPS (albo włącz auto-update po stronie DuckDNS).
+
+Jeśli DNS jest OK i Caddy słucha, a dalej jest timeout, to najczęściej blokada jest w firewallu dostawcy (np. OVH) albo w regułach sieciowych VPS. Otwórz inbound `80/tcp` i `443/tcp`.
 
